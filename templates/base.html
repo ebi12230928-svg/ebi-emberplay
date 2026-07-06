@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EMBERPLAY{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('lobby.index') if nav_user.is_authenticated else url_for('auth.login') }}" class="brand">
+      EMBER<span class="dot">PLAY</span>
+    </a>
+
+    {% if nav_user.is_authenticated %}
+    <div class="nav-links">
+      <a href="{{ url_for('lobby.index') }}">ロビー</a>
+      <a href="{{ url_for('rewards.wallet') }}">ウォレット</a>
+      <a href="{{ url_for('lobby.history') }}">履歴</a>
+      <a href="{{ url_for('leaderboard.index') }}">ランキング</a>
+      <a href="{{ url_for('rewards.fairness_settings') }}">フェアネス</a>
+      {% if nav_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">管理者</a>{% endif %}
+    </div>
+    <div class="nav-right">
+      <a href="{{ url_for('notifications.list_notifications') }}" class="bell-icon" title="お知らせ">
+        🔔
+        {% if unread_notifications and unread_notifications > 0 %}
+        <span class="bell-badge">{{ unread_notifications if unread_notifications < 10 else "9+" }}</span>
+        {% endif %}
+      </a>
+      <div class="odometer" id="balance-odometer">
+        <span class="unit">Embers</span>
+        <span class="value" id="balance-value">{{ "{:,}".format(nav_user.balance) }}</span>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost">ログアウト</a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <div class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <script src="{{ url_for('static', filename='js/balance.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

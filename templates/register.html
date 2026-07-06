@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}新規登録 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<div class="panel auth-card">
+  <span class="eyebrow">はじめまして</span>
+  <h2>新規登録</h2>
+  <p style="font-size: 13px; margin-bottom: 20px;">登録するだけで {{ "{:,}".format(signup_bonus) }} Embersを進呈します。すべてエンタメ専用ポイントで、現金・ギフトカード・暗号資産などへの交換は一切できません。</p>
+  <form method="POST">
+    <div class="field">
+      <label for="username">ユーザー名(英数字・3〜20文字)</label>
+      <input type="text" id="username" name="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">パスワード(8文字以上)</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <div class="field">
+      <label for="password2">パスワード(確認)</label>
+      <input type="password" id="password2" name="password2" required>
+    </div>
+    <button type="submit" class="btn btn-ember btn-block">登録する</button>
+  </form>
+  <p style="margin-top: 16px; font-size: 13px;">
+    すでにアカウントをお持ちの方は <a href="{{ url_for('auth.login') }}" style="color: var(--gold);">ログイン</a>
+  </p>
+</div>
+{% endblock %}

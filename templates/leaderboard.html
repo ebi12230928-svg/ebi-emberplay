@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}ランキング ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">ランキング</span>
+<h1>プレイヤーランキング</h1>
+
+<div class="reward-grid" style="margin-bottom: 32px;">
+  <div class="panel">
+    <h3 style="margin-bottom: 16px;">残高ランキング</h3>
+    {% for u in top_balance %}
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <span>{{ loop.index }}. {{ u.username }}</span>
+      <span class="mono" style="color: var(--gold);">{{ "{:,}".format(u.balance) }}</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">データがありません。</p>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-bottom: 16px;">最大獲得ランキング</h3>
+    {% for net, bet in top_gains %}
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <span>{{ loop.index }}. {{ bet.user.username }} <span class="text-muted" style="font-size:12px;">({{ bet.game }})</span></span>
+      <span class="mono text-win">+{{ "{:,}".format(net) }}</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">データがありません。</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

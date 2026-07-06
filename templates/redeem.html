@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}コード引き換え ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">コード引き換え</span>
+<h1>コードを入力する</h1>
+
+<div class="panel auth-card">
+  <form method="POST">
+    <div class="field">
+      <label for="code">コード</label>
+      <input type="text" id="code" name="code" required autofocus style="text-transform: uppercase;">
+    </div>
+    <button type="submit" class="btn btn-ember btn-block">引き換える</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}管理者 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">管理者専用</span>
+<h1>管理パネル</h1>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>ポイントを付与(個別)</h3>
+  <form method="POST" action="{{ url_for('admin.grant_points') }}">
+    <div class="field">
+      <label for="username">ユーザー名</label>
+      <input type="text" id="username" name="username" required>
+    </div>
+    <div class="field">
+      <label for="amount">付与数(マイナス値で減算)</label>
+      <input type="number" id="amount" name="amount" required>
+    </div>
+    <div class="field">
+      <label for="reason">理由(任意)</label>
+      <input type="text" id="reason" name="reason">
+    </div>
+    <button type="submit" class="btn btn-ember">付与する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>ポイントを一斉配布/回収(全プレイヤー)</h3>
+  <p style="font-size: 13px;">全プレイヤーに通知が送られます。</p>
+  <form method="POST" action="{{ url_for('admin.broadcast_points') }}">
+    <div class="field">
+      <label for="b-amount">付与数(マイナス値で一斉回収)</label>
+      <input type="number" id="b-amount" name="amount" required>
+    </div>
+    <div class="field">
+      <label for="b-reason">理由(任意)</label>
+      <input type="text" id="b-reason" name="reason">
+    </div>
+    <button type="submit" class="btn btn-ember">全員に適用する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>借金の設定</h3>
+  <p style="font-size: 13px;">対象ユーザーの残高はいったん0になり、完済するまで勝利分が残高に反映されなくなります。本人に通知が送られます。</p>
+  <form method="POST" action="{{ url_for('admin.set_debt') }}">
+    <div class="field">
+      <label for="d-username">ユーザー名</label>
+      <input type="text" id="d-username" name="username" required>
+    </div>
+    <div class="field">
+      <label for="d-amount">借金額</label>
+      <input type="number" id="d-amount" name="amount" min="1" required>
+    </div>
+    <div class="field">
+      <label for="d-reason">理由(任意)</label>
+      <input type="text" id="d-reason" name="reason">
+    </div>
+    <button type="submit" class="btn btn-ember">借金を設定する</button>
+  </form>
+  <form method="POST" action="{{ url_for('admin.clear_debt') }}" style="margin-top: 10px;">
+    <div class="field">
+      <label for="c-username">借金を免除するユーザー名</label>
+      <input type="text" id="c-username" name="username" required>
+    </div>
+    <button type="submit" class="btn btn-ghost">借金を免除する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>コードを発行</h3>
+  <form method="POST" action="{{ url_for('admin.create_code') }}">
+    <div class="field">
+      <label for="code">コード(空欄で自動生成)</label>
+      <input type="text" id="code" name="code" placeholder="例: EMBER2026">
+    </div>
+    <div class="field">
+      <label for="code-amount">付与ポイント数</label>
+      <input type="number" id="code-amount" name="amount" min="1" required>
+    </div>
+    <div class="field">
+      <label for="code-type">種別</label>
+      <select id="code-type" name="code_type">
+        <option value="once_per_user">1人1回まで(人数無制限)</option>
+        <option value="global_limit">全体で合計N回まで</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="max-global-uses">全体での利用上限回数(「全体で合計N回」を選んだ場合のみ)</label>
+      <input type="number" id="max-global-uses" name="max_global_uses" min="1">
+    </div>
+    <button type="submit" class="btn btn-ember">コードを発行する</button>
+  </form>
+
+  {% if codes %}
+  <table style="margin-top: 20px;">
+    <thead><tr><th>コード</th><th>種別</th><th>金額</th><th>利用状況</th><th>状態</th><th></th></tr></thead>
+    <tbody>
+      {% for c in codes %}
+      <tr>
+        <td class="mono">{{ c.code }}</td>
+        <td class="text-muted">{{ "1人1回" if c.code_type == "once_per_user" else "全体で" ~ c.max_global_uses ~ "回" }}</td>
+        <td class="mono">{{ "{:,}".format(c.amount) }}</td>
+        <td class="text-muted">{{ c.total_uses }}回利用</td>
+        <td>{{ "有効" if c.active else "無効" }}</td>
+        <td>
+          {% if c.active %}
+          <form method="POST" action="{{ url_for('admin.deactivate_code') }}" style="display:inline;">
+            <input type="hidden" name="code_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">無効化</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>ユーザー検索</h3>
+  <form method="GET" style="display: flex; gap: 10px; margin-bottom: 16px;">
+    <input type="text" name="q" value="{{ query }}" placeholder="ユーザー名で検索" style="flex:1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+    <button type="submit" class="btn btn-ghost">検索</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr><th>ユーザー名</th><th>残高</th><th>借金</th><th>管理者</th><th>登録日</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td class="mono">{{ "{:,}".format(u.balance) }}</td>
+        <td class="mono {{ 'text-loss' if u.debt else 'text-muted' }}">{{ "{:,}".format(u.debt) if u.debt else "-" }}</td>
+        <td>{{ "はい" if u.is_admin else "いいえ" }}</td>
+        <td class="text-muted">{{ u.created_at.strftime("%Y/%m/%d") }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.toggle_admin') }}" style="display:inline;">
+            <input type="hidden" name="username" value="{{ u.username }}">
+            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">
+              {{ "管理者を解除" if u.is_admin else "管理者にする" }}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <h3>最近の取引</h3>
+  <table>
+    <thead>
+      <tr><th>ユーザー</th><th>種別</th><th>金額</th><th>詳細</th><th>日時</th></tr>
+    </thead>
+    <tbody>
+      {% for tx in recent_tx %}
+      <tr>
+        <td>{{ tx.user.username }}</td>
+        <td class="text-muted">{{ tx.kind }}</td>
+        <td class="mono {{ 'text-win' if tx.amount > 0 else 'text-loss' }}">{{ "{:+,}".format(tx.amount) }}</td>
+        <td class="text-muted">{{ tx.description }}</td>
+        <td class="text-muted">{{ tx.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

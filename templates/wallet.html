@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}ウォレット ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">ウォレット</span>
+<h1>報酬を受け取る</h1>
+<p>Embersはすべて無料の報酬から得られます。現金・ギフトカード・暗号資産などへの交換は今後も一切行いません。</p>
+
+{% if nav_user.debt and nav_user.debt > 0 %}
+<div class="panel" style="border-color: var(--loss); margin-bottom: 24px;">
+  <h3 style="color: var(--loss); margin-bottom: 8px;">借金残高: {{ "{:,}".format(nav_user.debt) }}</h3>
+  <p style="margin: 0;">
+    完済するまで、ゲームでの勝利分は残高に反映されず、すべて借金の返済に充てられます。
+    完済した瞬間に余った分の1%が残高として反映され、以降は通常どおりプレイできます。
+    {% if monthly_locked %}<br><strong style="color: var(--loss);">借金を1ヶ月以内に返済しなかったため、マンスリー報酬は完済まで利用できません。</strong>{% endif %}
+  </p>
+</div>
+{% endif %}
+
+<div class="reward-grid">
+  <div class="reward-card">
+    <h3>デイリー</h3>
+    <div class="reward-amount">+{{ "{:,}".format(config.DAILY_REWARD) }}</div>
+    <form method="POST" action="{{ url_for('rewards.claim_daily') }}">
+      <button class="btn btn-ember btn-block" {% if daily_wait > 0 %}disabled{% endif %}>
+        {% if daily_wait > 0 %}受取済み{% else %}受け取る{% endif %}
+      </button>
+    </form>
+    {% if daily_wait > 0 %}<span class="countdown" data-countdown="{{ daily_wait }}"></span>{% endif %}
+  </div>
+
+  <div class="reward-card">
+    <h3>ウィークリー</h3>
+    <div class="reward-amount">+{{ "{:,}".format(config.WEEKLY_REWARD) }}</div>
+    <form method="POST" action="{{ url_for('rewards.claim_weekly') }}">
+      <button class="btn btn-ember btn-block" {% if weekly_wait > 0 %}disabled{% endif %}>
+        {% if weekly_wait > 0 %}受取済み{% else %}受け取る{% endif %}
+      </button>
+    </form>
+    {% if weekly_wait > 0 %}<span class="countdown" data-countdown="{{ weekly_wait }}"></span>{% endif %}
+  </div>
+
+  <div class="reward-card">
+    <h3>マンスリー</h3>
+    <div class="reward-amount">+{{ "{:,}".format(config.MONTHLY_REWARD) }}</div>
+    <form method="POST" action="{{ url_for('rewards.claim_monthly') }}">
+      <button class="btn btn-ember btn-block" {% if monthly_wait > 0 or monthly_locked %}disabled{% endif %}>
+        {% if monthly_locked %}借金完済まで利用不可{% elif monthly_wait > 0 %}受取済み{% else %}受け取る{% endif %}
+      </button>
+    </form>
+    {% if monthly_wait > 0 and not monthly_locked %}<span class="countdown" data-countdown="{{ monthly_wait }}"></span>{% endif %}
+  </div>
+
+  <div class="reward-card">
+    <h3>リロード</h3>
+    <div class="reward-amount">+{{ "{:,}".format(config.RELOAD_AMOUNT) }}</div>
+    <p style="font-size: 12px; margin: 0;">残高が {{ "{:,}".format(config.RELOAD_THRESHOLD) }} Embers以下の時のみ</p>
+    <form method="POST" action="{{ url_for('rewards.claim_reload') }}">
+      <button class="btn btn-ember btn-block" {% if reload_wait > 0 or not reload_eligible %}disabled{% endif %}>
+        {% if not reload_eligible %}残高が十分です{% elif reload_wait > 0 %}受取済み{% else %}受け取る{% endif %}
+      </button>
+    </form>
+    {% if reload_wait > 0 %}<span class="countdown" data-countdown="{{ reload_wait }}"></span>{% endif %}
+  </div>
+
+  <div class="reward-card">
+    <h3>レーキバック</h3>
+    <div class="reward-amount">+{{ "{:,}".format(nav_user.pending_rakeback) }}</div>
+    <p style="font-size: 12px; margin: 0;">プレイ料の{{ (config.RAKEBACK_RATE * 100) | round(1) }}%が自動で積み立てられます</p>
+    <form method="POST" action="{{ url_for('rewards.claim_rakeback') }}">
+      <button class="btn btn-ember btn-block" {% if nav_user.pending_rakeback <= 0 %}disabled{% endif %}>受け取る</button>
+    </form>
+  </div>
+
+  <div class="reward-card">
+    <h3>コード引き換え</h3>
+    <p style="font-size: 12px; margin: 0;">運営から発行されたコードをお持ちの場合はこちらから。</p>
+    <a href="{{ url_for('rewards.redeem') }}" class="btn btn-ghost btn-block">コードを入力する</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function formatCountdown(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = Math.floor(totalSeconds % 60);
+    return `残り ${h}時間 ${m}分 ${s}秒`;
+  }
+
+  document.querySelectorAll("[data-countdown]").forEach((el) => {
+    let remaining = parseInt(el.dataset.countdown, 10);
+    const tick = () => {
+      if (remaining <= 0) {
+        location.reload();
+        return;
+      }
+      el.textContent = formatCountdown(remaining);
+      remaining -= 1;
+    };
+    tick();
+    setInterval(tick, 1000);
+  });
+</script>
+{% endblock %}

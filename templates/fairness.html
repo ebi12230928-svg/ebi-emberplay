@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}フェアネス ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">プロヴァブリーフェア</span>
+<h1>結果の検証</h1>
+<p>すべてのゲーム結果は、事前に固定されたサーバーシード・あなたが決めるクライアントシード・回数(nonce)から計算されます。プレイ後にサーバーシードを公開し、誰でも同じ結果になることを検証できます。</p>
+
+<div class="panel">
+  <h3>現在のシード</h3>
+  <div class="field">
+    <label>サーバーシードのハッシュ(公開済み)</label>
+    <input type="text" value="{{ user.server_seed_hash }}" readonly class="mono">
+  </div>
+  <div class="field">
+    <label>現在のnonce</label>
+    <input type="text" value="{{ user.nonce }}" readonly class="mono">
+  </div>
+
+  <form method="POST">
+    <div class="field">
+      <label for="client_seed">クライアントシード</label>
+      <input type="text" id="client_seed" name="client_seed" value="{{ user.client_seed }}">
+    </div>
+    <button type="submit" class="btn btn-ember">クライアントシードを更新</button>
+  </form>
+
+  <hr class="divider">
+
+  <p style="font-size: 13px;">サーバーシードをローテーションすると、これまで使っていたシードが公開され、過去の結果を第三者が再計算して検証できるようになります。ローテーション後は新しいシードに切り替わります。</p>
+  <form method="POST">
+    <input type="hidden" name="action" value="rotate">
+    <button type="submit" class="btn btn-ghost">サーバーシードをローテーション</button>
+  </form>
+</div>
+{% endblock %}

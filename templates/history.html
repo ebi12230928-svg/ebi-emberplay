@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}プレイ履歴 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">履歴</span>
+<h1>プレイ履歴</h1>
+
+<div class="panel" style="padding: 0; overflow: hidden;">
+  <div style="display:flex; justify-content: space-between; padding: 16px 20px; background: var(--bg-raised); font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+    <span>ゲーム</span>
+    <span>結果</span>
+  </div>
+  {% for bet in items %}
+  <div style="display:flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid var(--panel-border);">
+    <span style="font-weight: 700;">{{ bet.game | capitalize }}</span>
+    {% set net = bet.payout - bet.wager %}
+    <span class="mono {{ 'text-win' if net > 0 else ('text-loss' if net < 0 else 'text-muted') }}">
+      {{ "{:+,}".format(net) }}
+    </span>
+  </div>
+  {% else %}
+  <div style="padding: 20px;"><p class="text-muted" style="margin:0;">まだプレイ履歴がありません。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

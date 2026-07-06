@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}お知らせ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">お知らせ</span>
+<h1>通知</h1>
+
+{% if not items %}
+<div class="panel"><p style="margin:0;">通知はまだありません。</p></div>
+{% else %}
+<div class="panel" style="padding: 0;">
+  {% for n in items %}
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border);">
+    <p style="margin: 0 0 4px; color: var(--text);">{{ n.message }}</p>
+    <span class="mono text-muted" style="font-size: 12px;">{{ n.created_at.strftime("%Y/%m/%d %H:%M") }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

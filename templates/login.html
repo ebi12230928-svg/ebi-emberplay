@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}ログイン ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<div class="panel auth-card">
+  <span class="eyebrow">おかえりなさい</span>
+  <h2>ログイン</h2>
+  <form method="POST">
+    <div class="field">
+      <label for="username">ユーザー名</label>
+      <input type="text" id="username" name="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn btn-ember btn-block">ログイン</button>
+  </form>
+  <p style="margin-top: 16px; font-size: 13px;">
+    アカウントをお持ちでない方は <a href="{{ url_for('auth.register') }}" style="color: var(--gold);">新規登録</a>
+  </p>
+</div>
+{% endblock %}

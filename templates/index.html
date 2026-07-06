@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}ロビー ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
+<h1>今夜、どのテーブルで遊ぶ？</h1>
+<p>Embersは無料の報酬でのみ手に入る、遊びのためだけのポイントです。デイリー・ウィークリー・マンスリー・リロード・レーキバックはウォレットから受け取れます。</p>
+
+{% if recent %}
+<div class="ticker">
+  <div class="ticker-track">
+    {% for bet in recent + recent %}
+    <span class="ticker-item">
+      <strong>{{ bet.user.username }}</strong>
+      <span class="text-muted">{{ bet.game }}</span>
+      {% if bet.payout > bet.wager %}
+        <span class="win">+{{ "{:,}".format(bet.payout - bet.wager) }}</span>
+      {% else %}
+        <span class="loss">-{{ "{:,}".format(bet.wager) }}</span>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="game-grid">
+  {% for game in games %}
+    {% if game.ready %}
+    <a class="game-card" href="{{ url_for('games.' + game.slug + '_page') }}">
+      <span class="badge">Play</span>
+      <h3>{{ game.name }}</h3>
+      <p>{{ game.tagline }}</p>
+    </a>
+    {% else %}
+    <div class="game-card" style="opacity: 0.55; cursor: not-allowed;">
+      <span class="badge soon">近日公開</span>
+      <h3>{{ game.name }}</h3>
+      <p>{{ game.tagline }}</p>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}
