@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Limbo ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Limbo</span>
+<h1>Limbo</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="target">目標倍率</label>
+      <input type="number" id="target" value="2.00" min="1.01" step="0.01">
+    </div>
+    <div class="field">
+      <label>勝率</label>
+      <div class="mono" id="odds-readout">--.--%</div>
+    </div>
+    <button class="btn btn-ember btn-block" id="play-btn">プレイ</button>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="limbo-multiplier" id="multiplier-readout">1.00x</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/limbo.js') }}"></script>
+{% endblock %}

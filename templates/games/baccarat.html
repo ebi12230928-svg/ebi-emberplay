@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Baccarat ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Baccarat</span>
+<h1>Baccarat</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="bet-on">選択対象</label>
+      <select id="bet-on">
+        <option value="player">Player(2倍)</option>
+        <option value="banker">Banker(1.95倍・5%コミッション)</option>
+        <option value="tie">Tie(9倍)</option>
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="play-btn">プレイ</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px; align-items: stretch;">
+      <div>
+        <div class="eyebrow">Banker</div>
+        <div class="mono" id="banker-hand" style="font-size: 28px;">--</div>
+        <div class="mono text-muted" id="banker-total"></div>
+      </div>
+      <hr class="divider" style="margin: 0;">
+      <div>
+        <div class="eyebrow">Player</div>
+        <div class="mono" id="player-hand" style="font-size: 28px;">--</div>
+        <div class="mono text-muted" id="player-total"></div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/baccarat.js') }}"></script>
+{% endblock %}

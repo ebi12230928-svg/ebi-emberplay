@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Video Poker ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Jacks or Better</span>
+<h1>Video Poker</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="deal-btn">配る</button>
+    <button class="btn btn-ghost btn-block" id="draw-btn" style="margin-top: 10px;" disabled>ドロー</button>
+
+    <hr class="divider">
+    <table style="font-size: 12px;">
+      {% for label, mult in paytable %}
+      <tr><td>{{ label }}</td><td class="mono" style="text-align:right;">{{ mult }}x</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div id="hand" style="display:flex; gap: 10px; font-size: 32px;"></div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/videopoker.js') }}"></script>
+{% endblock %}

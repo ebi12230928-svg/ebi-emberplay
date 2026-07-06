@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Dice ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Dice</span>
+<h1>Dice</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="direction">方向</label>
+      <select id="direction">
+        <option value="under">Roll Under(target未満で勝ち)</option>
+        <option value="over">Roll Over(target超で勝ち)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="target">ターゲット: <span id="target-label">50.00</span></label>
+      <input type="range" id="target" min="1" max="98" step="0.01" value="50">
+    </div>
+    <div class="field">
+      <label>勝率 / 倍率</label>
+      <div class="mono" id="odds-readout">49.50% ・ 1.9800x</div>
+    </div>
+    <button class="btn btn-ember btn-block" id="roll-btn">ロール</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div style="width:100%;">
+        <div class="dice-track" id="dice-track" style="--split: 50%;">
+          <div class="dice-marker" id="dice-marker" style="left: 0%;"></div>
+        </div>
+      </div>
+      <div class="result-readout" id="result-readout">--.--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dice.js') }}"></script>
+{% endblock %}

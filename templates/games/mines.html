@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Mines ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Mines</span>
+<h1>Mines</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="mine-count">地雷の数</label>
+      <input type="number" id="mine-count" value="3" min="1" max="24">
+    </div>
+    <button class="btn btn-ember btn-block" id="start-btn">ゲーム開始</button>
+    <button class="btn btn-ghost btn-block" id="cashout-btn" style="margin-top: 10px;" disabled>キャッシュアウト</button>
+
+    <hr class="divider">
+    <div class="field">
+      <label>現在の倍率</label>
+      <div class="mono" id="multiplier-readout" style="font-size: 24px;">1.0000x</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="mines-grid" id="mines-grid" data-grid-size="{{ grid_size }}"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mines.js') }}"></script>
+{% endblock %}

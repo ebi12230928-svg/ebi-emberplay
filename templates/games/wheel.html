@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Wheel ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Wheel</span>
+<h1>Wheel</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="segments">セグメント数</label>
+      <select id="segments">
+        {% for s in segment_options %}
+        <option value="{{ s }}" {% if s == 20 %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="risk">リスク</label>
+      <select id="risk">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="spin-btn">スピン</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="segment-row" style="display:flex; gap:4px; width:100%; justify-content:center; flex-wrap:wrap;"></div>
+      <div class="result-readout" id="result-readout">--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/wheel.js') }}"></script>
+{% endblock %}

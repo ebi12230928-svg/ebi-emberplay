@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Coin Flip ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Coin Flip</span>
+<h1>Coin Flip</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="side">選択</label>
+      <select id="side">
+        <option value="heads">Heads</option>
+        <option value="tails">Tails</option>
+      </select>
+    </div>
+    <p style="font-size: 12px;">勝った場合の配当: {{ multiplier }}x</p>
+    <button class="btn btn-ember btn-block" id="flip-btn">フリップ</button>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="result-readout" id="result-readout">--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/coinflip.js') }}"></script>
+{% endblock %}

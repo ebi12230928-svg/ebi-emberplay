@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Keno ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Keno</span>
+<h1>Keno</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <p style="font-size: 13px;">数字を最大{{ max_picks }}個まで選んでください。</p>
+    <div id="picks-readout" class="mono" style="margin-bottom: 16px;">選択中: 0個</div>
+    <button class="btn btn-ember btn-block" id="play-btn">プレイ</button>
+    <button class="btn btn-ghost btn-block" id="clear-btn" style="margin-top: 10px;">クリア</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div class="mines-grid" id="keno-grid" style="grid-template-columns: repeat(8, 1fr); max-width: 560px;" data-total="{{ total }}"></div>
+      <div class="result-readout" id="result-readout">--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/keno.js') }}"></script>
+{% endblock %}

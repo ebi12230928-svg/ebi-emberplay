@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Crash ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Crash</span>
+<h1>Crash</h1>
+<p>倍率が上昇し続けます。バーストする前に自分のタイミングでキャッシュアウトしてください。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="start-btn">スタート</button>
+    <button class="btn btn-ghost btn-block" id="cashout-btn" style="margin-top: 10px;" disabled>キャッシュアウト</button>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="limbo-multiplier" id="multiplier-readout">1.00x</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/crash.js') }}"></script>
+{% endblock %}
