@@ -18,3 +18,5 @@ from . import slots       # noqa: E402,F401
 from . import crash       # noqa: E402,F401
 from . import videopoker  # noqa: E402,F401
 from . import coinflip    # noqa: E402,F401
+from . import war         # noqa: E402,F401
+from . import sicbo       # noqa: E402,F401
