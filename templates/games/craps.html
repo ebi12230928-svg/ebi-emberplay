@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Craps ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Craps</span>
+<h1>Craps</h1>
+<p>Pass(勝ち進行を予想)またはDon't Pass(逆を予想)を選んでロール。ポイントが決まったら、次に7が出るか、ポイントと同じ目が出るまでロールを続けます。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="bet-type">選択</label>
+      <select id="bet-type">
+        <option value="pass">Pass Line</option>
+        <option value="dont_pass">Don't Pass</option>
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="start-btn">ロール(スタート)</button>
+    <button class="btn btn-ghost btn-block" id="roll-btn" style="margin-top: 10px;" disabled>もう一度ロール</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div style="display:flex; gap: 16px; font-size: 48px;">
+        <div id="die-0">🎲</div>
+        <div id="die-1">🎲</div>
+      </div>
+      <div class="mono" id="point-readout" style="font-size: 14px; color: var(--text-muted);"></div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/craps.js') }}"></script>
+{% endblock %}

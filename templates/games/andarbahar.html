@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Andar Bahar ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Andar Bahar</span>
+<h1>Andar Bahar</h1>
+<p>最初に引かれた「ジョーカー」と同じ数字のカードが、Andar(内側)とBahar(外側)どちらに先に出るかを予想します。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <button class="btn btn-ember" id="andar-btn" style="flex:1;">Andar(1.81倍)</button>
+      <button class="btn btn-ember" id="bahar-btn" style="flex:1;">Bahar(1.96倍)</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px; align-items: stretch;">
+      <div style="text-align:center;">
+        <div class="eyebrow">Joker</div>
+        <div class="mono" id="joker-card" style="font-size: 40px;">--</div>
+      </div>
+      <div style="display:flex; gap: 24px; justify-content: center;">
+        <div style="text-align:center;">
+          <div class="eyebrow">Andar</div>
+          <div class="mono" id="andar-cards" style="font-size: 18px; min-height: 28px;"></div>
+        </div>
+        <div style="text-align:center;">
+          <div class="eyebrow">Bahar</div>
+          <div class="mono" id="bahar-cards" style="font-size: 18px; min-height: 28px;"></div>
+        </div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/andarbahar.js') }}"></script>
+{% endblock %}

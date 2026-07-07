@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}American Roulette ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">American Roulette</span>
+<h1>American Roulette</h1>
+<p>0と00の両方があるルーレットです。ヨーロピアンより数字が1つ多い分、ストレート選択の的中率が下がります。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="bet-type">選択の種類</label>
+      <select id="bet-type">
+        <option value="straight">Straight(単一数字・33倍)</option>
+        <option value="red">Red(1.9倍)</option>
+        <option value="black">Black(1.9倍)</option>
+        <option value="odd">Odd(1.9倍)</option>
+        <option value="even">Even(1.9倍)</option>
+        <option value="low">Low 1-18(1.9倍)</option>
+        <option value="high">High 19-36(1.9倍)</option>
+        <option value="dozen1">1st Dozen 1-12(2.8倍)</option>
+        <option value="dozen2">2nd Dozen 13-24(2.8倍)</option>
+        <option value="dozen3">3rd Dozen 25-36(2.8倍)</option>
+        <option value="col1">Column 1(2.8倍)</option>
+        <option value="col2">Column 2(2.8倍)</option>
+        <option value="col3">Column 3(2.8倍)</option>
+      </select>
+    </div>
+    <div class="field" id="straight-field">
+      <label for="straight-value">数字(00または0〜36)</label>
+      <select id="straight-value">
+        <option value="00">00</option>
+        {% for n in range(0, 37) %}
+        <option value="{{ n }}" {% if n == 0 %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="spin-btn">スピン</button>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="result-readout" id="result-readout">--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/american_roulette.js') }}"></script>
+{% endblock %}

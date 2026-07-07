@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Red Dog ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Red Dog</span>
+<h1>Red Dog</h1>
+<p>2枚配られたカードの間に3枚目が入るかを予想するシンプルなカードゲームです。連番の場合はプッシュ(返金)、ペアの場合は4枚目まで引いて一致すれば高配当。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="play-btn">プレイ</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div style="display:flex; gap: 16px; font-size: 40px;">
+        <div id="card-1">--</div>
+        <div id="card-2">--</div>
+        <div id="card-3" style="color: var(--gold);">--</div>
+        <div id="card-4" style="color: var(--gold);">--</div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reddog.js') }}"></script>
+{% endblock %}
