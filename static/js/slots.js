@@ -1,4 +1,5 @@
 (function () {
+  const themeId = window.EMBERPLAY_SLOT_THEME;
   const wagerInput = document.getElementById("wager");
   const spinBtn = document.getElementById("spin-btn");
   const resultReadout = document.getElementById("result-readout");
@@ -10,7 +11,7 @@
     resultReadout.textContent = "";
 
     try {
-      const data = await EmberPlay.postJSON("/games/slots/spin", { wager: parseInt(wagerInput.value, 10) });
+      const data = await EmberPlay.postJSON(`/games/slots/${themeId}/spin`, { wager: parseInt(wagerInput.value, 10) });
 
       data.labels.forEach((label, i) => { reelEls[i].textContent = label; });
 
