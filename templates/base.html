@@ -16,6 +16,9 @@
     {% if nav_user.is_authenticated %}
     <div class="nav-links">
       <a href="{{ url_for('lobby.index') }}">ロビー</a>
+      <a href="{{ url_for('sportsbook.index') }}">スポーツ</a>
+      {% if nav_user.is_vip or nav_user.is_admin %}<a href="{{ url_for('vip.lounge') }}" style="color: var(--gold);">VIPラウンジ</a>{% endif %}
+      <a href="{{ url_for('chat.index') }}">チャット</a>
       <a href="{{ url_for('rewards.wallet') }}">ウォレット</a>
       <a href="{{ url_for('lobby.history') }}">履歴</a>
       <a href="{{ url_for('leaderboard.index') }}">ランキング</a>

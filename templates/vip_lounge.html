@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}VIPラウンジ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">VIP限定</span>
+<h1>VIPラウンジ</h1>
+<p>VIPメンバー限定のスポーツ観戦スペースです。試合日程・結果に加え、運営からのお知らせが届きます。</p>
+
+{% if nav_user.is_admin %}
+<div class="panel" style="margin-bottom: 24px; border-color: var(--gold);">
+  <h3>お知らせを投稿(管理者専用)</h3>
+  <form method="POST" action="{{ url_for('vip.post_announcement') }}">
+    <div class="field">
+      <label for="message">内容</label>
+      <textarea id="message" name="message" rows="3" style="width:100%; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text); font-family: var(--font-body);" placeholder="例: 今夜21:00からDAZNでプレミアリーグの放送があります"></textarea>
+    </div>
+    <button type="submit" class="btn btn-ember">投稿する</button>
+  </form>
+</div>
+{% endif %}
+
+<h2>運営からのお知らせ</h2>
+<div class="panel" style="padding: 0; margin-bottom: 32px;">
+  {% for a in announcements %}
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border); display:flex; justify-content: space-between; gap: 12px;">
+    <div>
+      <p style="margin: 0 0 4px; white-space: pre-wrap;">{{ a.message }}</p>
+      <span class="mono text-muted" style="font-size: 12px;">{{ a.created_by }} ・ {{ a.created_at.strftime("%Y/%m/%d %H:%M") }}</span>
+    </div>
+    {% if nav_user.is_admin %}
+    <form method="POST" action="{{ url_for('vip.delete_announcement') }}">
+      <input type="hidden" name="announcement_id" value="{{ a.id }}">
+      <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">削除</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <div style="padding: 20px;"><p class="text-muted" style="margin:0;">まだお知らせはありません。</p></div>
+  {% endfor %}
+</div>
+
+<div class="reward-grid">
+  <div class="panel">
+    <h3>今後の試合</h3>
+    {% for event in upcoming %}
+    <div style="padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <strong>{{ event.home_team }} vs {{ event.away_team }}</strong>
+      <div class="text-muted" style="font-size: 12px;">
+        {{ event.league_name }}
+        {% if event.event_time %} ・ {{ event.event_time.strftime("%Y/%m/%d %H:%M") }}(UTC){% endif %}
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">現在、予定されている試合がありません。</p>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h3>最近の結果</h3>
+    {% for event in finished %}
+    <div style="padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <strong>{{ event.home_team }} {{ event.home_score }} - {{ event.away_score }} {{ event.away_team }}</strong>
+      <div class="text-muted" style="font-size: 12px;">{{ event.league_name }}</div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">結果データがまだありません。</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

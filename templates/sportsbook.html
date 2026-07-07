@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}スポーツベット ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Sports</span>
+<h1>スポーツベット</h1>
+<p>
+  実際のサッカーの試合(プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ)の結果に賭けられます。
+  試合が終わると自動的に結果が反映され、的中していれば自動でEmbersが付与されます(お知らせにも通知が届きます)。
+</p>
+
+{% if not events %}
+<div class="panel"><p style="margin:0;">現在、賭けられる試合がありません。しばらくしてからまた確認してください。</p></div>
+{% endif %}
+
+{% for event in events %}
+<div class="panel" style="margin-bottom: 16px;">
+  <span class="eyebrow">{{ event.league_name }}</span>
+  <h3 style="margin-bottom: 4px;">{{ event.home_team }} vs {{ event.away_team }}</h3>
+  {% if event.event_time %}
+  <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">{{ event.event_time.strftime("%Y/%m/%d %H:%M") }}(UTC)</p>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('sportsbook.place_bet') }}">
+    <input type="hidden" name="event_id" value="{{ event.id }}">
+    <div class="field">
+      <label>プレイ料</label>
+      <input type="number" name="wager" value="100" min="1">
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <button type="submit" name="pick" value="home" class="btn btn-ghost" style="flex:1;">
+        {{ event.home_team }}<br><span class="mono">{{ event.odds_home }}x</span>
+      </button>
+      <button type="submit" name="pick" value="draw" class="btn btn-ghost" style="flex:1;">
+        引き分け<br><span class="mono">{{ event.odds_draw }}x</span>
+      </button>
+      <button type="submit" name="pick" value="away" class="btn btn-ghost" style="flex:1;">
+        {{ event.away_team }}<br><span class="mono">{{ event.odds_away }}x</span>
+      </button>
+    </div>
+  </form>
+</div>
+{% endfor %}
+
+<h2 style="margin-top: 32px;">あなたのベット履歴</h2>
+<div class="panel" style="padding: 0;">
+  {% for bet in bets %}
+  <div style="padding: 14px 20px; border-bottom: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center;">
+    <div>
+      <strong>{{ bet.event.home_team }} vs {{ bet.event.away_team }}</strong>
+      <div class="text-muted" style="font-size: 12px;">
+        選択: {{ {"home": bet.event.home_team, "draw": "引き分け", "away": bet.event.away_team}[bet.pick] }}
+        ・ {{ bet.odds }}x ・ {{ "{:,}".format(bet.wager) }} Embers
+      </div>
+    </div>
+    <span class="mono {{ 'text-win' if bet.status == 'won' else ('text-loss' if bet.status == 'lost' else 'text-muted') }}">
+      {% if bet.status == "pending" %}結果待ち
+      {% elif bet.status == "won" %}+{{ "{:,}".format(bet.payout) }}
+      {% else %}-{{ "{:,}".format(bet.wager) }}
+      {% endif %}
+    </span>
+  </div>
+  {% else %}
+  <div style="padding:20px;"><p class="text-muted" style="margin:0;">まだベット履歴がありません。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -3,8 +3,18 @@
 
 {% block content %}
 <span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
-<h1>今夜、どのテーブルで遊ぶ？</h1>
+<h1>今夜、どのテーブルで遊ぶ?</h1>
 <p>Embersは無料の報酬でのみ手に入る、遊びのためだけのポイントです。デイリー・ウィークリー・マンスリー・リロード・レーキバックはウォレットから受け取れます。</p>
+
+<div class="search-bar">
+  <input type="text" id="game-search" placeholder="ゲームを検索...">
+</div>
+
+<a href="{{ url_for('sportsbook.index') }}" class="panel" style="display:block; margin-bottom: 24px; border-color: var(--gold);">
+  <span class="eyebrow">NEW</span>
+  <h3 style="margin-bottom: 4px;">スポーツベット</h3>
+  <p style="margin: 0;">実際のサッカーの試合結果に賭けよう。プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ対応。</p>
+</a>
 
 {% if recent %}
 <div class="ticker">
@@ -24,16 +34,24 @@
 </div>
 {% endif %}
 
-<div class="game-grid">
-  {% for game in games %}
+<div id="no-results" style="display:none; text-align:center; padding: 40px 0; color: var(--text-muted);">
+  該当するゲームが見つかりませんでした。
+</div>
+
+{% for cat in categories %}
+<h2 style="margin-top: 32px;">{{ cat.label }}</h2>
+<div class="game-grid" data-category="{{ cat.key }}">
+  {% for game in cat.games %}
     {% if game.ready %}
-    <a class="game-card" href="{{ url_for('games.' + game.slug + '_page') }}">
+    <a class="game-card"
+       href="{{ url_for('games.slots_page', theme_id=game.theme_id) if game.category == 'slots' else url_for('games.' + game.slug + '_page') }}"
+       data-name="{{ game.name | lower }}">
       <span class="badge">Play</span>
       <h3>{{ game.name }}</h3>
       <p>{{ game.tagline }}</p>
     </a>
     {% else %}
-    <div class="game-card" style="opacity: 0.55; cursor: not-allowed;">
+    <div class="game-card" style="opacity: 0.55; cursor: not-allowed;" data-name="{{ game.name | lower }}">
       <span class="badge soon">近日公開</span>
       <h3>{{ game.name }}</h3>
       <p>{{ game.tagline }}</p>
@@ -41,4 +59,30 @@
     {% endif %}
   {% endfor %}
 </div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const searchInput = document.getElementById("game-search");
+  const noResults = document.getElementById("no-results");
+
+  searchInput.addEventListener("input", () => {
+    const query = searchInput.value.trim().toLowerCase();
+    let anyVisible = false;
+
+    document.querySelectorAll(".game-grid").forEach((grid) => {
+      let gridHasVisible = false;
+      grid.querySelectorAll("[data-name]").forEach((card) => {
+        const match = card.dataset.name.includes(query);
+        card.style.display = match ? "" : "none";
+        if (match) { gridHasVisible = true; anyVisible = true; }
+      });
+      grid.previousElementSibling.style.display = gridHasVisible ? "" : "none";
+      grid.style.display = gridHasVisible ? "" : "none";
+    });
+
+    noResults.style.display = anyVisible ? "none" : "block";
+  });
+</script>
 {% endblock %}
