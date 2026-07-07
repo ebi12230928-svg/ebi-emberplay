@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 # 合計値ごとの配当(house edge約12%で正規化済み)
 TOTAL_PAYOUTS = {
@@ -96,6 +96,7 @@ def sicbo_play():
         match_count = dice.count(target)
         multiplier = SINGLE_NUMBER_PAYOUTS.get(match_count, 0)
 
+    multiplier = scale_multiplier("sicbo", multiplier) if multiplier > 0 else 0
     payout = round(wager * multiplier) if multiplier > 0 else 0
     if payout > 0:
         credit_winnings(user, payout)

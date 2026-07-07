@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, TowerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 TOWER_HOUSE_EDGE = 0.07
 TOTAL_ROWS = 9
@@ -106,7 +106,7 @@ def tower_reveal():
         })
 
     game.current_row += 1
-    multiplier = _tower_multiplier(game.tiles_per_row, game.bad_per_row, game.current_row)
+    multiplier = scale_multiplier("tower", _tower_multiplier(game.tiles_per_row, game.bad_per_row, game.current_row))
     reached_top = game.current_row >= game.total_rows
 
     if reached_top:
@@ -139,7 +139,7 @@ def tower_cashout():
     if game.current_row <= 0:
         return jsonify({"error": "少なくとも1段登ってからキャッシュアウトしてください。"}), 400
 
-    multiplier = _tower_multiplier(game.tiles_per_row, game.bad_per_row, game.current_row)
+    multiplier = scale_multiplier("tower", _tower_multiplier(game.tiles_per_row, game.bad_per_row, game.current_row))
     payout = round(game.wager * multiplier)
 
     user = current_user

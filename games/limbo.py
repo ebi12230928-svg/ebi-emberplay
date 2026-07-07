@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 LIMBO_HOUSE_EDGE = 0.07
 
@@ -39,12 +39,13 @@ def limbo_play():
     user.nonce += 1
 
     win = result >= target
-    payout = round(wager * target) if win else 0
+    payout_multiplier = scale_multiplier("limbo", target) if win else 0
+    payout = round(wager * payout_multiplier) if win else 0
     credit_winnings(user, payout)
     apply_rakeback(user, wager)
 
     db.session.add(BetRecord(
-        user_id=user.id, game="limbo", wager=wager, payout=payout, multiplier=target if win else 0,
+        user_id=user.id, game="limbo", wager=wager, payout=payout, multiplier=payout_multiplier if win else 0,
         server_seed_hash=user.server_seed_hash, client_seed=user.client_seed, nonce=used_nonce,
         result_json=json.dumps({"result": result, "target": target})
     ))

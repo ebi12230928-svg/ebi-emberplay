@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, HiLoGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 HILO_HOUSE_EDGE = 0.07
 MAX_PASSES = 2
@@ -147,17 +147,18 @@ def hilo_cashout():
     if game.rounds_played <= 0:
         return jsonify({"error": "少なくとも1回正解してからキャッシュアウトしてください。"}), 400
 
-    payout = round(game.wager * game.multiplier)
+    final_multiplier = scale_multiplier("hilo", game.multiplier)
+    payout = round(game.wager * final_multiplier)
     user = current_user
     credit_winnings(user, payout)
     apply_rakeback(user, game.wager)
 
     db.session.add(BetRecord(
-        user_id=user.id, game="hilo", wager=game.wager, payout=payout, multiplier=game.multiplier,
+        user_id=user.id, game="hilo", wager=game.wager, payout=payout, multiplier=final_multiplier,
         server_seed_hash=game.server_seed_hash, client_seed=game.client_seed, nonce=game.nonce,
         result_json=json.dumps({"rounds_played": game.rounds_played})
     ))
     db.session.delete(game)
     db.session.commit()
 
-    return jsonify({"payout": payout, "multiplier": game.multiplier, "balance": user.balance})
+    return jsonify({"payout": payout, "multiplier": final_multiplier, "balance": user.balance})

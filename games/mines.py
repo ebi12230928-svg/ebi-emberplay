@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, MinesGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 MINES_HOUSE_EDGE = 0.07
 MINES_GRID_SIZE = 25
@@ -94,7 +94,7 @@ def mines_reveal():
     game.revealed_json = json.dumps(revealed)
     db.session.commit()
 
-    multiplier = _mines_multiplier(game.grid_size, game.mine_count, len(revealed))
+    multiplier = scale_multiplier("mines", _mines_multiplier(game.grid_size, game.mine_count, len(revealed)))
     safe_tiles_left = game.grid_size - game.mine_count - len(revealed)
 
     return jsonify({
@@ -114,7 +114,7 @@ def mines_cashout():
     if not revealed:
         return jsonify({"error": "1マス以上開けてからキャッシュアウトしてください。"}), 400
 
-    multiplier = _mines_multiplier(game.grid_size, game.mine_count, len(revealed))
+    multiplier = scale_multiplier("mines", _mines_multiplier(game.grid_size, game.mine_count, len(revealed)))
     payout = round(game.wager * multiplier)
 
     user = current_user

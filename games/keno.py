@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 KENO_HOUSE_EDGE = 0.09
 KENO_TOTAL = 40
@@ -51,6 +51,7 @@ def keno_play():
     matches = len(picks_zero_indexed & set(drawn_zero_indexed))
     table = fairness.keno_paytable(len(picks), drawn=KENO_DRAWN, total=KENO_TOTAL, house_edge=KENO_HOUSE_EDGE)
     multiplier = table[matches]
+    multiplier = scale_multiplier("keno", multiplier)
     payout = round(wager * multiplier)
 
     credit_winnings(user, payout)

@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, WarGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 RANK_NAMES = {1: "A", 11: "J", 12: "Q", 13: "K"}
 
@@ -66,13 +66,14 @@ def war_start():
         })
 
     won = war_value(player_rank) > war_value(dealer_rank)
-    payout = wager * 2 if won else 0
+    multiplier = scale_multiplier("war", 2.0) if won else 0
+    payout = round(wager * multiplier) if won else 0
     if won:
         credit_winnings(user, payout)
     apply_rakeback(user, wager)
 
     db.session.add(BetRecord(
-        user_id=user.id, game="war", wager=wager, payout=payout, multiplier=2 if won else 0,
+        user_id=user.id, game="war", wager=wager, payout=payout, multiplier=multiplier,
         server_seed_hash=user.server_seed_hash, client_seed=user.client_seed, nonce=used_nonce,
         result_json=json.dumps({"player": player_rank, "dealer": dealer_rank})
     ))
@@ -107,7 +108,7 @@ def war_go_to_war():
         credit_winnings(user, payout)
         result = "push"
     elif war_value(player_rank) > war_value(dealer_rank):
-        payout = game.total_wager * 2
+        payout = round(game.total_wager * scale_multiplier("war", 2.0))
         credit_winnings(user, payout)
         result = "win"
     else:

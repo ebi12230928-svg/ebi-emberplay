@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 PLINKO_HOUSE_EDGE = 0.06
 ALLOWED_ROWS = (8, 12, 16)
@@ -46,6 +46,7 @@ def plinko_play():
     bucket = sum(path)
     table = fairness.plinko_table(rows, risk, house_edge=PLINKO_HOUSE_EDGE)
     multiplier = table[bucket]
+    multiplier = scale_multiplier("plinko", multiplier)
     payout = round(wager * multiplier)
 
     credit_winnings(user, payout)

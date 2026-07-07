@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, next_float, credit_winnings
+from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier
 
 RED_NUMBERS = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
 
@@ -93,7 +93,7 @@ def american_roulette_spin():
     pocket = -1 if idx == 37 else idx  # idx 0-36は通常の数字、37番目が00
 
     win = _is_win(bet_type, value, pocket)
-    multiplier = BET_ODDS[bet_type] if win else 0
+    multiplier = scale_multiplier("american_roulette", BET_ODDS[bet_type]) if win else 0
     payout = round(wager * multiplier) if win else 0
 
     credit_winnings(user, payout)

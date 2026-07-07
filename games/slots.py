@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 # 各テーマの配当は「house edge目標(9〜12%)」で正規化済み(実際に全216通り enumerate して検証済み)
 THEMES = {
@@ -194,6 +194,7 @@ def slots_spin(theme_id):
 
     reels = [_pick_symbol(symbols, total_weight, f) for f in floats]
     multiplier = _payout_multiplier(reels)
+    multiplier = scale_multiplier("slots", multiplier)
     payout = round(wager * multiplier)
 
     if payout > 0:

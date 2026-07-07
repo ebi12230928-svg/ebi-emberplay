@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 
 def _card_value(rank):
@@ -106,6 +106,9 @@ def baccarat_play():
         multiplier = 1.95  # 5%のコミッション控除
     else:
         multiplier = 0
+
+    if multiplier > 1.0:
+        multiplier = scale_multiplier("baccarat", multiplier)
 
     payout = round(wager * multiplier)
     credit_winnings(user, payout)

@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 ANDAR_PAYOUT = 1.81
 BAHAR_PAYOUT = 1.96
@@ -70,6 +70,7 @@ def andarbahar_play():
 
     won = pick == winner
     multiplier = (ANDAR_PAYOUT if pick == "andar" else BAHAR_PAYOUT) if won else 0
+    multiplier = scale_multiplier("andarbahar", multiplier) if won else 0
     payout = round(wager * multiplier) if won else 0
 
     if payout > 0:

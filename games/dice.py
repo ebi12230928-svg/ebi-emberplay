@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 DICE_HOUSE_EDGE = 0.04
 
@@ -46,6 +46,7 @@ def dice_roll():
         win = roll > target
         multiplier = round((100 / (100 - target)) * (1 - DICE_HOUSE_EDGE), 4) if win else 0
 
+    multiplier = scale_multiplier("dice", multiplier) if win else 0
     payout = round(wager * multiplier) if win else 0
     credit_winnings(user, payout)
     apply_rakeback(user, wager)

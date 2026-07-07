@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 # spreadごとの配当(house edge目標20%で正規化・全通り総当たりで実測edge約10.6%を確認済み)
 SPREAD_PAYOUTS = {
@@ -82,6 +82,8 @@ def reddog_play():
                 multiplier = 0.0
                 outcome = "lose"
 
+    if outcome == "win":
+        multiplier = scale_multiplier("reddog", multiplier)
     payout = round(wager * multiplier)
     if payout > 0:
         credit_winnings(user, payout)

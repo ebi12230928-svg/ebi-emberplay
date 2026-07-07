@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, ThreeCardPokerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 ANTE_BONUS = {6: 5.0, 5: 4.0, 4: 1.0}  # カテゴリ番号 -> Anteに追加で払うボーナス倍率
 CATEGORY_NAMES = {
@@ -130,7 +130,11 @@ def _resolve(user, game, folded):
     dealer_class = _classify(dealer_hand)
 
     ante_bonus_multiplier = ANTE_BONUS.get(player_class[0], 0)
+    if ante_bonus_multiplier > 0:
+        ante_bonus_multiplier = scale_multiplier("threecardpoker", ante_bonus_multiplier)
     ante_bonus_payout = round(game.ante * ante_bonus_multiplier)
+
+    win_multiplier = scale_multiplier("threecardpoker", 2.0)
 
     play_wager = 0
     if folded:
@@ -143,12 +147,12 @@ def _resolve(user, game, folded):
 
         qualifies = _dealer_qualifies(dealer_class)
         if not qualifies:
-            ante_payout = game.ante * 2  # Anteは1:1
-            play_payout = play_wager     # Playはプッシュ
+            ante_payout = round(game.ante * win_multiplier)  # Anteは1:1相当
+            play_payout = play_wager                          # Playはプッシュ
             result = "dealer_not_qualified"
         elif player_class > dealer_class:
-            ante_payout = game.ante * 2
-            play_payout = play_wager * 2
+            ante_payout = round(game.ante * win_multiplier)
+            play_payout = round(play_wager * win_multiplier)
             result = "win"
         elif player_class < dealer_class:
             ante_payout = 0

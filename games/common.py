@@ -2,6 +2,24 @@ import fairness
 
 DEBT_REPAY_RATE = 0.01  # 借金完済の瞬間に余った勝利分をこの倍率で残高に反映する
 
+MIN_PAYOUT_SCALAR = 0.1   # 管理者が設定できる下限(配当を90%カットまで)
+MAX_PAYOUT_SCALAR = 3.0   # 管理者が設定できる上限(配当を3倍まで)
+
+
+def get_payout_scalar(game_key: str) -> float:
+    """管理者が設定した、そのゲームの配当倍率スケール(未設定なら1.0=通常)"""
+    from models import GameSetting
+    row = GameSetting.query.get(game_key)
+    return row.payout_scalar if row else 1.0
+
+
+def scale_multiplier(game_key: str, multiplier: float) -> float:
+    """配当倍率に管理者設定のスケールを掛けて返す(ゲーム内部のオッズ計算はそのまま維持できる)"""
+    if not multiplier:
+        return multiplier
+    scalar = get_payout_scalar(game_key)
+    return round(multiplier * scalar, 4)
+
 
 def apply_rakeback(user, wager):
     from config import Config

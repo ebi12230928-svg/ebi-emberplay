@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, BlackjackGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 BJ_HOUSE_EDGE_NOTE = "標準ルール(ディーラーは17以上でスタンド、ブラックジャックは3:2配当)"
 
@@ -78,6 +78,9 @@ def _settle(user, game, player, dealer, base_wager):
         multiplier = 0
     else:
         multiplier = 1.0
+
+    if multiplier > 1.0:
+        multiplier = scale_multiplier("blackjack", multiplier)
 
     payout = round(base_wager * multiplier)
     credit_winnings(user, payout)

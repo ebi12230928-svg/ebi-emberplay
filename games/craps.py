@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, CrapsGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 
 def _roll_dice(user):
@@ -29,7 +29,8 @@ def _settle(user, bet_type, wager, won, is_push, dice, used_nonce):
         payout = wager
         credit_winnings(user, payout)
     elif won:
-        payout = wager * 2
+        multiplier = scale_multiplier("craps", 2.0)
+        payout = round(wager * multiplier)
         credit_winnings(user, payout)
     else:
         payout = 0

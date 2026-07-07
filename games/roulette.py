@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, next_float, credit_winnings
+from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier
 
 RED_NUMBERS = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
 
@@ -82,7 +82,7 @@ def roulette_spin():
     pocket = min(int(f * 37), 36)
 
     win = _is_win(bet_type, value, pocket)
-    multiplier = BET_ODDS[bet_type] if win else 0
+    multiplier = scale_multiplier("roulette", BET_ODDS[bet_type]) if win else 0
     payout = round(wager * multiplier) if win else 0
 
     credit_winnings(user, payout)

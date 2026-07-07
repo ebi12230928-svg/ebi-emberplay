@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, VideoPokerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 # Jacks or Better 配当表を通常より引き下げた高難易度版(トータルリターン倍率)
 PAYTABLE = [
@@ -149,6 +149,7 @@ def videopoker_draw():
 
     hand_type = _evaluate(final_hand)
     multiplier = PAYOUT_MAP[hand_type]
+    multiplier = scale_multiplier("videopoker", multiplier)
     payout = round(game.wager * multiplier)
 
     user = current_user

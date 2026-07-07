@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, next_float, credit_winnings
+from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier
 import fairness
 
 WHEEL_HOUSE_EDGE = 0.06
@@ -43,6 +43,7 @@ def wheel_play():
     idx = min(int(f * segments), segments - 1)
     table = fairness.wheel_table(segments, risk, house_edge=WHEEL_HOUSE_EDGE)
     multiplier = table[idx]
+    multiplier = scale_multiplier("wheel", multiplier)
     payout = round(wager * multiplier)
 
     credit_winnings(user, payout)

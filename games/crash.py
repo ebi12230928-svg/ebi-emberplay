@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, CrashGame, utcnow
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
 
 CRASH_HOUSE_EDGE = 0.08
 GROWTH_RATE = math.log(2) / 18  # 18秒ごとに倍率が2倍になるペース(以前より緩やかに)
@@ -101,17 +101,18 @@ def crash_cashout():
         db.session.commit()
         return jsonify({"busted": True, "crash_point": game.crash_point, "balance": current_user.balance})
 
-    payout = round(game.wager * current_mult)
+    payout_multiplier = scale_multiplier("crash", current_mult)
+    payout = round(game.wager * payout_multiplier)
     user = current_user
     credit_winnings(user, payout)
     apply_rakeback(user, game.wager)
 
     db.session.add(BetRecord(
-        user_id=user.id, game="crash", wager=game.wager, payout=payout, multiplier=current_mult,
+        user_id=user.id, game="crash", wager=game.wager, payout=payout, multiplier=payout_multiplier,
         server_seed_hash=game.server_seed_hash, client_seed=game.client_seed, nonce=game.nonce,
         result_json=json.dumps({"cashed_out_at": current_mult, "crash_point": game.crash_point})
     ))
     db.session.delete(game)
     db.session.commit()
 
-    return jsonify({"busted": False, "multiplier": current_mult, "payout": payout, "balance": user.balance})
+    return jsonify({"busted": False, "multiplier": payout_multiplier, "payout": payout, "balance": user.balance})
