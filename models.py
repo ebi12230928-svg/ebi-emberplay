@@ -246,6 +246,17 @@ class AppState(db.Model):
     value = db.Column(db.String(256))
 
 
+class GameSetting(db.Model):
+    """
+    管理者が各ゲームの配当を調整するための倍率。
+    最終的な配当・表示倍率に payout_scalar を掛け合わせることで、
+    個々のゲームの内部ロジックを変更せずに「甘さ/渋さ」を一括調整できる。
+    (1.0 = 通常、0.8 = 配当を20%下げる、1.2 = 配当を20%上げる、など)
+    """
+    game_key = db.Column(db.String(64), primary_key=True)
+    payout_scalar = db.Column(db.Float, default=1.0, nullable=False)
+
+
 class SportsEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     external_id = db.Column(db.String(64), unique=True, nullable=False, index=True)

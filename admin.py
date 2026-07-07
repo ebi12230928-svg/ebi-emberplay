@@ -5,10 +5,22 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement
+from models import User, Transaction, RedeemCode, Announcement, GameSetting
 from notifications import notify, notify_all
+from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
 admin_bp = Blueprint("admin", __name__)
+
+# 管理者パネルで倍率を調整できるゲーム一覧(BetRecord.gameで使っているキーと対応)
+GAME_KEYS = [
+    ("dice", "Dice"), ("limbo", "Limbo"), ("crash", "Crash"), ("mines", "Mines"),
+    ("plinko", "Plinko"), ("keno", "Keno"), ("wheel", "Wheel"), ("hilo", "HiLo"),
+    ("tower", "Dragon Tower"), ("coinflip", "Coin Flip"), ("sicbo", "Sic Bo"), ("war", "War"),
+    ("roulette", "Roulette(European)"), ("american_roulette", "American Roulette"),
+    ("blackjack", "Blackjack"), ("baccarat", "Baccarat"), ("videopoker", "Video Poker"),
+    ("reddog", "Red Dog"), ("andarbahar", "Andar Bahar"), ("craps", "Craps"),
+    ("threecardpoker", "Three Card Poker"), ("slots", "スロット(全テーマ共通)"),
+]
 
 
 def admin_required(view):
@@ -33,8 +45,13 @@ def dashboard():
     recent_tx = Transaction.query.order_by(Transaction.created_at.desc()).limit(30).all()
     codes = RedeemCode.query.order_by(RedeemCode.created_at.desc()).limit(20).all()
     announcements = Announcement.query.order_by(Announcement.created_at.desc()).limit(20).all()
+
+    settings_map = {row.game_key: row.payout_scalar for row in GameSetting.query.all()}
+    game_scalars = [(key, name, settings_map.get(key, 1.0)) for key, name in GAME_KEYS]
+
     return render_template(
-        "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements
+        "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
+        game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR
     )
 
 
@@ -297,4 +314,46 @@ def delete_announcement():
         db.session.delete(ann)
         db.session.commit()
         flash("お知らせを削除しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/set-game-scalar", methods=["POST"])
+@login_required
+@admin_required
+def set_game_scalar():
+    game_key = request.form.get("game_key", "").strip()
+    valid_keys = {key for key, _ in GAME_KEYS}
+    if game_key not in valid_keys:
+        flash("指定されたゲームが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    try:
+        scalar = float(request.form.get("payout_scalar", "1.0"))
+    except ValueError:
+        flash("倍率は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    scalar = max(MIN_PAYOUT_SCALAR, min(MAX_PAYOUT_SCALAR, scalar))
+
+    row = GameSetting.query.get(game_key)
+    if row:
+        row.payout_scalar = scalar
+    else:
+        db.session.add(GameSetting(game_key=game_key, payout_scalar=scalar))
+    db.session.commit()
+
+    flash(f"{game_key} の配当倍率スケールを {scalar}x に設定しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/reset-game-scalar", methods=["POST"])
+@login_required
+@admin_required
+def reset_game_scalar():
+    game_key = request.form.get("game_key", "").strip()
+    row = GameSetting.query.get(game_key)
+    if row:
+        db.session.delete(row)
+        db.session.commit()
+        flash(f"{game_key} の配当倍率を通常(1.0x)に戻しました。", "success")
     return redirect(url_for("admin.dashboard"))

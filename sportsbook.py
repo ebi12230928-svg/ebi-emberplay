@@ -27,6 +27,8 @@ LEAGUES = {
 }
 
 DEFAULT_ODDS = {"home": 1.9, "draw": 3.2, "away": 1.9}
+ODDS_HOUSE_EDGE = 0.08
+HOME_ADVANTAGE = 0.08  # ホームチームには基本勝率に少し下駄を履かせる
 
 
 def _get_state(key):
@@ -42,7 +44,44 @@ def _set_state(key, value):
         db.session.add(AppState(key=key, value=value))
 
 
-def _upsert_event(ev, league_id):
+def _fetch_standings(league_id):
+    """リーグの現在の順位表を取得し、{チーム名: 勝ち点} の辞書を返す(失敗時は空辞書)"""
+    try:
+        resp = requests.get(f"{API_BASE}/lookuptable.php", params={"l": league_id}, timeout=8)
+        data = resp.json() if resp.status_code == 200 else {}
+        table = data.get("table") or []
+        result = {}
+        for row in table:
+            name = row.get("strTeam")
+            if name:
+                try:
+                    result[name] = float(row.get("intPoints", 0) or 0)
+                except (TypeError, ValueError):
+                    result[name] = 0.0
+        return result
+    except (requests.RequestException, ValueError):
+        return {}
+
+
+def _compute_odds(home_points, away_points):
+    """順位表の勝ち点差から、ホーム/ドロー/アウェイの倍率を算出する"""
+    diff = home_points - away_points
+    adj = max(-0.35, min(0.35, diff * 0.01))  # 勝ち点差1につき1%、最大±35%まで調整
+
+    home_p = max(0.10, min(0.80, 0.40 + HOME_ADVANTAGE + adj))
+    away_p = max(0.10, min(0.80, 0.30 - adj))
+    draw_p = max(0.08, 1 - home_p - away_p)
+
+    total = home_p + away_p + draw_p
+    home_p, away_p, draw_p = home_p / total, away_p / total, draw_p / total
+
+    def to_odds(p):
+        return round((1 / p) * (1 - ODDS_HOUSE_EDGE), 2)
+
+    return to_odds(home_p), to_odds(draw_p), to_odds(away_p)
+
+
+def _upsert_event(ev, league_id, standings):
     external_id = ev.get("idEvent")
     if not external_id:
         return
@@ -59,6 +98,13 @@ def _upsert_event(ev, league_id):
     event.league_name = LEAGUES.get(league_id, ev.get("strLeague") or "")
     event.home_team = ev.get("strHomeTeam") or ""
     event.away_team = ev.get("strAwayTeam") or ""
+
+    # 順位表からチームの勝ち点を取得できる場合は、強さに応じてオッズを再計算する
+    # (Champions Leagueなど、国内リーグと違う枠組みのチームは順位表にないため、その場合はデフォルトのまま)
+    home_points = standings.get(event.home_team)
+    away_points = standings.get(event.away_team)
+    if home_points is not None and away_points is not None and event.status != "finished":
+        event.odds_home, event.odds_draw, event.odds_away = _compute_odds(home_points, away_points)
 
     try:
         date_str = f"{ev.get('dateEvent')} {ev.get('strTime') or '00:00:00'}"
@@ -88,7 +134,7 @@ def _upsert_event(ev, league_id):
 
 
 def sync_events():
-    """TheSportsDBから試合日程・結果を取得してDBに反映する(頻繁に叩きすぎないようcooldownあり)"""
+    """TheSportsDBから試合日程・結果・順位表を取得してDBに反映する(頻繁に叩きすぎないようcooldownあり)"""
     last = _get_state("last_sports_sync")
     if last:
         try:
@@ -99,12 +145,13 @@ def sync_events():
             pass
 
     for league_id in LEAGUES:
+        standings = _fetch_standings(league_id)
         for endpoint in ("eventsnextleague.php", "eventspastleague.php"):
             try:
                 resp = requests.get(f"{API_BASE}/{endpoint}", params={"id": league_id}, timeout=8)
                 data = resp.json() if resp.status_code == 200 else {}
                 for ev in (data.get("events") or [])[:15]:
-                    _upsert_event(ev, league_id)
+                    _upsert_event(ev, league_id, standings)
             except (requests.RequestException, ValueError):
                 continue  # このリーグ・エンドポイントの取得に失敗しても他は続ける
 
