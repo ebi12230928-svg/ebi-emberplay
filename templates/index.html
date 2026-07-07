@@ -5,6 +5,15 @@
 {{ url_for('games.slots_page', theme_id=game.theme_id) if game.category == 'slots' else url_for('games.' + game.slug.replace('-', '_') + '_page') }}
 {%- endmacro %}
 
+{% macro game_card(game) -%}
+<a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
+  <div class="card-thumb" style="background: linear-gradient(160deg, {{ game.gradient[0] }}, {{ game.gradient[1] }});">{{ game.icon }}</div>
+  <h3>{{ game.name }}</h3>
+  <p>{{ game.tagline }}</p>
+  {% if game.provider %}<span class="card-provider">{{ game.provider }}</span>{% endif %}
+</a>
+{%- endmacro %}
+
 {% block content %}
 <span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
 <h1>今夜、どのテーブルで遊ぶ?</h1>
@@ -45,12 +54,7 @@
     <h2>プレーを続ける</h2>
   </div>
   <div class="carousel">
-    {% for game in continue_playing %}
-    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
-      <h3>{{ game.name }}</h3>
-      <p>{{ game.tagline }}</p>
-    </a>
-    {% endfor %}
+    {% for game in continue_playing %}{{ game_card(game) }}{% endfor %}
   </div>
 </div>
 {% endif %}
@@ -60,12 +64,7 @@
     <h2>あなたへのおすすめゲーム</h2>
   </div>
   <div class="carousel">
-    {% for game in recommended %}
-    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
-      <h3>{{ game.name }}</h3>
-      <p>{{ game.tagline }}</p>
-    </a>
-    {% endfor %}
+    {% for game in recommended %}{{ game_card(game) }}{% endfor %}
   </div>
 </div>
 
@@ -76,12 +75,7 @@
     <a class="carousel-see-all" href="{{ url_for('lobby.category', key=cat.key) }}">すべて見る →</a>
   </div>
   <div class="carousel">
-    {% for game in cat.games %}
-    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
-      <h3>{{ game.name }}</h3>
-      <p>{{ game.tagline }}</p>
-    </a>
-    {% endfor %}
+    {% for game in cat.games %}{{ game_card(game) }}{% endfor %}
   </div>
 </div>
 {% endfor %}
