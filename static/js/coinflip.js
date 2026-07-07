@@ -12,7 +12,7 @@
       const data = await EmberPlay.postJSON("/games/coinflip/play", payload);
 
       resultReadout.textContent = data.result.toUpperCase();
-      resultReadout.className = "result-readout " + (data.win ? "win" : "loss");
+      EmberPlay.flashResult(resultReadout, data.win, !data.win);
       EmberPlay.updateBalance(data.balance, data.win ? "win" : "loss");
     } catch (err) {
       alert(err.message);

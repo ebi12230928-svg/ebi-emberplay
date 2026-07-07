@@ -51,7 +51,7 @@
 
       marker.style.left = data.roll + "%";
       resultReadout.textContent = data.roll.toFixed(2);
-      resultReadout.className = "result-readout " + (data.win ? "win" : "loss");
+      EmberPlay.flashResult(resultReadout, data.win, !data.win);
 
       EmberPlay.updateBalance(data.balance, data.win ? "win" : "loss");
     } catch (err) {

@@ -60,7 +60,7 @@
       });
 
       resultReadout.textContent = `${data.matches}マッチ ・ ${data.multiplier}x`;
-      resultReadout.className = "result-readout " + (data.multiplier > 0 ? "win" : "loss");
+      EmberPlay.flashResult(resultReadout, data.multiplier > 0, data.multiplier <= 0);
       EmberPlay.updateBalance(data.balance, data.multiplier > 0 ? "win" : "loss");
     } catch (err) {
       alert(err.message);

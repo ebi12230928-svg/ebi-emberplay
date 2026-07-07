@@ -23,11 +23,11 @@
 
       if (data.tie) {
         resultReadout.textContent = "TIE";
-        resultReadout.className = "result-readout";
+        EmberPlay.flashResult(resultReadout, false, false);
         setTieActive(true);
       } else {
         resultReadout.textContent = data.won ? "WIN" : "LOSE";
-        resultReadout.className = "result-readout " + (data.won ? "win" : "loss");
+        EmberPlay.flashResult(resultReadout, data.won, !data.won);
         setTieActive(false);
       }
     } catch (err) {
@@ -43,7 +43,7 @@
 
       const labels = { win: "WIN", lose: "LOSE", push: "PUSH" };
       resultReadout.textContent = labels[data.result] || data.result;
-      resultReadout.className = "result-readout " + (data.result === "win" ? "win" : (data.result === "lose" ? "loss" : ""));
+      EmberPlay.flashResult(resultReadout, data.result === "win", data.result === "lose");
 
       EmberPlay.updateBalance(data.balance, data.result === "win" ? "win" : (data.result === "lose" ? "loss" : null));
       setTieActive(false);
@@ -56,7 +56,7 @@
     try {
       const data = await EmberPlay.postJSON("/games/war/surrender", {});
       resultReadout.textContent = "SURRENDERED";
-      resultReadout.className = "result-readout";
+      EmberPlay.flashResult(resultReadout, false, false);
       EmberPlay.updateBalance(data.balance, null);
       setTieActive(false);
     } catch (err) {

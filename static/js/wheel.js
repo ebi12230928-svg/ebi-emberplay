@@ -32,7 +32,7 @@
       });
 
       resultReadout.textContent = data.multiplier.toFixed(2) + "x";
-      resultReadout.className = "result-readout " + (data.multiplier > 1 ? "win" : (data.multiplier === 0 ? "loss" : ""));
+      EmberPlay.flashResult(resultReadout, data.multiplier > 1, data.multiplier === 0);
       EmberPlay.updateBalance(data.balance, data.multiplier >= 1 ? "win" : "loss");
     } catch (err) {
       alert(err.message);

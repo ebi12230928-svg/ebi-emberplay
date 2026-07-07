@@ -26,7 +26,7 @@
       dealerTotalEl.textContent = "";
     }
     resultReadout.textContent = "";
-    resultReadout.className = "result-readout";
+    EmberPlay.flashResult(resultReadout, false, false);
   }
 
   function renderFinished(data) {
@@ -41,7 +41,7 @@
     else text = "LOSE";
 
     resultReadout.textContent = text;
-    resultReadout.className = "result-readout " + (data.multiplier > 1 ? "win" : (data.multiplier === 0 ? "loss" : ""));
+    EmberPlay.flashResult(resultReadout, data.multiplier > 1, data.multiplier === 0);
 
     EmberPlay.updateBalance(data.balance, data.multiplier > 1 ? "win" : (data.multiplier === 0 ? "loss" : null));
     setActive(false, false);

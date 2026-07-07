@@ -32,7 +32,7 @@
       const data = await EmberPlay.postJSON("/games/videopoker/deal", { wager: parseInt(wagerInput.value, 10) });
       renderHand(data.hand, true);
       resultReadout.textContent = "";
-      resultReadout.className = "result-readout";
+      EmberPlay.flashResult(resultReadout, false, false);
       EmberPlay.updateBalance(data.balance, "loss");
       dealBtn.disabled = true;
       wagerInput.disabled = true;
@@ -47,7 +47,7 @@
       const data = await EmberPlay.postJSON("/games/videopoker/draw", { holds });
       renderHand(data.hand, false);
       resultReadout.textContent = `${data.hand_type} ・ ${data.multiplier}x`;
-      resultReadout.className = "result-readout " + (data.multiplier > 0 ? "win" : "loss");
+      EmberPlay.flashResult(resultReadout, data.multiplier > 0, data.multiplier <= 0);
       EmberPlay.updateBalance(data.balance, data.multiplier > 0 ? "win" : "loss");
       dealBtn.disabled = false;
       wagerInput.disabled = false;

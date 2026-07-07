@@ -38,10 +38,10 @@
 
       if (data.multiplier > 0) {
         resultReadout.textContent = `合計 ${data.total} ・ WIN ・ ${data.multiplier}x`;
-        resultReadout.className = "result-readout win";
+        EmberPlay.flashResult(resultReadout, true, false);
       } else {
         resultReadout.textContent = `合計 ${data.total} ・ LOSE`;
-        resultReadout.className = "result-readout loss";
+        EmberPlay.flashResult(resultReadout, false, true);
       }
 
       EmberPlay.updateBalance(data.balance, data.multiplier > 0 ? "win" : "loss");

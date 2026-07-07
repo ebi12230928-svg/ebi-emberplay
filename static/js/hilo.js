@@ -22,7 +22,7 @@
     try {
       const data = await EmberPlay.postJSON("/games/hilo/start", { wager: parseInt(wagerInput.value, 10) });
       cardReadout.textContent = data.rank_label;
-      cardReadout.className = "result-readout";
+      EmberPlay.flashResult(cardReadout, false, false);
       multiplierReadout.textContent = "1.0000x";
       passesLeftEl.textContent = passesLeftEl.dataset.max || passesLeftEl.textContent;
       EmberPlay.updateBalance(data.balance, "loss");
@@ -36,7 +36,7 @@
     try {
       const data = await EmberPlay.postJSON("/games/hilo/pass", {});
       cardReadout.textContent = data.rank_label + "(パス)";
-      cardReadout.className = "result-readout";
+      EmberPlay.flashResult(cardReadout, false, false);
       passesLeftEl.textContent = data.passes_left;
       passBtn.disabled = data.passes_left <= 0;
     } catch (err) {
@@ -56,7 +56,7 @@
       cardReadout.textContent = data.rank_label;
 
       if (!data.won) {
-        cardReadout.className = "result-readout loss";
+        EmberPlay.flashResult(cardReadout, false, true);
         multiplierReadout.textContent = "0.0000x";
         setActive(false);
         if (data.balance !== undefined) {
@@ -65,7 +65,7 @@
         return;
       }
 
-      cardReadout.className = "result-readout win";
+      EmberPlay.flashResult(cardReadout, true, false);
       multiplierReadout.textContent = data.multiplier.toFixed(4) + "x";
     } catch (err) {
       alert(err.message);

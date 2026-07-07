@@ -22,11 +22,12 @@
       const payload = {
         wager: parseInt(wagerInput.value, 10),
         bet_type: betTypeSelect.value,
-        value: betTypeSelect.value === "straight" ? parseInt(straightValue.value, 10) : null,
+        value: betTypeSelect.value === "straight" ? straightValue.value : null,
       };
-      const data = await EmberPlay.postJSON("/games/roulette/spin", payload);
+      const data = await EmberPlay.postJSON("/games/american-roulette/spin", payload);
 
-      const color = data.pocket === 0 ? "GREEN" : (RED_NUMBERS.has(data.pocket) ? "RED" : "BLACK");
+      const num = parseInt(data.pocket, 10);
+      const color = data.pocket === "0" || data.pocket === "00" ? "GREEN" : (RED_NUMBERS.has(num) ? "RED" : "BLACK");
       resultReadout.textContent = `${data.pocket} (${color})`;
       EmberPlay.flashResult(resultReadout, data.win, !data.win);
 

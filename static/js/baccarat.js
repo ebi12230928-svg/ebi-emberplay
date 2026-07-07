@@ -29,7 +29,7 @@
       let text = `${winnerLabel}の勝ち ・ `;
       text += data.multiplier > 1 ? `${data.multiplier.toFixed(2)}x` : (data.multiplier === 1 ? "PUSH" : "LOSE");
       resultReadout.textContent = text;
-      resultReadout.className = "result-readout " + (data.multiplier > 1 ? "win" : (data.multiplier === 0 ? "loss" : ""));
+      EmberPlay.flashResult(resultReadout, data.multiplier > 1, data.multiplier === 0);
 
       EmberPlay.updateBalance(data.balance, data.multiplier > 1 ? "win" : (data.multiplier === 0 ? "loss" : null));
     } catch (err) {
