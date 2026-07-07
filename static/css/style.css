@@ -217,6 +217,26 @@ h3 { font-size: 22px; }
 
 p { line-height: 1.6; color: var(--text-muted); }
 
+/* ── search bar ── */
+.search-bar {
+  margin: 20px 0;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: var(--ember);
+}
+
 /* ── game grid (lobby) ── */
 .game-grid {
   display: grid;
