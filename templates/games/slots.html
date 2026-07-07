@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Slots ・ EMBERPLAY{% endblock %}
+{% block title %}{{ theme.name }} ・ EMBERPLAY{% endblock %}
 
 {% block content %}
 <span class="eyebrow">Slots</span>
-<h1>Slots</h1>
+<h1>{{ theme.name }}</h1>
 
 <div class="game-layout">
   <div class="panel">
@@ -14,8 +14,10 @@
     <button class="btn btn-ember btn-block" id="spin-btn">スピン</button>
 
     <hr class="divider">
-    <p style="font-size: 12px;">配当(3つ揃い): {% for s in symbols %}{{ s.label }}×3 = {{ s.pay3 }}x　{% endfor %}</p>
-    <p style="font-size: 12px;">{{ symbols[0].label }}×2 = {{ symbols[0].pay2 }}x</p>
+    <p style="font-size: 12px;">配当(3つ揃い): {% for s in theme.symbols %}{{ s.label }}×3 = {{ s.pay3 }}x　{% endfor %}</p>
+    {% if theme.symbols[0].pay2 %}
+    <p style="font-size: 12px;">{{ theme.symbols[0].label }}×2 = {{ theme.symbols[0].pay2 }}x</p>
+    {% endif %}
   </div>
 
   <div>
@@ -32,5 +34,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script>window.EMBERPLAY_SLOT_THEME = "{{ theme_id }}";</script>
 <script src="{{ url_for('static', filename='js/slots.js') }}"></script>
 {% endblock %}

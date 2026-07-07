@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Sic Bo ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Sic Bo</span>
+<h1>Sic Bo</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="bet-type">選択の種類</label>
+      <select id="bet-type">
+        <option value="big">Big(11〜17・1.85倍)</option>
+        <option value="small">Small(4〜10・1.85倍)</option>
+        <option value="total">合計値を選ぶ</option>
+        <option value="any_triple">Any Triple(ゾロ目・30.6倍)</option>
+        <option value="specific_triple">指定ゾロ目(180倍)</option>
+        <option value="double_specific">指定の数字が2つ以上(10倍)</option>
+        <option value="single_number">指定の数字が出た数だけ配当</option>
+      </select>
+    </div>
+    <div class="field" id="value-field" style="display:none;">
+      <label for="value-select">数字</label>
+      <select id="value-select">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+      </select>
+    </div>
+    <div class="field" id="total-field" style="display:none;">
+      <label for="total-select">合計値</label>
+      <select id="total-select">
+        {% for t, mult in total_payouts.items() %}
+        <option value="{{ t }}">{{ t }}({{ mult }}倍)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="roll-btn">ロール</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div style="display:flex; gap: 16px; font-size: 48px;">
+        <div id="die-0">🎲</div>
+        <div id="die-1">🎲</div>
+        <div id="die-2">🎲</div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sicbo.js') }}"></script>
+{% endblock %}

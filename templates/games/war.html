@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}War ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">War</span>
+<h1>War</h1>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="start-btn">配る</button>
+    <div style="display:flex; gap: 10px; margin-top: 12px;">
+      <button class="btn btn-ghost" id="war-btn" style="flex:1;" disabled>War(倍賭け)</button>
+      <button class="btn btn-ghost" id="surrender-btn" style="flex:1;" disabled>降参(半分回収)</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div style="display:flex; gap: 40px;">
+        <div style="text-align:center;">
+          <div class="eyebrow">Dealer</div>
+          <div class="mono" id="dealer-card" style="font-size: 40px;">--</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="eyebrow">You</div>
+          <div class="mono" id="player-card" style="font-size: 40px;">--</div>
+        </div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/war.js') }}"></script>
+{% endblock %}
