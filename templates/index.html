@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}ロビー ・ EMBERPLAY{% endblock %}
 
+{% macro game_link(game) -%}
+{{ url_for('games.slots_page', theme_id=game.theme_id) if game.category == 'slots' else url_for('games.' + game.slug.replace('-', '_') + '_page') }}
+{%- endmacro %}
+
 {% block content %}
 <span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
 <h1>今夜、どのテーブルで遊ぶ?</h1>
@@ -29,50 +33,60 @@
   <p style="margin: 0;">実際のサッカーの試合結果に賭けよう。プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ対応。</p>
 </a>
 
-{% if recent %}
-<div class="ticker">
-  <div class="ticker-track">
-    {% for bet in recent + recent %}
-    <span class="ticker-item">
-      <strong>{{ bet.user.username }}</strong>
-      <span class="text-muted">{{ bet.game }}</span>
-      {% if bet.payout > bet.wager %}
-        <span class="win">+{{ "{:,}".format(bet.payout - bet.wager) }}</span>
-      {% else %}
-        <span class="loss">-{{ "{:,}".format(bet.wager) }}</span>
-      {% endif %}
-    </span>
+<div id="no-results" style="display:none; text-align:center; padding: 40px 0; color: var(--text-muted);">
+  該当するゲームが見つかりませんでした。
+</div>
+
+<div id="carousel-sections">
+
+{% if continue_playing %}
+<div class="carousel-section" data-carousel-section>
+  <div class="carousel-header">
+    <h2>プレーを続ける</h2>
+  </div>
+  <div class="carousel">
+    {% for game in continue_playing %}
+    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
+      <h3>{{ game.name }}</h3>
+      <p>{{ game.tagline }}</p>
+    </a>
     {% endfor %}
   </div>
 </div>
 {% endif %}
 
-<div id="no-results" style="display:none; text-align:center; padding: 40px 0; color: var(--text-muted);">
-  該当するゲームが見つかりませんでした。
-</div>
-
-{% for cat in categories %}
-<h2 style="margin-top: 32px;">{{ cat.label }}</h2>
-<div class="game-grid" data-category="{{ cat.key }}">
-  {% for game in cat.games %}
-    {% if game.ready %}
-    <a class="game-card"
-       href="{{ url_for('games.slots_page', theme_id=game.theme_id) if game.category == 'slots' else url_for('games.' + game.slug + '_page') }}"
-       data-name="{{ game.name | lower }}">
-      <span class="badge">Play</span>
+<div class="carousel-section" data-carousel-section>
+  <div class="carousel-header">
+    <h2>あなたへのおすすめゲーム</h2>
+  </div>
+  <div class="carousel">
+    {% for game in recommended %}
+    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
       <h3>{{ game.name }}</h3>
       <p>{{ game.tagline }}</p>
     </a>
-    {% else %}
-    <div class="game-card" style="opacity: 0.55; cursor: not-allowed;" data-name="{{ game.name | lower }}">
-      <span class="badge soon">近日公開</span>
+    {% endfor %}
+  </div>
+</div>
+
+{% for cat in categories %}
+<div class="carousel-section" data-carousel-section>
+  <div class="carousel-header">
+    <h2>{{ cat.label }}</h2>
+    <a class="carousel-see-all" href="{{ url_for('lobby.category', key=cat.key) }}">すべて見る →</a>
+  </div>
+  <div class="carousel">
+    {% for game in cat.games %}
+    <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
       <h3>{{ game.name }}</h3>
       <p>{{ game.tagline }}</p>
-    </div>
-    {% endif %}
-  {% endfor %}
+    </a>
+    {% endfor %}
+  </div>
 </div>
 {% endfor %}
+
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -84,15 +98,14 @@
     const query = searchInput.value.trim().toLowerCase();
     let anyVisible = false;
 
-    document.querySelectorAll(".game-grid").forEach((grid) => {
-      let gridHasVisible = false;
-      grid.querySelectorAll("[data-name]").forEach((card) => {
+    document.querySelectorAll("[data-carousel-section]").forEach((section) => {
+      let sectionHasVisible = false;
+      section.querySelectorAll("[data-name]").forEach((card) => {
         const match = card.dataset.name.includes(query);
         card.style.display = match ? "" : "none";
-        if (match) { gridHasVisible = true; anyVisible = true; }
+        if (match) { sectionHasVisible = true; anyVisible = true; }
       });
-      grid.previousElementSibling.style.display = gridHasVisible ? "" : "none";
-      grid.style.display = gridHasVisible ? "" : "none";
+      section.style.display = sectionHasVisible ? "" : "none";
     });
 
     noResults.style.display = anyVisible ? "none" : "block";

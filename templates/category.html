@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">カテゴリー</span>
+<h1>{{ label }}</h1>
+
+<div class="game-grid">
+  {% for game in games %}
+  <a class="game-card"
+     href="{{ url_for('games.slots_page', theme_id=game.theme_id) if game.category == 'slots' else url_for('games.' + game.slug.replace('-', '_') + '_page') }}">
+    <span class="badge">Play</span>
+    <h3>{{ game.name }}</h3>
+    <p>{{ game.tagline }}</p>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

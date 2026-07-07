@@ -6,6 +6,38 @@
 <h1>管理パネル</h1>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>ゲームごとの配当倍率調整</h3>
+  <p style="font-size: 13px;">
+    各ゲームの最終的な配当に掛ける倍率スケールです(1.0が通常。0.8にすると配当が20%下がり、1.2にすると20%上がります)。
+    範囲: {{ min_scalar }}x 〜 {{ max_scalar }}x。ゲーム内部の当選確率自体は変わりません。
+  </p>
+  <table>
+    <thead><tr><th>ゲーム</th><th>現在の倍率</th><th>変更</th></tr></thead>
+    <tbody>
+      {% for key, name, scalar in game_scalars %}
+      <tr>
+        <td>{{ name }}</td>
+        <td class="mono {{ 'text-loss' if scalar < 1.0 else ('text-win' if scalar > 1.0 else 'text-muted') }}">{{ scalar }}x</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.set_game_scalar') }}" style="display:flex; gap: 6px; align-items:center;">
+            <input type="hidden" name="game_key" value="{{ key }}">
+            <input type="number" name="payout_scalar" value="{{ scalar }}" step="0.05" min="{{ min_scalar }}" max="{{ max_scalar }}" style="width: 90px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">設定</button>
+          </form>
+          {% if scalar != 1.0 %}
+          <form method="POST" action="{{ url_for('admin.reset_game_scalar') }}" style="display:inline;">
+            <input type="hidden" name="game_key" value="{{ key }}">
+            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px; margin-top: 4px;">通常に戻す</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>お知らせ掲示板(全プレイヤーに公開)</h3>
   <form method="POST" action="{{ url_for('admin.post_announcement') }}">
     <div class="field">
