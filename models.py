@@ -26,6 +26,7 @@ class User(UserMixin, db.Model):
     pending_rakeback = db.Column(db.Integer, default=0, nullable=False)
 
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_vip = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_daily_claim = db.Column(db.DateTime, nullable=True)
@@ -234,3 +235,83 @@ class RedeemCodeRedemption(db.Model):
 
     code = db.relationship("RedeemCode", backref=db.backref("redemptions", lazy="dynamic"))
     user = db.relationship("User", backref=db.backref("code_redemptions", lazy="dynamic"))
+
+
+class AppState(db.Model):
+    """簡易的なキーバリューストア(スポーツデータの最終同期時刻などを保存する)"""
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.String(256))
+
+
+class SportsEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    external_id = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    sport = db.Column(db.String(32), default="soccer")
+    league_name = db.Column(db.String(128))
+    home_team = db.Column(db.String(128))
+    away_team = db.Column(db.String(128))
+    event_time = db.Column(db.DateTime, nullable=True)
+
+    status = db.Column(db.String(16), default="upcoming")  # upcoming / finished
+    home_score = db.Column(db.Integer, nullable=True)
+    away_score = db.Column(db.Integer, nullable=True)
+    winner = db.Column(db.String(16), nullable=True)  # home / away / draw
+
+    odds_home = db.Column(db.Float, default=1.9)
+    odds_draw = db.Column(db.Float, default=3.2)
+    odds_away = db.Column(db.Float, default=1.9)
+
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class SportsBet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("sports_event.id"), nullable=False, index=True)
+
+    pick = db.Column(db.String(16), nullable=False)  # home / draw / away
+    wager = db.Column(db.Integer, nullable=False)
+    odds = db.Column(db.Float, nullable=False)  # 賭けた時点のオッズを固定で記録
+    status = db.Column(db.String(16), default="pending")  # pending / won / lost
+    payout = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("sports_bets", lazy="dynamic"))
+    event = db.relationship("SportsEvent", backref=db.backref("bets", lazy="dynamic"))
+
+
+class VipAnnouncement(db.Model):
+    """VIPラウンジ内の、管理者だけが書き込めるお知らせ欄"""
+    id = db.Column(db.Integer, primary_key=True)
+    message = db.Column(db.Text, nullable=False)
+    created_by = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class ChatMessage(db.Model):
+    """全プレイヤー参加のチャット(ポーリング方式)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    message = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("chat_messages", lazy="dynamic"))
+
+
+class WarGame(db.Model):
+    """War(引き分け時の「戦争に行く/降参」待ち状態)を保持するモデル"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+
+    total_wager = db.Column(db.Integer, nullable=False)  # ここまでに賭けた合計(warするたび倍になる)
+    player_rank = db.Column(db.Integer, nullable=False)
+    dealer_rank = db.Column(db.Integer, nullable=False)
+
+    server_seed_hash = db.Column(db.String(64), nullable=False)
+    client_seed = db.Column(db.String(64), nullable=False)
+    nonce = db.Column(db.Integer, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("active_war_game", uselist=False))

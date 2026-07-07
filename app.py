@@ -26,6 +26,9 @@ def create_app():
     from games import games_bp
     from notifications import notifications_bp
     from leaderboard import leaderboard_bp
+    from sportsbook import sportsbook_bp
+    from vip import vip_bp
+    from chat import chat_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -34,6 +37,9 @@ def create_app():
     app.register_blueprint(games_bp)
     app.register_blueprint(notifications_bp)
     app.register_blueprint(leaderboard_bp)
+    app.register_blueprint(sportsbook_bp)
+    app.register_blueprint(vip_bp)
+    app.register_blueprint(chat_bp)
 
     @app.context_processor
     def inject_user():

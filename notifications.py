@@ -18,6 +18,13 @@ def notify_all(message: str):
         db.session.add(Notification(user_id=uid, message=message))
 
 
+def notify_vips(message: str):
+    """VIPユーザーにのみ通知を送る"""
+    user_ids = [u.id for u in User.query.filter_by(is_vip=True).with_entities(User.id).all()]
+    for uid in user_ids:
+        db.session.add(Notification(user_id=uid, message=message))
+
+
 @notifications_bp.route("/notifications")
 @login_required
 def list_notifications():

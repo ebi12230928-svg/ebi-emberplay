@@ -187,6 +187,29 @@ def toggle_admin():
     return redirect(url_for("admin.dashboard"))
 
 
+@admin_bp.route("/admin/toggle-vip", methods=["POST"])
+@login_required
+@admin_required
+def toggle_vip():
+    username = request.form.get("username", "").strip()
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    user.is_vip = not user.is_vip
+    db.session.commit()
+
+    if user.is_vip:
+        notify(user.id, "VIPに認定されました。VIPラウンジ(/vip-lounge)が利用できるようになりました。")
+    else:
+        notify(user.id, "VIP権限が解除されました。")
+    db.session.commit()
+
+    flash(f"{user.username} のVIPを{'付与' if user.is_vip else '解除'}しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
 @admin_bp.route("/admin/create-code", methods=["POST"])
 @login_required
 @admin_required

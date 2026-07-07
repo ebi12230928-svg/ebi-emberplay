@@ -1,13 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "app.py": {
-      "runtime": "vercel-python@3.0.0"
-    }
-  },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ]
+    "wsgi.py": { "maxDuration": 30 }
+  }
 }
