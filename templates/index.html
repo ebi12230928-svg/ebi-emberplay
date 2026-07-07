@@ -10,6 +10,19 @@
   <input type="text" id="game-search" placeholder="ゲームを検索...">
 </div>
 
+{% if latest_announcements %}
+<div class="panel" style="margin-bottom: 24px;">
+  <span class="eyebrow">お知らせ</span>
+  {% for a in latest_announcements %}
+  <p style="margin: 0 0 8px; {% if not loop.last %}padding-bottom: 8px; border-bottom: 1px solid var(--panel-border);{% endif %}">
+    {{ a.message }}
+    <span class="mono text-muted" style="font-size: 11px;">・ {{ a.created_at.strftime("%m/%d %H:%M") }}</span>
+  </p>
+  {% endfor %}
+  <a href="{{ url_for('lobby.announcements') }}" style="font-size: 13px; color: var(--gold);">すべてのお知らせを見る →</a>
+</div>
+{% endif %}
+
 <a href="{{ url_for('sportsbook.index') }}" class="panel" style="display:block; margin-bottom: 24px; border-color: var(--gold);">
   <span class="eyebrow">NEW</span>
   <h3 style="margin-bottom: 4px;">スポーツベット</h3>

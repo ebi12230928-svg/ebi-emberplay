@@ -7,7 +7,7 @@
 <p>Embersはすべて無料の報酬から得られます。現金・ギフトカード・暗号資産などへの交換は今後も一切行いません。</p>
 
 {% if nav_user.debt and nav_user.debt > 0 %}
-<div class="panel" style="border-color: var(--loss); margin-bottom: 24px;">
+<div class="panel debt-panel" style="border-color: var(--loss); margin-bottom: 24px;">
   <h3 style="color: var(--loss); margin-bottom: 8px;">借金残高: {{ "{:,}".format(nav_user.debt) }}</h3>
   <p style="margin: 0;">
     完済するまで、ゲームでの勝利分は残高に反映されず、すべて借金の返済に充てられます。
@@ -15,9 +15,45 @@
     {% if monthly_locked %}<br><strong style="color: var(--loss);">借金を1ヶ月以内に返済しなかったため、マンスリー報酬は完済まで利用できません。</strong>{% endif %}
   </p>
 </div>
+{% else %}
+<div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 8px;">借金する</h3>
+  <p style="margin-bottom: 16px;">
+    残高が足りないときは、{{ "{:,}".format(config.LOAN_AMOUNT) }} Embersを借り入れられます。
+    完済するまで、勝利分はすべて返済に充てられます(デイリー等の無料報酬は通常どおり受け取れます)。
+  </p>
+  <form method="POST" action="{{ url_for('rewards.borrow') }}" onsubmit="return confirm('{{ config.LOAN_AMOUNT }} Embersを借り入れます。よろしいですか？');">
+    <button type="submit" class="btn btn-ghost">{{ "{:,}".format(config.LOAN_AMOUNT) }} Embersを借りる</button>
+  </form>
+</div>
 {% endif %}
 
 <div class="reward-grid">
+  <div class="reward-card">
+    <h3>アワリー</h3>
+    <div class="reward-amount">+{{ "{:,}".format(config.HOURLY_REWARD) }}</div>
+    <form method="POST" action="{{ url_for('rewards.claim_hourly') }}">
+      <button class="btn btn-ember btn-block" {% if hourly_wait > 0 %}disabled{% endif %}>
+        {% if hourly_wait > 0 %}受取済み{% else %}受け取る{% endif %}
+      </button>
+    </form>
+    {% if hourly_wait > 0 %}<span class="countdown" data-countdown="{{ hourly_wait }}"></span>{% endif %}
+  </div>
+
+  <div class="reward-card">
+    <h3>ログインボーナス</h3>
+    <div class="reward-amount">+{{ "{:,}".format(streak_reward_amount) }}</div>
+    <p style="font-size: 12px; margin: 0;">
+      {% if streak_ready %}{{ streak_next_day }}日目を受け取れます{% else %}現在{{ streak_next_day - 1 }}日連続{% endif %}
+      (1日休むとリセットされます)
+    </p>
+    <form method="POST" action="{{ url_for('rewards.claim_streak') }}">
+      <button class="btn btn-ember btn-block" {% if not streak_ready %}disabled{% endif %}>
+        {% if streak_ready %}受け取る{% else %}受取済み{% endif %}
+      </button>
+    </form>
+  </div>
+
   <div class="reward-card">
     <h3>デイリー</h3>
     <div class="reward-amount">+{{ "{:,}".format(config.DAILY_REWARD) }}</div>
@@ -102,5 +138,12 @@
     tick();
     setInterval(tick, 1000);
   });
+
+  // 報酬受け取りに成功した直後は、全カードに軽いポップ演出をつける
+  if (document.querySelector(".flash-success")) {
+    document.querySelectorAll(".reward-card").forEach((card) => {
+      card.classList.add("claim-pop");
+    });
+  }
 </script>
 {% endblock %}
