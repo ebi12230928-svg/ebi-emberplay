@@ -20,3 +20,8 @@ from . import videopoker  # noqa: E402,F401
 from . import coinflip    # noqa: E402,F401
 from . import war         # noqa: E402,F401
 from . import sicbo       # noqa: E402,F401
+from . import american_roulette   # noqa: E402,F401
+from . import reddog              # noqa: E402,F401
+from . import andarbahar           # noqa: E402,F401
+from . import craps                # noqa: E402,F401
+from . import threecardpoker       # noqa: E402,F401
