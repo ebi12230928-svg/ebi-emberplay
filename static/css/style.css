@@ -314,35 +314,43 @@ p { line-height: 1.6; color: var(--text-muted); }
   background: var(--bg-raised);
   border: 1px solid var(--panel-border);
   border-radius: 14px;
-  padding: 18px 16px;
+  padding: 0 0 14px;
   position: relative;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.carousel-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(232, 89, 12, 0.16), transparent 65%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+.carousel-card:hover { border-color: var(--ember); transform: translateY(-2px); }
+
+.card-thumb {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin-bottom: 10px;
 }
 
-.carousel-card:hover { border-color: var(--ember); transform: translateY(-2px); }
-.carousel-card:hover::before { opacity: 1; }
-
 .carousel-card h3 {
-  font-size: 18px;
-  margin: 0 0 4px;
-  position: relative;
+  font-size: 16px;
+  margin: 0 4px 2px;
+  padding: 0 12px;
 }
 
 .carousel-card p {
-  font-size: 12px;
+  font-size: 11px;
   margin: 0;
-  position: relative;
+  padding: 0 12px;
   line-height: 1.4;
+}
+
+.card-provider {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 0 12px;
+  display: block;
+  margin-top: 2px;
 }
 
 /* ── game grid (lobby) ── */
@@ -357,26 +365,16 @@ p { line-height: 1.6; color: var(--text-muted); }
   background: var(--bg-raised);
   border: 1px solid var(--panel-border);
   border-radius: 14px;
-  padding: 22px;
+  padding: 0 0 16px;
   position: relative;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.game-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(232, 89, 12, 0.14), transparent 60%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
 .game-card:hover { border-color: var(--ember); transform: translateY(-2px); }
-.game-card:hover::before { opacity: 1; }
 
-.game-card h3 { margin-bottom: 4px; }
-.game-card p { font-size: 13px; margin: 0; }
+.game-card h3 { margin: 0 0 4px; padding: 0 16px; }
+.game-card p { font-size: 13px; margin: 0; padding: 0 16px; }
 
 .badge {
   position: absolute;
