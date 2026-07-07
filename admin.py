@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode
+from models import User, Transaction, RedeemCode, Announcement
 from notifications import notify, notify_all
 
 admin_bp = Blueprint("admin", __name__)
@@ -32,7 +32,10 @@ def dashboard():
 
     recent_tx = Transaction.query.order_by(Transaction.created_at.desc()).limit(30).all()
     codes = RedeemCode.query.order_by(RedeemCode.created_at.desc()).limit(20).all()
-    return render_template("admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes)
+    announcements = Announcement.query.order_by(Announcement.created_at.desc()).limit(20).all()
+    return render_template(
+        "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements
+    )
 
 
 @admin_bp.route("/admin/grant", methods=["POST"])
@@ -264,4 +267,34 @@ def deactivate_code():
         rc.active = False
         db.session.commit()
         flash(f"コード「{rc.code}」を無効化しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/post-announcement", methods=["POST"])
+@login_required
+@admin_required
+def post_announcement():
+    message = request.form.get("message", "").strip()
+    if not message:
+        flash("メッセージを入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    db.session.add(Announcement(message=message, created_by=current_user.username))
+    notify_all(f"新しいお知らせが掲示されました:「{message[:50]}」")
+    db.session.commit()
+
+    flash("お知らせを掲示しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/delete-announcement", methods=["POST"])
+@login_required
+@admin_required
+def delete_announcement():
+    announcement_id = request.form.get("announcement_id")
+    ann = Announcement.query.get(announcement_id)
+    if ann:
+        db.session.delete(ann)
+        db.session.commit()
+        flash("お知らせを削除しました。", "success")
     return redirect(url_for("admin.dashboard"))

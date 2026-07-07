@@ -34,13 +34,31 @@ def wallet():
     def secs(td):
         return int(td.total_seconds()) if td else 0
 
+    # ログインストリーク: 「前回受け取り日」が今日か昨日かで継続/途切れを判定するだけ(受け取り操作はclaim_streakで行う)
+    streak_ready = True
+    streak_next_day = user.login_streak_count + 1
+    if user.last_streak_claim:
+        last_date = user.last_streak_claim.date()
+        today = utcnow().date()
+        if last_date == today:
+            streak_ready = False  # 今日はすでに受け取り済み
+        elif (today - last_date).days > 1:
+            streak_next_day = 1  # 1日以上空いたのでリセット
+
+    idx = min(streak_next_day, len(Config.LOGIN_STREAK_REWARDS)) - 1
+    streak_reward_amount = Config.LOGIN_STREAK_REWARDS[idx]
+
     context = {
+        "hourly_wait": secs(_time_left(user.last_hourly_claim, timedelta(hours=1))),
         "daily_wait": secs(_time_left(user.last_daily_claim, timedelta(hours=24))),
         "weekly_wait": secs(_time_left(user.last_weekly_claim, timedelta(days=7))),
         "monthly_wait": secs(_time_left(user.last_monthly_claim, timedelta(days=30))),
         "reload_wait": secs(_time_left(user.last_reload_claim, timedelta(hours=Config.RELOAD_COOLDOWN_HOURS))),
         "reload_eligible": user.balance <= Config.RELOAD_THRESHOLD,
         "monthly_locked": _monthly_locked_by_debt(user),
+        "streak_ready": streak_ready,
+        "streak_next_day": streak_next_day,
+        "streak_reward_amount": streak_reward_amount,
         "config": Config,
     }
     return render_template("wallet.html", **context)
@@ -62,6 +80,43 @@ def claim_daily():
     current_user.last_daily_claim = utcnow()
     _grant(current_user, Config.DAILY_REWARD, "daily", "デイリー報酬")
     flash(f"デイリー報酬として {Config.DAILY_REWARD:,} Embersを受け取りました。", "success")
+    return redirect(url_for("rewards.wallet"))
+
+
+@rewards_bp.route("/rewards/hourly", methods=["POST"])
+@login_required
+def claim_hourly():
+    if _time_left(current_user.last_hourly_claim, timedelta(hours=1)):
+        flash("アワリー報酬はまだ受け取れません。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    current_user.last_hourly_claim = utcnow()
+    _grant(current_user, Config.HOURLY_REWARD, "hourly", "アワリー報酬")
+    flash(f"アワリー報酬として {Config.HOURLY_REWARD:,} Embersを受け取りました。", "success")
+    return redirect(url_for("rewards.wallet"))
+
+
+@rewards_bp.route("/rewards/streak", methods=["POST"])
+@login_required
+def claim_streak():
+    user = current_user
+    today = utcnow().date()
+
+    if user.last_streak_claim and user.last_streak_claim.date() == today:
+        flash("ログインボーナスは今日すでに受け取り済みです。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    if user.last_streak_claim and (today - user.last_streak_claim.date()).days > 1:
+        user.login_streak_count = 0  # 1日以上あいたのでリセット
+
+    user.login_streak_count += 1
+    user.last_streak_claim = utcnow()
+
+    idx = min(user.login_streak_count, len(Config.LOGIN_STREAK_REWARDS)) - 1
+    amount = Config.LOGIN_STREAK_REWARDS[idx]
+    _grant(user, amount, "login_streak", f"ログインボーナス({user.login_streak_count}日目)")
+
+    flash(f"ログインボーナス({user.login_streak_count}日目)として {amount:,} Embersを受け取りました。", "success")
     return redirect(url_for("rewards.wallet"))
 
 
@@ -123,6 +178,27 @@ def claim_rakeback():
     current_user.pending_rakeback = 0
     _grant(current_user, amount, "rakeback", "レーキバック")
     flash(f"レーキバックとして {amount:,} Embersを受け取りました。", "success")
+    return redirect(url_for("rewards.wallet"))
+
+
+@rewards_bp.route("/rewards/borrow", methods=["POST"])
+@login_required
+def borrow():
+    user = current_user
+    if user.debt and user.debt > 0:
+        flash("すでに借金があります。完済してからもう一度借りてください。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    user.debt = Config.LOAN_AMOUNT
+    user.debt_started_at = utcnow()
+    user.balance += Config.LOAN_AMOUNT
+    db.session.add(Transaction(
+        user_id=user.id, amount=Config.LOAN_AMOUNT, kind="loan",
+        description="借金による借り入れ"
+    ))
+    db.session.commit()
+
+    flash(f"{Config.LOAN_AMOUNT:,} Embersを借り入れました。完済するまで勝利分は返済に充てられます。", "success")
     return redirect(url_for("rewards.wallet"))
 
 

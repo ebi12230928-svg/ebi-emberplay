@@ -29,10 +29,13 @@ class User(UserMixin, db.Model):
     is_vip = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
 
+    last_hourly_claim = db.Column(db.DateTime, nullable=True)
     last_daily_claim = db.Column(db.DateTime, nullable=True)
     last_weekly_claim = db.Column(db.DateTime, nullable=True)
     last_monthly_claim = db.Column(db.DateTime, nullable=True)
     last_reload_claim = db.Column(db.DateTime, nullable=True)
+    login_streak_count = db.Column(db.Integer, default=0, nullable=False)
+    last_streak_claim = db.Column(db.DateTime, nullable=True)
 
     # ── 借金機能 ──
     debt = db.Column(db.Integer, default=0, nullable=False)
@@ -289,6 +292,14 @@ class VipAnnouncement(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
 
+class Announcement(db.Model):
+    """全プレイヤーに公開される、管理者だけが書き込めるお知らせ掲示板"""
+    id = db.Column(db.Integer, primary_key=True)
+    message = db.Column(db.Text, nullable=False)
+    created_by = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
 class ChatMessage(db.Model):
     """全プレイヤー参加のチャット(ポーリング方式)"""
     id = db.Column(db.Integer, primary_key=True)
@@ -315,3 +326,39 @@ class WarGame(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User", backref=db.backref("active_war_game", uselist=False))
+
+
+class CrapsGame(db.Model):
+    """Craps(Pass/Don't Pass)の「ポイント」確定後の進行状態を保持するモデル"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+
+    bet_type = db.Column(db.String(16), nullable=False)  # pass / dont_pass
+    wager = db.Column(db.Integer, nullable=False)
+    point = db.Column(db.Integer, nullable=False)
+
+    server_seed_hash = db.Column(db.String(64), nullable=False)
+    client_seed = db.Column(db.String(64), nullable=False)
+    nonce = db.Column(db.Integer, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("active_craps_game", uselist=False))
+
+
+class ThreeCardPokerGame(db.Model):
+    """Three Card Pokerの、Play/Fold選択待ちの状態を保持するモデル"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+
+    ante = db.Column(db.Integer, nullable=False)
+    player_hand_json = db.Column(db.Text, nullable=False)
+    dealer_hand_json = db.Column(db.Text, nullable=False)
+
+    server_seed_hash = db.Column(db.String(64), nullable=False)
+    client_seed = db.Column(db.String(64), nullable=False)
+    nonce = db.Column(db.Integer, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("active_threecard_game", uselist=False))

@@ -23,12 +23,18 @@ class Config:
     # ── ポイント経済(エンタメ専用・換金/購入は一切不可) ──
     SIGNUP_BONUS = 1000
 
-    DAILY_REWARD = 500
-    WEEKLY_REWARD = 2000
-    MONTHLY_REWARD = 8000
+    HOURLY_REWARD = 100
+    DAILY_REWARD = 650
+    WEEKLY_REWARD = 2600
+    MONTHLY_REWARD = 10000
 
     RELOAD_THRESHOLD = 100       # 残高がこれ以下のときだけリロード可能
-    RELOAD_AMOUNT = 750
+    RELOAD_AMOUNT = 900
     RELOAD_COOLDOWN_HOURS = 12
 
     RAKEBACK_RATE = 0.03          # プレイ料の3%がレーキバックとして積み立てられる
+
+    LOAN_AMOUNT = 3000            # 「借金する」ボタンで借りられる指定額
+
+    # ログインストリークボーナス(連続ログイン日数に応じて増える。1日空けるとリセット)
+    LOGIN_STREAK_REWARDS = [200, 300, 400, 500, 700, 900, 1500]  # 1〜7日目、以降は7日目の額をループ

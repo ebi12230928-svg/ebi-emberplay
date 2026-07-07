@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 
-from models import BetRecord
+from models import BetRecord, Announcement
 from games.slots import THEMES as SLOT_THEMES
 
 lobby_bp = Blueprint("lobby", __name__)
@@ -23,6 +23,11 @@ GAMES = [
     {"slug": "blackjack", "name": "Blackjack", "tagline": "ディーラーと21を競う定番ゲーム", "ready": True, "category": "table"},
     {"slug": "baccarat", "name": "Baccarat", "tagline": "Player・Banker・Tieから選ぶ", "ready": True, "category": "table"},
     {"slug": "videopoker", "name": "Video Poker", "tagline": "Jacks or Betterで役を揃えろ", "ready": True, "category": "table"},
+    {"slug": "american-roulette", "name": "American Roulette", "tagline": "00ありのアメリカン仕様", "ready": True, "category": "table"},
+    {"slug": "reddog", "name": "Red Dog", "tagline": "2枚の間に3枚目が入るか予想", "ready": True, "category": "table"},
+    {"slug": "andarbahar", "name": "Andar Bahar", "tagline": "ジョーカーと同じ数字がどちらに先に出るか", "ready": True, "category": "table"},
+    {"slug": "craps", "name": "Craps", "tagline": "Pass/Don't Passでサイコロ勝負", "ready": True, "category": "table"},
+    {"slug": "threecardpoker", "name": "Three Card Poker", "tagline": "3枚勝負でディーラーに挑む", "ready": True, "category": "table"},
 ]
 
 # スロットはテーマごとに量産されるので、THEMES辞書から自動的に一覧を作る
@@ -45,12 +50,25 @@ def index():
     recent = (
         BetRecord.query.order_by(BetRecord.created_at.desc()).limit(12).all()
     )
+    latest_announcements = (
+        Announcement.query.order_by(Announcement.created_at.desc()).limit(3).all()
+    )
     categories = []
     for key, label in CATEGORY_LABELS.items():
         games_in_cat = [g for g in GAMES if g["category"] == key]
         if games_in_cat:
             categories.append({"key": key, "label": label, "games": games_in_cat})
-    return render_template("index.html", games=GAMES, recent=recent, categories=categories)
+    return render_template(
+        "index.html", games=GAMES, recent=recent, categories=categories,
+        latest_announcements=latest_announcements
+    )
+
+
+@lobby_bp.route("/announcements")
+@login_required
+def announcements():
+    items = Announcement.query.order_by(Announcement.created_at.desc()).limit(50).all()
+    return render_template("announcements.html", items=items)
 
 
 @lobby_bp.route("/history")
