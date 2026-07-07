@@ -146,6 +146,20 @@ a { color: inherit; text-decoration: none; }
   transition: color 0.2s ease;
 }
 
+.odo-char {
+  display: inline-block;
+}
+
+.odo-char.odo-flip {
+  animation: odo-flip-anim 0.35s ease;
+}
+
+@keyframes odo-flip-anim {
+  0% { transform: translateY(-55%) scale(0.85); opacity: 0; }
+  60% { transform: translateY(6%) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
 .odometer.pulse-win .value { color: var(--win); animation: pulse-up 0.5s ease; }
 .odometer.pulse-loss .value { color: var(--loss); animation: pulse-down 0.5s ease; }
 
@@ -194,6 +208,26 @@ a { color: inherit; text-decoration: none; }
   padding: 24px;
 }
 
+.debt-panel {
+  animation: debt-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes debt-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 69, 69, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(214, 69, 69, 0); }
+}
+
+/* 報酬受け取りが成功した際のポップ演出(wallet.html内のJSでクラス付与) */
+.reward-card.claim-pop {
+  animation: claim-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes claim-pop {
+  0% { transform: scale(0.96); }
+  50% { transform: scale(1.03); border-color: var(--gold); }
+  100% { transform: scale(1); }
+}
+
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -235,6 +269,80 @@ p { line-height: 1.6; color: var(--text-muted); }
 .search-bar input:focus {
   outline: none;
   border-color: var(--ember);
+}
+
+/* ── carousel(横スクロール) ── */
+.carousel-section {
+  margin-bottom: 32px;
+}
+
+.carousel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.carousel-header h2 {
+  margin: 0;
+}
+
+.carousel-see-all {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.carousel {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.carousel::-webkit-scrollbar { height: 6px; }
+.carousel::-webkit-scrollbar-track { background: transparent; }
+.carousel::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 10px; }
+
+.carousel-card {
+  flex: 0 0 150px;
+  scroll-snap-align: start;
+  background: var(--bg-raised);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 18px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.carousel-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(232, 89, 12, 0.16), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.carousel-card:hover { border-color: var(--ember); transform: translateY(-2px); }
+.carousel-card:hover::before { opacity: 1; }
+
+.carousel-card h3 {
+  font-size: 18px;
+  margin: 0 0 4px;
+  position: relative;
+}
+
+.carousel-card p {
+  font-size: 12px;
+  margin: 0;
+  position: relative;
+  line-height: 1.4;
 }
 
 /* ── game grid (lobby) ── */
@@ -439,8 +547,28 @@ p { line-height: 1.6; color: var(--text-muted); }
   margin-top: 24px;
 }
 
-.result-readout.win { color: var(--win); }
-.result-readout.loss { color: var(--loss); }
+.result-readout.win {
+  color: var(--win);
+  animation: result-pop-win 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.result-readout.loss {
+  color: var(--loss);
+  animation: result-shake-loss 0.4s ease;
+}
+
+@keyframes result-pop-win {
+  0% { transform: scale(0.7); opacity: 0; text-shadow: 0 0 0 rgba(76, 175, 109, 0); }
+  50% { transform: scale(1.15); text-shadow: 0 0 24px rgba(76, 175, 109, 0.6); }
+  100% { transform: scale(1); opacity: 1; text-shadow: 0 0 0 rgba(76, 175, 109, 0); }
+}
+
+@keyframes result-shake-loss {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
 
 .limbo-multiplier {
   font-family: var(--font-mono);
@@ -472,9 +600,33 @@ p { line-height: 1.6; color: var(--text-muted); }
 }
 
 .mine-tile:hover:not(.revealed):not(.mine) { transform: scale(1.04); border-color: var(--gold); }
-.mine-tile.revealed { background: rgba(76, 175, 109, 0.18); border-color: var(--win); cursor: default; }
-.mine-tile.mine { background: rgba(214, 69, 69, 0.25); border-color: var(--loss); cursor: default; }
+.mine-tile.revealed {
+  background: rgba(76, 175, 109, 0.18);
+  border-color: var(--win);
+  cursor: default;
+  animation: tile-reveal-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mine-tile.mine {
+  background: rgba(214, 69, 69, 0.25);
+  border-color: var(--loss);
+  cursor: default;
+  animation: tile-reveal-shake 0.4s ease;
+}
 .mine-tile:disabled { pointer-events: none; }
+
+@keyframes tile-reveal-pop {
+  0% { transform: scale(0.6); opacity: 0.4; }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes tile-reveal-shake {
+  0% { transform: scale(0.9); }
+  25% { transform: translateX(-6px) scale(1.05); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+  100% { transform: translateX(0) scale(1); }
+}
 
 /* ── admin table ── */
 table {
