@@ -25,3 +25,4 @@ from . import reddog              # noqa: E402,F401
 from . import andarbahar           # noqa: E402,F401
 from . import craps                # noqa: E402,F401
 from . import threecardpoker       # noqa: E402,F401
+from . import rps                  # noqa: E402,F401
