@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Mini Roulette ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Mini Roulette</span>
+<h1>Mini Roulette</h1>
+<p>0〜12の13マスだけの小型ルーレット。通常のルーレットより数字が少ない分テンポよく遊べます。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="bet-type">選択の種類</label>
+      <select id="bet-type">
+        <option value="straight">Straight(単一数字・11.83倍)</option>
+        <option value="red">Red(1.97倍)</option>
+        <option value="black">Black(1.97倍)</option>
+        <option value="even">Even(1.97倍)</option>
+        <option value="odd">Odd(1.97倍)</option>
+        <option value="low">Low 1-6(1.97倍)</option>
+        <option value="high">High 7-12(1.97倍)</option>
+      </select>
+    </div>
+    <div class="field" id="straight-field">
+      <label for="straight-value">数字(0〜12)</label>
+      <select id="straight-value">
+        {% for n in range(0, 13) %}
+        <option value="{{ n }}">{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="spin-btn">スピン</button>
+  </div>
+
+  <div>
+    <div class="game-stage">
+      <div class="result-readout" id="result-readout">--</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/miniroulette.js') }}"></script>
+{% endblock %}

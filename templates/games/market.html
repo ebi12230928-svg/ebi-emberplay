@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Market ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📈 Market</span>
+<h1>マーケット予想</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  ※ 実際の株価APIは登録が必須のため、こちらは登録不要で取得できる<strong>実際の暗号資産価格(CoinGecko提供)</strong>を使っています。{{ round_seconds }}秒後の価格が上がるか下がるかを予想してください。
+</p>
+
+<div class="game-layout">
+  <div class="panel">
+    {% if not game %}
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="symbol-select">銘柄</label>
+      <select id="symbol-select">
+        {% for id, ticker in symbols.items() %}
+        <option value="{{ id }}">{{ ticker }}{% if prices and prices.get(id) %}(現在 ${{ prices[id]['usd'] }}){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <button class="btn btn-ember" id="up-btn" style="flex:1;">📈 上がる</button>
+      <button class="btn btn-ghost" id="down-btn" style="flex:1;">📉 下がる</button>
+    </div>
+    {% else %}
+    <p>予想受付中の銘柄: <strong>{{ symbols.get(game.symbol, game.symbol) }}</strong>({{ "上がる" if game.pick == "up" else "下がる" }}に予想)</p>
+    <p class="mono">開始時の価格: ${{ game.start_price }}</p>
+    <p id="countdown-text" class="mono text-muted"></p>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="price-display" style="font-size: 36px; font-weight: 800;">--</div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.EMBERPLAY_MARKET_HAS_GAME = {{ "true" if game else "false" }};</script>
+<script src="{{ url_for('static', filename='js/market.js') }}"></script>
+{% endblock %}

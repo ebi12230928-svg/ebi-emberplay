@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Horse Race ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🐎 Horse Race</span>
+<h1>競馬(シミュレーションレース)</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  ※ 実際の競馬データを無料で取得する方法がないため、これは公正な乱数(Provably Fair)で結果を決めるシミュレーションレースです。実在のレース結果とは一切関係ありません。
+</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div class="field">
+      <label for="horse-select">出走馬を選ぶ</label>
+      <select id="horse-select">
+        {% for h in horses %}
+        <option value="{{ h.key }}">{{ h.name }}({{ h.payout }}倍)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-ember btn-block" id="race-btn">レース開始</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; align-items: stretch; padding: 20px;">
+      <div id="track" style="display:flex; flex-direction: column; gap: 8px;">
+        {% for h in horses %}
+        <div style="position: relative; height: 30px; background: rgba(255,255,255,0.03); border-radius: 6px;">
+          <span class="text-muted" style="position:absolute; left: 4px; top: 4px; font-size: 10px;">{{ h.name }}</span>
+          <span id="horse-{{ h.key }}" style="position:absolute; left: 0; top: 2px; font-size: 22px; transition: left 2.2s cubic-bezier(0.2, 0.6, 0.3, 1);">🐎</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/horserace.js') }}"></script>
+{% endblock %}

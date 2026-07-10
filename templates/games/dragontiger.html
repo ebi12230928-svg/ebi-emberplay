@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Dragon Tiger ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Dragon Tiger</span>
+<h1>Dragon Tiger</h1>
+<p>Dragon・Tigerそれぞれに1枚配り、数字が大きい方が勝ち。的中で{{ payout }}倍。引き分けは半額返金です。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <button class="btn btn-ember pick-btn" data-pick="dragon" style="flex:1;">🐉 Dragon</button>
+      <button class="btn btn-ember pick-btn" data-pick="tiger" style="flex:1;">🐯 Tiger</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div style="display:flex; gap: 40px;">
+        <div style="text-align:center;">
+          <div class="eyebrow">🐉 Dragon</div>
+          <div class="mono" id="dragon-card" style="font-size: 40px;">--</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="eyebrow">🐯 Tiger</div>
+          <div class="mono" id="tiger-card" style="font-size: 40px;">--</div>
+        </div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dragontiger.js') }}"></script>
+{% endblock %}

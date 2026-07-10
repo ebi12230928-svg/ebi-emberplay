@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Lucky Numbers Lottery ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎟️ Lucky Numbers</span>
+<h1>Lucky Numbers Lottery</h1>
+<p>0〜9の数字を3桁選びます。同じ位置で2桁一致すると{{ payouts[2] }}倍、3桁全て一致すると{{ payouts[3] }}倍の大当たりです。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div style="display:flex; gap: 8px;">
+      <select id="digit-0">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
+      <select id="digit-1">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
+      <select id="digit-2">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
+    </div>
+    <button class="btn btn-ember btn-block" id="play-btn" style="margin-top: 12px;">購入する</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="drawn-numbers" style="display:flex; gap: 12px; font-size: 40px; font-weight: 800;">
+        <div>❔</div><div>❔</div><div>❔</div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/lottery.js') }}"></script>
+{% endblock %}

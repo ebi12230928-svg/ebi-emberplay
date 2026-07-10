@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Treasure Hunt ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🗺️ Treasure Hunt</span>
+<h1>Treasure Hunt</h1>
+<p>9マス中2マスがトラップです。{{ pick_count }}マス選び、全て安全なら{{ payout }}倍。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <p class="text-muted" style="font-size: 12px;">マスを{{ pick_count }}つ選んでください(<span id="pick-count">0</span>/{{ pick_count }})</p>
+    <button class="btn btn-ember btn-block" id="play-btn" disabled>探索する</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 220px;">
+        {% for i in range(grid_size) %}
+        <button type="button" class="mine-tile" data-index="{{ i }}" style="height:64px; font-size: 24px;">🗺️</button>
+        {% endfor %}
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.EMBERPLAY_PICK_COUNT = {{ pick_count }};</script>
+<script src="{{ url_for('static', filename='js/treasurehunt.js') }}"></script>
+{% endblock %}

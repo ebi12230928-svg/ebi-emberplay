@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Scratch Card ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Scratch Card</span>
+<h1>Scratch Card</h1>
+<p>3つのマスをスクラッチして、同じ絵柄が3つ揃うと大当たり。2つ揃いでも一部配当があります。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="scratch-btn">スクラッチする</button>
+
+    <hr class="divider">
+    <p style="font-size: 12px;">配当(3つ揃い): {% for s in symbols %}{{ s.label }}×3 = {{ s.pay3 }}x　{% endfor %}</p>
+    <p style="font-size: 12px;">{{ symbols[0].label }}×2 = {{ symbols[0].pay2 }}x</p>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 24px;">
+      <div style="display:flex; gap: 16px; font-size: 56px;">
+        <div class="scratch-cell" id="cell-0">🎫</div>
+        <div class="scratch-cell" id="cell-1">🎫</div>
+        <div class="scratch-cell" id="cell-2">🎫</div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scratch.js') }}"></script>
+{% endblock %}
