@@ -77,6 +77,7 @@ def create_app():
     from player_profile import profile_bp
     from support import support_bp
     from demo import demo_bp
+    from stream import stream_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -93,6 +94,7 @@ def create_app():
     app.register_blueprint(profile_bp)
     app.register_blueprint(support_bp)
     app.register_blueprint(demo_bp)
+    app.register_blueprint(stream_bp)
 
     @app.context_processor
     def inject_user():

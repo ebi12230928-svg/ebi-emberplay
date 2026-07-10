@@ -460,6 +460,42 @@ class MarketGame(db.Model):
     user = db.relationship("User", backref=db.backref("active_market_game", uselist=False))
 
 
+class StreamSession(db.Model):
+    """画面配信(WebRTC)のセッション。同時に配信できるのは1つだけ"""
+    id = db.Column(db.Integer, primary_key=True)
+    broadcaster_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(128), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    started_at = db.Column(db.DateTime, default=utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+
+    broadcaster = db.relationship("User")
+
+
+class StreamViewer(db.Model):
+    """配信の視聴者一覧(配信者側が誰に映像を送るべきか把握するために使う)"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("stream_session.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    joined_at = db.Column(db.DateTime, default=utcnow)
+    last_seen = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("session_id", "user_id", name="uq_stream_viewer"),)
+
+
+class StreamSignal(db.Model):
+    """WebRTCのシグナリング(offer/answer/iceの中継)用メールボックス。ポーリング方式で配送する"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("stream_session.id"), nullable=False, index=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    kind = db.Column(db.String(16), nullable=False)  # offer / answer / ice
+    payload = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
 class WarGame(db.Model):
     """War(引き分け時の「戦争に行く/降参」待ち状態)を保持するモデル"""
     id = db.Column(db.Integer, primary_key=True)
