@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}画面配信 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📺 Screen Share</span>
+<h1>画面配信</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  ブラウザ同士が直接つながるP2P通信(WebRTC)で、画面映像だけを配信できます。音声・マイクは使いません。
+  サーバーには映像データは一切送られません(接続情報の中継のみを行います)。少人数向けの機能です。
+</p>
+
+{% if not session %}
+<div class="panel">
+  <h3 style="margin-bottom: 8px;">現在、配信中の番組はありません</h3>
+  <form method="POST" action="{{ url_for('stream.start') }}">
+    <div class="field">
+      <label for="title">配信タイトル(任意)</label>
+      <input type="text" id="title" name="title" placeholder="例: 今夜のスロット実況">
+    </div>
+    <button type="submit" class="btn btn-ember">配信を開始する</button>
+  </form>
+</div>
+
+{% elif is_broadcaster %}
+<div class="panel" style="margin-bottom: 20px;">
+  <span class="eyebrow" style="color: var(--gold);">🔴 あなたが配信中</span>
+  <h3 style="margin-bottom: 8px;">{{ session.title }}</h3>
+  <p class="mono text-muted" style="font-size: 13px;">視聴者数: <span id="viewer-count">{{ viewer_count }}</span>人</p>
+  <video id="local-video" autoplay muted playsinline style="width:100%; border-radius: 10px; background:#000; margin: 12px 0;"></video>
+  <div style="display:flex; gap: 10px;">
+    <button class="btn btn-ember" id="start-share-btn">画面共有を開始</button>
+    <form method="POST" action="{{ url_for('stream.stop') }}">
+      <button type="submit" class="btn btn-ghost">配信を終了</button>
+    </form>
+  </div>
+  <p id="broadcast-status" class="text-muted" style="font-size: 12px; margin-top: 8px;"></p>
+</div>
+
+{% else %}
+<div class="panel" style="margin-bottom: 20px;">
+  <span class="eyebrow" style="color: var(--gold);">🔴 LIVE</span>
+  <h3 style="margin-bottom: 8px;">{{ session.title }}</h3>
+  <p class="mono text-muted" style="font-size: 13px;">配信者: {{ session.broadcaster.username }} ・ 視聴者数: <span id="viewer-count">{{ viewer_count }}</span>人</p>
+  <video id="remote-video" autoplay playsinline style="width:100%; border-radius: 10px; background:#000; margin: 12px 0;"></video>
+  <button class="btn btn-ember" id="watch-btn">視聴する</button>
+  <p id="watch-status" class="text-muted" style="font-size: 12px; margin-top: 8px;"></p>
+  {% if current_user.is_admin %}
+  <form method="POST" action="{{ url_for('stream.stop') }}" style="margin-top: 8px;">
+    <button type="submit" class="btn btn-ghost" style="font-size: 12px;">(管理者)配信を強制終了</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.STREAM_SESSION_ID = {{ session.id if session else "null" }};
+  window.STREAM_BROADCASTER_ID = {{ session.broadcaster_id if session else "null" }};
+  window.STREAM_IS_BROADCASTER = {{ "true" if is_broadcaster else "false" }};
+  window.STREAM_MY_ID = {{ current_user.id }};
+</script>
+<script src="{{ url_for('static', filename='js/stream.js') }}"></script>
+{% endblock %}
