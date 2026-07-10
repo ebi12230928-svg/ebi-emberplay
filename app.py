@@ -74,7 +74,7 @@ def create_app():
     from chat import chat_bp
     from giveaway import giveaway_bp
     from events import events_bp
-    from profile import profile_bp
+    from player_profile import profile_bp
     from support import support_bp
     from demo import demo_bp
 
