@@ -26,3 +26,16 @@ from . import andarbahar           # noqa: E402,F401
 from . import craps                # noqa: E402,F401
 from . import threecardpoker       # noqa: E402,F401
 from . import rps                  # noqa: E402,F401
+from . import scratch               # noqa: E402,F401
+from . import horserace              # noqa: E402,F401
+from . import market                 # noqa: E402,F401
+from . import fantan                 # noqa: E402,F401
+from . import overunder7             # noqa: E402,F401
+from . import pokerdice               # noqa: E402,F401
+from . import fishing                 # noqa: E402,F401
+from . import miniroulette            # noqa: E402,F401
+from . import ceelo                   # noqa: E402,F401
+from . import dragontiger             # noqa: E402,F401
+from . import lottery                 # noqa: E402,F401
+from . import treasurehunt            # noqa: E402,F401
+from . import numbermatch             # noqa: E402,F401

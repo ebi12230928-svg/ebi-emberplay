@@ -23,7 +23,27 @@ def scale_multiplier(game_key: str, multiplier: float) -> float:
 
 def apply_rakeback(user, wager):
     from config import Config
-    user.pending_rakeback += round(wager * Config.RAKEBACK_RATE)
+    import vip_perks
+
+    rate = vip_perks.rakeback_rate(user)
+    user.pending_rakeback += round(wager * rate)
+
+    old_level = user.level
+    xp_mult = vip_perks.xp_multiplier(user)
+    user.xp += max(1, round((wager // 10) * xp_mult))  # プレイ額10につき1XP(最低1XP、VIPは倍率アップ)
+
+    if user.level > old_level:
+        try:
+            from notifications import notify
+            notify(user.id, f"レベルアップ!Lv.{old_level} → Lv.{user.level}({user.level_title})になりました。")
+        except Exception:
+            pass
+
+    try:
+        from achievements import check_achievements
+        check_achievements(user)
+    except Exception:
+        pass  # 実績判定に失敗してもプレイ自体は継続させる
 
 
 def next_float(user):
