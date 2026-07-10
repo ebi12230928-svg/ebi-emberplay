@@ -6,6 +6,26 @@
 <h1>報酬を受け取る</h1>
 <p>Embersはすべて無料の報酬から得られます。現金・ギフトカード・暗号資産などへの交換は今後も一切行いません。</p>
 
+{% if nav_user.is_vip %}
+<div class="panel" style="margin-bottom: 24px; border-color: var(--gold); background: linear-gradient(135deg, rgba(212,162,78,0.12), transparent);">
+  <span class="eyebrow" style="color: var(--gold);">{{ vip_tier_name }} VIP 特典 適用中</span>
+  <h3 style="margin-bottom: 8px;">👑 {{ vip_tier_name }} VIPメンバー</h3>
+  <p style="margin: 0; font-size: 13px;">
+    レーキバック{{ (rakeback_rate * 100) | round(1) }}%・アワリー報酬{{ "{:g}".format(config.VIP_TIER_HOURLY_COOLDOWN.get(nav_user.vip_tier, 0.5) * 60) }}分ごと・
+    借金上限{{ "{:,}".format(loan_amount) }}・デイリースピン最大{{ "{:,}".format(spin_prizes[-1]) }}
+  </p>
+</div>
+{% else %}
+<div class="panel" style="margin-bottom: 24px;">
+  <span class="eyebrow">VIPになると</span>
+  <h3 style="margin-bottom: 8px;">👑 VIP特典(Bronze〜Diamondの4段階)</h3>
+  <p style="margin: 0; font-size: 13px;">
+    管理者が認定すると、ランクに応じてレーキバック率アップ・アワリー報酬の短縮・XP倍率アップ・
+    借金の上限アップ・デイリースピンの高額化などの特典が受けられます。
+  </p>
+</div>
+{% endif %}
+
 {% if nav_user.debt and nav_user.debt > 0 %}
 <div class="panel debt-panel" style="border-color: var(--loss); margin-bottom: 24px;">
   <h3 style="color: var(--loss); margin-bottom: 8px;">借金残高: {{ "{:,}".format(nav_user.debt) }}</h3>
@@ -19,19 +39,39 @@
 <div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 8px;">借金する</h3>
   <p style="margin-bottom: 16px;">
-    残高が足りないときは、{{ "{:,}".format(config.LOAN_AMOUNT) }} Embersを借り入れられます。
+    残高が足りないときは、{{ "{:,}".format(loan_amount) }} Embersを借り入れられます。
     完済するまで、勝利分はすべて返済に充てられます(デイリー等の無料報酬は通常どおり受け取れます)。
   </p>
-  <form method="POST" action="{{ url_for('rewards.borrow') }}" onsubmit="return confirm('{{ config.LOAN_AMOUNT }} Embersを借り入れます。よろしいですか？');">
-    <button type="submit" class="btn btn-ghost">{{ "{:,}".format(config.LOAN_AMOUNT) }} Embersを借りる</button>
+  <form method="POST" action="{{ url_for('rewards.borrow') }}" onsubmit="return confirm('{{ loan_amount }} Embersを借り入れます。よろしいですか？');">
+    <button type="submit" class="btn btn-ghost">{{ "{:,}".format(loan_amount) }} Embersを借りる</button>
   </form>
 </div>
 {% endif %}
 
+<div class="panel" style="margin-bottom: 24px; border-color: #4a90d9;">
+  <span class="eyebrow">🔒 金庫(Vault)</span>
+  <h3 style="margin-bottom: 8px;">残高を守る</h3>
+  <p style="margin-bottom: 12px;">
+    金庫に預けたEmbersはプレイに使われません。「今日はここまで」と決めた分を先に金庫に入れておくと、使いすぎ防止になります。
+  </p>
+  <p class="mono" style="font-size: 20px; margin: 0 0 16px;">🔒 {{ "{:,}".format(nav_user.vault_balance) }} Embers</p>
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+    <form method="POST" action="{{ url_for('rewards.vault_deposit') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px;">
+      <input type="number" name="amount" placeholder="預ける額" min="1" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+      <button type="submit" class="btn btn-ghost">預ける</button>
+    </form>
+    <form method="POST" action="{{ url_for('rewards.vault_withdraw') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px;">
+      <input type="number" name="amount" placeholder="引き出す額" min="1" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+      <button type="submit" class="btn btn-ghost">引き出す</button>
+    </form>
+  </div>
+</div>
+
 <div class="reward-grid">
   <div class="reward-card">
-    <h3>アワリー</h3>
+    <h3>アワリー{% if nav_user.is_vip %} <span style="color: var(--gold); font-size: 11px;">VIP</span>{% endif %}</h3>
     <div class="reward-amount">+{{ "{:,}".format(config.HOURLY_REWARD) }}</div>
+    {% if nav_user.is_vip %}<p style="font-size: 11px; margin: 0 0 6px; color: var(--gold);">30分ごとに受け取り可能</p>{% endif %}
     <form method="POST" action="{{ url_for('rewards.claim_hourly') }}">
       <button class="btn btn-ember btn-block" {% if hourly_wait > 0 %}disabled{% endif %}>
         {% if hourly_wait > 0 %}受取済み{% else %}受け取る{% endif %}
@@ -52,6 +92,18 @@
         {% if streak_ready %}受け取る{% else %}受取済み{% endif %}
       </button>
     </form>
+  </div>
+
+  <div class="reward-card">
+    <h3>デイリースピン{% if nav_user.is_vip %} <span style="color: var(--gold); font-size: 11px;">VIP</span>{% endif %}</h3>
+    <div class="reward-amount">🎡 ランダム</div>
+    <p style="font-size: 12px; margin: 0 0 8px;">{{ "{:,}".format(spin_prizes[0]) }}〜{{ "{:,}".format(spin_prizes[-1]) }} Embersがランダムで当たります</p>
+    <form method="POST" action="{{ url_for('rewards.claim_spin') }}">
+      <button class="btn btn-ember btn-block" {% if spin_wait > 0 %}disabled{% endif %}>
+        {% if spin_wait > 0 %}受取済み{% else %}回す{% endif %}
+      </button>
+    </form>
+    {% if spin_wait > 0 %}<span class="countdown" data-countdown="{{ spin_wait }}"></span>{% endif %}
   </div>
 
   <div class="reward-card">
@@ -102,7 +154,7 @@
   <div class="reward-card">
     <h3>レーキバック</h3>
     <div class="reward-amount">+{{ "{:,}".format(nav_user.pending_rakeback) }}</div>
-    <p style="font-size: 12px; margin: 0;">プレイ料の{{ (config.RAKEBACK_RATE * 100) | round(1) }}%が自動で積み立てられます</p>
+    <p style="font-size: 12px; margin: 0;">プレイ料の{{ (rakeback_rate * 100) | round(1) }}%が自動で積み立てられます</p>
     <form method="POST" action="{{ url_for('rewards.claim_rakeback') }}">
       <button class="btn btn-ember btn-block" {% if nav_user.pending_rakeback <= 0 %}disabled{% endif %}>受け取る</button>
     </form>

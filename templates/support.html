@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}サポート ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎧 Support</span>
+<h1>ライブサポート</h1>
+<p>よくある質問をまとめました。解決しない場合は<a href="{{ url_for('chat.index') }}" style="color: var(--gold);">チャット</a>で気軽に聞いてください。</p>
+
+<div class="panel" style="padding: 0;">
+  {% for question, answer in faq %}
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border);">
+    <strong>Q. {{ question }}</strong>
+    <p style="margin: 6px 0 0; font-size: 13px;">A. {{ answer }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

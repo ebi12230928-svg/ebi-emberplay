@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}デモプレイ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🧪 Demo Play</span>
+<h1>デモプレイ</h1>
+<p>実際の残高は一切使いません。ここでの結果はあなたのアカウントの残高・実績・レベルには反映されない、練習専用のモードです。</p>
+
+<div class="panel" style="margin-bottom: 20px; display:flex; justify-content: space-between; align-items:center;">
+  <div>
+    <span class="eyebrow">デモ残高</span>
+    <div class="mono" id="demo-balance" style="font-size: 24px; font-weight: 800;">{{ "{:,}".format(balance) }}</div>
+  </div>
+  <button class="btn btn-ghost" id="reset-btn">残高をリセット({{ "{:,}".format(starting_balance) }})</button>
+</div>
+
+<div class="category-pills" style="margin-bottom: 20px;">
+  <button type="button" class="category-pill demo-tab active" data-tab="dice">🎲 Dice</button>
+  <button type="button" class="category-pill demo-tab" data-tab="limbo">🚀 Limbo</button>
+  <button type="button" class="category-pill demo-tab" data-tab="coinflip">🪙 Coin Flip</button>
+  <button type="button" class="category-pill demo-tab" data-tab="slots">🎰 Slots</button>
+</div>
+
+<div id="panel-dice" class="demo-panel">
+  <div class="game-layout">
+    <div class="panel">
+      <div class="field"><label>プレイ料</label><input type="number" id="dice-wager" value="100" min="1"></div>
+      <div class="field"><label>ターゲット(<span id="dice-target-val">50</span>)</label>
+        <input type="range" id="dice-target" min="2" max="98" value="50" style="width:100%;"></div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-ember" id="dice-under-btn" style="flex:1;">Under</button>
+        <button class="btn btn-ember" id="dice-over-btn" style="flex:1;">Over</button>
+      </div>
+    </div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="dice-result" style="font-size: 40px; font-weight: 800;">--</div>
+      <div class="result-readout" id="dice-readout"></div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-limbo" class="demo-panel" style="display:none;">
+  <div class="game-layout">
+    <div class="panel">
+      <div class="field"><label>プレイ料</label><input type="number" id="limbo-wager" value="100" min="1"></div>
+      <div class="field"><label>目標倍率</label><input type="number" id="limbo-target" value="2.0" min="1.01" step="0.1"></div>
+      <button class="btn btn-ember btn-block" id="limbo-btn">スタート</button>
+    </div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="limbo-result" style="font-size: 40px; font-weight: 800;">--</div>
+      <div class="result-readout" id="limbo-readout"></div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-coinflip" class="demo-panel" style="display:none;">
+  <div class="game-layout">
+    <div class="panel">
+      <div class="field"><label>プレイ料</label><input type="number" id="coinflip-wager" value="100" min="1"></div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-ember" id="heads-btn" style="flex:1;">表</button>
+        <button class="btn btn-ember" id="tails-btn" style="flex:1;">裏</button>
+      </div>
+    </div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="coinflip-result" style="font-size: 40px; font-weight: 800;">❔</div>
+      <div class="result-readout" id="coinflip-readout"></div>
+    </div>
+  </div>
+</div>
+
+<div id="panel-slots" class="demo-panel" style="display:none;">
+  <div class="game-layout">
+    <div class="panel">
+      <div class="field"><label>プレイ料</label><input type="number" id="slots-wager" value="100" min="1"></div>
+      <button class="btn btn-ember btn-block" id="slots-btn">スピン</button>
+    </div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div style="display:flex; gap:16px; font-size: 48px;">
+        <div id="slots-reel-0">❔</div><div id="slots-reel-1">❔</div><div id="slots-reel-2">❔</div>
+      </div>
+      <div class="result-readout" id="slots-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/demo.js') }}"></script>
+{% endblock %}

@@ -4,6 +4,9 @@
 {% block content %}
 <span class="eyebrow">VIP限定</span>
 <h1>VIPラウンジ</h1>
+{% if nav_user.is_vip %}
+<p class="mono" style="color: var(--gold);">あなたのランク: {{ config.VIP_TIER_NAMES.get(nav_user.vip_tier, "Bronze") }}</p>
+{% endif %}
 <p>VIPメンバー限定のスポーツ観戦スペースです。試合日程・結果に加え、運営からのお知らせが届きます。</p>
 
 {% if nav_user.is_admin %}

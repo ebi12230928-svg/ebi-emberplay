@@ -7,7 +7,10 @@
 
 {% macro game_card(game) -%}
 <a class="carousel-card" href="{{ game_link(game) }}" data-name="{{ game.name | lower }}">
-  <div class="card-thumb" style="background: linear-gradient(160deg, {{ game.gradient[0] }}, {{ game.gradient[1] }});">{{ game.icon }}</div>
+  <div class="card-thumb" style="background: linear-gradient(160deg, {{ game.gradient[0] }}, {{ game.gradient[1] }});">
+    {{ game.icon }}
+    <button type="button" class="fav-star {{ 'active' if game.game_key in favorite_keys else '' }}" data-fav-key="{{ game.game_key }}" onclick="event.preventDefault(); event.stopPropagation(); EmberPlay.toggleFavorite(this);">★</button>
+  </div>
   <h3>{{ game.name }}</h3>
   <p>{{ game.tagline }}</p>
   {% if game.provider %}<span class="card-provider">{{ game.provider }}</span>{% endif %}
@@ -15,12 +18,40 @@
 {%- endmacro %}
 
 {% block content %}
-<span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
-<h1>今夜、どのテーブルで遊ぶ?</h1>
-<p>Embersは無料の報酬でのみ手に入る、遊びのためだけのポイントです。デイリー・ウィークリー・マンスリー・リロード・レーキバックはウォレットから受け取れます。</p>
+<div class="lobby-hero">
+  <div class="lobby-hero-text">
+    <span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
+    <h1>今夜、どのテーブルで遊ぶ?</h1>
+    <p>Embersは無料の報酬でのみ手に入る、遊びのためだけのポイントです。デイリー・ウィークリー・マンスリー・リロード・レーキバックはウォレットから受け取れます。</p>
+    <div class="online-pill">🟢 オンライン: {{ "{:,}".format(online_count) }}人</div>
+  </div>
+  <svg viewBox="0 0 120 140" class="mascot-flame" aria-hidden="true">
+    <defs>
+      <linearGradient id="flameGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffd166"/>
+        <stop offset="100%" stop-color="#e8590c"/>
+      </linearGradient>
+    </defs>
+    <path d="M60 8 C92 40 102 72 90 98 C81 122 39 122 30 98 C18 72 28 40 60 8 Z" fill="url(#flameGrad)"/>
+    <circle cx="45" cy="86" r="5.5" fill="#2b1a12"/>
+    <circle cx="75" cy="86" r="5.5" fill="#2b1a12"/>
+    <circle cx="40" cy="98" r="7" fill="#ff8fa3" opacity="0.55"/>
+    <circle cx="80" cy="98" r="7" fill="#ff8fa3" opacity="0.55"/>
+    <path d="M48 101 Q60 111 72 101" stroke="#2b1a12" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </svg>
+</div>
 
 <div class="search-bar">
   <input type="text" id="game-search" placeholder="ゲームを検索...">
+</div>
+
+<div class="category-pills">
+  {% if favorites %}<a href="#favorites-section" class="category-pill">★ お気に入り</a>{% endif %}
+  {% for cat in categories %}
+  <a href="#sec-{{ cat.key }}" class="category-pill">{{ cat.icon }} {{ cat.label }}</a>
+  {% endfor %}
+  <a href="{{ url_for('sportsbook.index') }}" class="category-pill">⚽ スポーツ</a>
+  <a href="{{ url_for('support.index') }}" class="category-pill">🎧 サポート</a>
 </div>
 
 {% if latest_announcements %}
@@ -48,10 +79,21 @@
 
 <div id="carousel-sections">
 
+{% if favorites %}
+<div class="carousel-section" data-carousel-section id="favorites-section">
+  <div class="carousel-header">
+    <h2>★ お気に入り</h2>
+  </div>
+  <div class="carousel">
+    {% for game in favorites %}{{ game_card(game) }}{% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if continue_playing %}
 <div class="carousel-section" data-carousel-section>
   <div class="carousel-header">
-    <h2>プレーを続ける</h2>
+    <h2>▶️ プレーを続ける</h2>
   </div>
   <div class="carousel">
     {% for game in continue_playing %}{{ game_card(game) }}{% endfor %}
@@ -61,7 +103,7 @@
 
 <div class="carousel-section" data-carousel-section>
   <div class="carousel-header">
-    <h2>あなたへのおすすめゲーム</h2>
+    <h2>✨ あなたへのおすすめゲーム</h2>
   </div>
   <div class="carousel">
     {% for game in recommended %}{{ game_card(game) }}{% endfor %}
@@ -69,9 +111,9 @@
 </div>
 
 {% for cat in categories %}
-<div class="carousel-section" data-carousel-section>
+<div class="carousel-section" data-carousel-section id="sec-{{ cat.key }}">
   <div class="carousel-header">
-    <h2>{{ cat.label }}</h2>
+    <h2>{{ cat.icon }} {{ cat.label }}</h2>
     <a class="carousel-see-all" href="{{ url_for('lobby.category', key=cat.key) }}">すべて見る →</a>
   </div>
   <div class="carousel">

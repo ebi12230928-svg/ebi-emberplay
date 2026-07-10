@@ -6,7 +6,11 @@
   <span class="eyebrow">はじめまして</span>
   <h2>新規登録</h2>
   <p style="font-size: 13px; margin-bottom: 20px;">登録するだけで {{ "{:,}".format(signup_bonus) }} Embersを進呈します。すべてエンタメ専用ポイントで、現金・ギフトカード・暗号資産などへの交換は一切できません。</p>
+  {% if ref_code %}
+  <p style="font-size: 12px; color: var(--gold); margin-bottom: 12px;">紹介コード「{{ ref_code }}」経由の登録です。追加ボーナスが進呈されます。</p>
+  {% endif %}
   <form method="POST">
+    <input type="hidden" name="ref_code" value="{{ ref_code }}">
     <div class="field">
       <label for="username">ユーザー名(英数字・3〜20文字)</label>
       <input type="text" id="username" name="username" required autofocus>

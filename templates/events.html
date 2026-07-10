@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}イベント ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Wager Race</span>
+<h1>イベント</h1>
+<p>期間中にたくさんプレイした人ほど上位に入賞できる、賭け金ランキング大会です。参加登録は不要、対象期間中のプレイが自動的にカウントされます。</p>
+
+<h2>開催中</h2>
+{% if not active_boards %}
+<div class="panel"><p style="margin:0;">現在開催中のイベントはありません。</p></div>
+{% endif %}
+
+{% for item in active_boards %}
+<div class="panel" style="margin-bottom: 20px; border-color: var(--gold);">
+  <span class="eyebrow">🏁 開催中{% if item.hours_left is not none %} ・ 残り約{{ item.hours_left }}時間{% endif %}</span>
+  <h3 style="margin-bottom: 4px;">{{ item.event.title }}</h3>
+  {% if item.event.description %}<p>{{ item.event.description }}</p>{% endif %}
+  <p class="mono text-muted" style="font-size: 12px;">
+    終了: {{ item.event.ends_at.strftime("%Y/%m/%d %H:%M") }}(UTC) ・ 賞金プール合計: {{ "{:,}".format(item.total_prize_pool) }}
+    {% if item.event.game_filter %} ・ 対象: {{ item.event.game_filter }}系ゲームのみ{% endif %}
+  </p>
+
+  <table style="margin-top: 12px;">
+    <thead><tr><th>順位</th><th>ユーザー</th><th>プレイ額</th><th>賞金割合</th><th>賞金</th></tr></thead>
+    <tbody>
+      {% for row in item.board %}
+      <tr>
+        <td class="mono">{% if row.rank == 1 %}🥇{% elif row.rank == 2 %}🥈{% elif row.rank == 3 %}🥉{% else %}{{ row.rank }}位{% endif %}</td>
+        <td>{{ row.username }}</td>
+        <td class="mono">{{ "{:,}".format(row.wagered) }}</td>
+        <td class="mono text-win">{{ row.pct }}%</td>
+        <td class="mono text-win">{{ "{:,}".format(row.prize) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-muted">まだ参加者がいません。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+
+{% if scheduled_events %}
+<h2 style="margin-top: 32px;">開催予定</h2>
+{% for event in scheduled_events %}
+<div class="panel" style="margin-bottom: 12px;">
+  <h3 style="margin-bottom: 4px;">{{ event.title }}</h3>
+  {% if event.description %}<p>{{ event.description }}</p>{% endif %}
+  <p class="mono text-muted" style="font-size: 12px;">
+    {{ event.starts_at.strftime("%Y/%m/%d %H:%M") }} 〜 {{ event.ends_at.strftime("%Y/%m/%d %H:%M") }}(UTC)
+  </p>
+</div>
+{% endfor %}
+{% endif %}
+
+<h2 style="margin-top: 32px;">過去の結果</h2>
+<div class="panel" style="padding: 0;">
+  {% for info in finished_info %}
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border);">
+    <strong>{{ info.event.title }}</strong>
+    <div class="text-muted" style="font-size: 13px; margin-top: 4px;">
+      {% for r in info.results %}{{ r.rank }}位 {{ r.username }}({{ "{:,}".format(r.prize) }}){% if not loop.last %} / {% endif %}{% else %}(参加者なし){% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="padding: 20px;"><p class="text-muted" style="margin:0;">まだ終了したイベントはありません。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

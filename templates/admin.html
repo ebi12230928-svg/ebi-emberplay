@@ -6,6 +6,126 @@
 <h1>管理パネル</h1>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>チップ申請の承認待ち({{ pending_tips | length }}件)</h3>
+  {% for tip in pending_tips %}
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+    <div class="mono" style="font-size: 13px;">
+      {{ tip.from_user.username }} → {{ tip.to_user.username }} ・ {{ "{:,}".format(tip.amount) }} Embers
+    </div>
+    <div style="display:flex; gap: 6px;">
+      <form method="POST" action="{{ url_for('admin.approve_tip', tip_id=tip.id) }}">
+        <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">承認</button>
+      </form>
+      <form method="POST" action="{{ url_for('admin.reject_tip', tip_id=tip.id) }}">
+        <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">却下</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">承認待ちのチップ申請はありません。</p>
+  {% endfor %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>イベント(ウェイジャーレース)</h3>
+  <p style="font-size: 13px;">5種類のテンプレートから選ぶと、開催時間・対象ゲーム・賞金があらかじめ設定されます(賞金だけは自由に上書きできます)。期間中のプレイ額が多い順に自動で賞金が付与されます。</p>
+  <form method="POST" action="{{ url_for('events.create') }}" style="margin-bottom: 20px;">
+    <div class="field">
+      <label for="ev-preset">イベントの種類</label>
+      <select id="ev-preset" name="preset">
+        <option value="daily">デイリーレース(24時間・全ゲーム・3000/2000/1000)</option>
+        <option value="weekend">ウィークエンドレース(48時間・全ゲーム・5枠)</option>
+        <option value="slots_only">スロット限定レース(24時間・スロットのみ)</option>
+        <option value="high_roller">ハイローラーレース(72時間・高額賞金)</option>
+        <option value="newcomer">みんなでレース(24時間・入賞枠5つ)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="ev-title">タイトル(空欄ならテンプレート名を使用)</label>
+      <input type="text" id="ev-title" name="title" placeholder="例: 週末ウェイジャーレース">
+    </div>
+    <div class="field">
+      <label for="ev-description">説明(任意)</label>
+      <input type="text" id="ev-description" name="description" placeholder="例: 土日の2日間、プレイ額ランキング上位に賞金">
+    </div>
+    <div class="field">
+      <label for="ev-prizes">賞金を上書き(任意・カンマ区切り、空欄ならテンプレートの金額を使用)</label>
+      <input type="text" id="ev-prizes" name="prizes" placeholder="5000,3000,2000">
+    </div>
+    <button type="submit" class="btn btn-ember">イベントを作成(即開始)</button>
+  </form>
+
+  {% for e in events %}
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+    <div>
+      <strong>{{ e.title }}</strong>
+      <span class="mono text-muted" style="font-size: 12px;">
+        ・ {{ e.starts_at.strftime("%m/%d %H:%M") }}〜{{ e.ends_at.strftime("%m/%d %H:%M") }} ・
+        {{ {"scheduled": "開催予定", "active": "開催中", "finished": "終了"}[e.status] }}
+      </span>
+    </div>
+    {% if e.status != "finished" %}
+    <form method="POST" action="{{ url_for('events.cancel', event_id=e.id) }}" onsubmit="return confirm('このイベントを削除します。よろしいですか？');">
+      <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">削除</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">まだイベントがありません。</p>
+  {% endfor %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>プレゼント企画(Giveaway)</h3>
+  <form method="POST" action="{{ url_for('giveaway.create') }}" style="margin-bottom: 20px;">
+    <div class="field">
+      <label for="gw-title">タイトル</label>
+      <input type="text" id="gw-title" name="title" placeholder="例: 週末スペシャル抽選会">
+    </div>
+    <div class="field">
+      <label for="gw-description">説明(任意)</label>
+      <input type="text" id="gw-description" name="description" placeholder="例: 参加するだけで抽選に応募できます">
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <div class="field" style="flex:1;">
+        <label for="gw-prize">賞金額(1人あたり)</label>
+        <input type="number" id="gw-prize" name="prize_amount" value="1000" min="1">
+      </div>
+      <div class="field" style="flex:1;">
+        <label for="gw-winners">当選人数</label>
+        <input type="number" id="gw-winners" name="winner_count" value="1" min="1">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-ember">企画を作成</button>
+  </form>
+
+  {% for g in giveaways %}
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+    <div>
+      <strong>{{ g.title }}</strong>
+      <span class="mono text-muted" style="font-size: 12px;">
+        ・ {{ "{:,}".format(g.prize_amount) }} Embers × {{ g.winner_count }}名 ・
+        参加者{{ g.entries.count() }}人 ・
+        {{ "開催中" if g.status == "open" else "抽選済み" }}
+      </span>
+    </div>
+    {% if g.status == "open" %}
+    <div style="display:flex; gap: 6px; white-space: nowrap;">
+      <form method="POST" action="{{ url_for('giveaway.draw', giveaway_id=g.id) }}" onsubmit="return confirm('抽選を実行します。よろしいですか？');">
+        <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">抽選する</button>
+      </form>
+      <form method="POST" action="{{ url_for('giveaway.cancel', giveaway_id=g.id) }}" onsubmit="return confirm('この企画を削除します。よろしいですか？');">
+        <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">削除</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">まだ企画がありません。</p>
+  {% endfor %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>ゲームごとの配当倍率調整</h3>
   <p style="font-size: 13px;">
     各ゲームの最終的な配当に掛ける倍率スケールです(1.0が通常。0.8にすると配当が20%下がり、1.2にすると20%上がります)。
@@ -196,7 +316,7 @@
         <td class="mono">{{ "{:,}".format(u.balance) }}</td>
         <td class="mono {{ 'text-loss' if u.debt else 'text-muted' }}">{{ "{:,}".format(u.debt) if u.debt else "-" }}</td>
         <td>{{ "はい" if u.is_admin else "いいえ" }}</td>
-        <td>{{ "はい" if u.is_vip else "いいえ" }}</td>
+        <td>{{ vip_tier_names[u.vip_tier] if u.is_vip else "いいえ" }}</td>
         <td class="text-muted">{{ u.created_at.strftime("%Y/%m/%d") }}</td>
         <td style="white-space: nowrap;">
           <form method="POST" action="{{ url_for('admin.toggle_admin') }}" style="display:inline;">
@@ -205,11 +325,15 @@
               {{ "管理者を解除" if u.is_admin else "管理者にする" }}
             </button>
           </form>
-          <form method="POST" action="{{ url_for('admin.toggle_vip') }}" style="display:inline;">
+          <form method="POST" action="{{ url_for('admin.set_vip') }}" style="display:inline-flex; gap: 4px; align-items:center;">
             <input type="hidden" name="username" value="{{ u.username }}">
-            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">
-              {{ "VIPを解除" if u.is_vip else "VIPにする" }}
-            </button>
+            <select name="vip_tier" style="padding: 4px 6px; border-radius: 6px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text); font-size: 12px;">
+              <option value="0" {% if not u.is_vip %}selected{% endif %}>VIPなし</option>
+              {% for tier, name in vip_tier_names.items() %}
+              <option value="{{ tier }}" {% if u.is_vip and u.vip_tier == tier %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">設定</button>
           </form>
         </td>
       </tr>

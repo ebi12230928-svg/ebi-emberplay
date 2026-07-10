@@ -16,10 +16,15 @@
     {% if nav_user.is_authenticated %}
     <div class="nav-links">
       <a href="{{ url_for('lobby.index') }}">ロビー</a>
+      <a href="{{ url_for('profile.index') }}">プロフィール</a>
       <a href="{{ url_for('sportsbook.index') }}">スポーツ</a>
       {% if nav_user.is_vip or nav_user.is_admin %}<a href="{{ url_for('vip.lounge') }}" style="color: var(--gold);">VIPラウンジ</a>{% endif %}
       <a href="{{ url_for('chat.index') }}">チャット</a>
       <a href="{{ url_for('lobby.announcements') }}">掲示板</a>
+      <a href="{{ url_for('giveaway.index') }}">プレゼント</a>
+      <a href="{{ url_for('events.index') }}">イベント</a>
+      <a href="{{ url_for('support.index') }}">サポート</a>
+      <a href="{{ url_for('demo.index') }}">デモ</a>
       <a href="{{ url_for('rewards.wallet') }}">ウォレット</a>
       <a href="{{ url_for('lobby.history') }}">履歴</a>
       <a href="{{ url_for('leaderboard.index') }}">ランキング</a>
@@ -27,6 +32,7 @@
       {% if nav_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">管理者</a>{% endif %}
     </div>
     <div class="nav-right">
+      <button type="button" id="sound-toggle" class="bell-icon" title="効果音のON/OFF" style="border:none; background:none; cursor:pointer;">🔊</button>
       <a href="{{ url_for('notifications.list_notifications') }}" class="bell-icon" title="お知らせ">
         🔔
         {% if unread_notifications and unread_notifications > 0 %}
@@ -54,6 +60,7 @@
     {% block content %}{% endblock %}
   </div>
 
+  <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
   <script src="{{ url_for('static', filename='js/balance.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>

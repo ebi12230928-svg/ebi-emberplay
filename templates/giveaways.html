@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}プレゼント企画 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Giveaway</span>
+<h1>プレゼント企画</h1>
+<p>参加は無料です。抽選で当選すると自動的にEmbersが付与され、お知らせが届きます。</p>
+
+<h2>開催中</h2>
+{% if not open_giveaways %}
+<div class="panel"><p style="margin:0;">現在開催中の企画はありません。</p></div>
+{% endif %}
+
+{% for g in open_giveaways %}
+<div class="panel" style="margin-bottom: 16px; border-color: var(--gold);">
+  <span class="eyebrow">開催中</span>
+  <h3 style="margin-bottom: 4px;">{{ g.title }}</h3>
+  {% if g.description %}<p>{{ g.description }}</p>{% endif %}
+  <p class="mono" style="font-size: 13px;">
+    賞金: {{ "{:,}".format(g.prize_amount) }} Embers ・ 当選人数: {{ g.winner_count }}名 ・
+    現在の参加者数: {{ g.entries.count() }}人
+  </p>
+  {% if g.id in my_entry_ids %}
+  <button class="btn btn-ghost" disabled>参加済み</button>
+  {% else %}
+  <form method="POST" action="{{ url_for('giveaway.enter', giveaway_id=g.id) }}">
+    <button type="submit" class="btn btn-ember">参加する</button>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+
+<h2 style="margin-top: 32px;">過去の結果</h2>
+<div class="panel" style="padding: 0;">
+  {% for info in closed_info %}
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border);">
+    <strong>{{ info.giveaway.title }}</strong>
+    <div class="text-muted" style="font-size: 13px; margin-top: 4px;">
+      賞金: {{ "{:,}".format(info.giveaway.prize_amount) }} Embers ・
+      当選者: {{ info.winners | join(", ") if info.winners else "(該当者なし)" }}
+    </div>
+  </div>
+  {% else %}
+  <div style="padding: 20px;"><p class="text-muted" style="margin:0;">まだ抽選済みの企画はありません。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

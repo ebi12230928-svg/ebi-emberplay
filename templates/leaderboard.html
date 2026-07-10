@@ -29,5 +29,17 @@
     <p class="text-muted" style="margin:0;">データがありません。</p>
     {% endfor %}
   </div>
+
+  <div class="panel">
+    <h3 style="margin-bottom: 16px;">🎁 紹介者ランキング</h3>
+    {% for r in top_referrers %}
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <span>{{ loop.index }}. {{ r.username }}</span>
+      <span class="mono" style="color: var(--gold);">{{ r.count }}人紹介</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">まだ紹介実績がありません。</p>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

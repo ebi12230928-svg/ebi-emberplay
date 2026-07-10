@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}プロフィール ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">プロフィール</span>
+<h1>{{ user.username }}</h1>
+<p class="mono text-muted">{{ user.level_title }} ・ レベル {{ user.level }}</p>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 8px;">レベル進捗</h3>
+  <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden; margin-bottom: 6px;">
+    <div style="background: linear-gradient(90deg, var(--ember), var(--gold)); height: 100%; width: {{ (user.xp_progress * 100) | round(1) }}%;"></div>
+  </div>
+  <p class="mono text-muted" style="font-size: 12px; margin: 0;">
+    {{ "{:,}".format(user.xp) }} / {{ "{:,}".format(next_level_xp) }} XP(次のレベルまで)
+  </p>
+</div>
+
+<div class="reward-grid" style="margin-bottom: 24px;">
+  <div class="panel">
+    <h3>統計</h3>
+    <p class="mono" style="margin: 4px 0;">累計プレイ回数: {{ "{:,}".format(total_bets) }}</p>
+    <p class="mono" style="margin: 4px 0;">累計プレイ額: {{ "{:,}".format(total_wagered) }}</p>
+    <p class="mono" style="margin: 4px 0;">通算損益: <span class="{{ 'text-win' if net_profit >= 0 else 'text-loss' }}">{{ "{:+,}".format(net_profit) }}</span></p>
+    <p class="mono" style="margin: 4px 0;">自己ベスト倍率: {{ max_multiplier }}x</p>
+    <p class="mono" style="margin: 4px 0;">プレゼント当選回数: {{ giveaway_wins }}</p>
+  </div>
+
+  <div class="panel">
+    <h3>紹介プログラム</h3>
+    <p style="font-size: 13px;">友達がこのコード/リンクから登録すると、あなたに1,000 Embers、相手に追加500 Embersが進呈されます。</p>
+    <p class="mono" style="background: var(--bg-raised); padding: 10px 14px; border-radius: 8px; word-break: break-all;">{{ user.referral_code }}</p>
+    <p class="mono text-muted" style="font-size: 11px;">紹介した人数: {{ referral_count }}人</p>
+
+    {% if not user.referred_by_id %}
+    <hr class="divider">
+    <p style="font-size: 12px; margin-bottom: 8px;">誰かに紹介してもらった場合は、そのコードを入力すると500 Embersがもらえます。</p>
+    <form method="POST" action="{{ url_for('profile.apply_referral') }}" style="display:flex; gap: 8px;">
+      <input type="text" name="code" placeholder="紹介コード" style="flex:1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+      <button type="submit" class="btn btn-ghost">適用</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>チップを送る</h3>
+    <p style="font-size: 13px;">他のプレイヤーにEmbersを送れます。<strong>不正防止のため、管理者が承認するまで送金は実行されません。</strong></p>
+    <form method="POST" action="{{ url_for('profile.tip') }}">
+      <div class="field">
+        <label for="tip-username">相手のユーザー名</label>
+        <input type="text" id="tip-username" name="username" placeholder="例: ebi1223">
+      </div>
+      <div class="field">
+        <label for="tip-amount">金額</label>
+        <input type="number" id="tip-amount" name="amount" value="100" min="1">
+      </div>
+      <button type="submit" class="btn btn-ember">送る</button>
+    </form>
+  </div>
+</div>
+
+<h2>実績バッジ({{ badge_list | selectattr("unlocked") | list | length }} / {{ badge_list | length }})</h2>
+<div class="reward-grid">
+  {% for badge in badge_list %}
+  <div class="panel" style="text-align:center; padding: 16px; opacity: {{ '1' if badge.unlocked else '0.55' }};">
+    <div style="font-size: 32px;">{{ badge.icon }}</div>
+    <h3 style="font-size: 14px; margin: 6px 0 2px;">{{ badge.name }}</h3>
+    <p style="font-size: 11px; margin: 0 0 6px;">{{ badge.description }}</p>
+    {% if badge.progress %}
+    <div style="background: var(--bg-raised); border-radius: 100px; height: 8px; overflow: hidden;">
+      <div style="background: var(--gold); height: 100%; width: {{ badge.progress.pct }}%;"></div>
+    </div>
+    <p class="mono text-muted" style="font-size: 10px; margin: 4px 0 0;">{{ "{:,}".format(badge.progress.current) }} / {{ "{:,}".format(badge.progress.goal) }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -5,7 +5,7 @@
 <span class="eyebrow">Sports</span>
 <h1>スポーツベット</h1>
 <p>
-  実際のサッカーの試合(プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ)の結果に賭けられます。
+  実際のサッカー(プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ)・野球(MLB)の試合結果に賭けられます。
   試合が終わると自動的に結果が反映され、的中していれば自動でEmbersが付与されます(お知らせにも通知が届きます)。
 </p>
 
@@ -15,7 +15,7 @@
 
 {% for event in events %}
 <div class="panel" style="margin-bottom: 16px;">
-  <span class="eyebrow">{{ event.league_name }}</span>
+  <span class="eyebrow">{{ "⚾" if event.sport == "baseball" else "⚽" }} {{ event.league_name }}</span>
   <h3 style="margin-bottom: 4px;">{{ event.home_team }} vs {{ event.away_team }}</h3>
   {% if event.event_time %}
   <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">{{ event.event_time.strftime("%Y/%m/%d %H:%M") }}(UTC)</p>
@@ -31,9 +31,11 @@
       <button type="submit" name="pick" value="home" class="btn btn-ghost" style="flex:1;">
         {{ event.home_team }}<br><span class="mono">{{ event.odds_home }}x</span>
       </button>
+      {% if event.sport == "soccer" %}
       <button type="submit" name="pick" value="draw" class="btn btn-ghost" style="flex:1;">
         引き分け<br><span class="mono">{{ event.odds_draw }}x</span>
       </button>
+      {% endif %}
       <button type="submit" name="pick" value="away" class="btn btn-ghost" style="flex:1;">
         {{ event.away_team }}<br><span class="mono">{{ event.odds_away }}x</span>
       </button>

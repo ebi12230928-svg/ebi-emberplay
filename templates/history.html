@@ -5,14 +5,23 @@
 <span class="eyebrow">履歴</span>
 <h1>プレイ履歴</h1>
 
+<div class="category-pills" style="margin-bottom: 16px;">
+  <a href="{{ url_for('lobby.history', tab='my') }}" class="category-pill" style="{{ 'background: var(--ember); border-color: var(--ember);' if tab == 'my' else '' }}">ベット履歴</a>
+  <a href="{{ url_for('lobby.history', tab='all') }}" class="category-pill" style="{{ 'background: var(--ember); border-color: var(--ember);' if tab == 'all' else '' }}">全ベット</a>
+  <a href="{{ url_for('lobby.history', tab='high') }}" class="category-pill" style="{{ 'background: var(--ember); border-color: var(--ember);' if tab == 'high' else '' }}">高額プレーヤー</a>
+</div>
+
 <div class="panel" style="padding: 0; overflow: hidden;">
   <div style="display:flex; justify-content: space-between; padding: 16px 20px; background: var(--bg-raised); font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
-    <span>ゲーム</span>
+    <span>ゲーム{% if tab != "my" %} ・ ユーザー{% endif %}</span>
     <span>結果</span>
   </div>
   {% for bet in items %}
   <div style="display:flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid var(--panel-border);">
-    <span style="font-weight: 700;">{{ bet.game | capitalize }}</span>
+    <span>
+      <span style="font-weight: 700;">{{ bet.game | capitalize }}</span>
+      {% if tab != "my" %}<span class="text-muted" style="font-size: 12px;"> ・ {{ bet.user.username }}</span>{% endif %}
+    </span>
     {% set net = bet.payout - bet.wager %}
     <span class="mono {{ 'text-win' if net > 0 else ('text-loss' if net < 0 else 'text-muted') }}">
       {{ "{:+,}".format(net) }}
