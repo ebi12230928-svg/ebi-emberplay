@@ -49,8 +49,13 @@ window.EmberPlay = (function () {
     if (!el) return;
     el.classList.remove("win", "loss");
     void el.offsetWidth; // 強制リフローでアニメーションを再トリガー
-    if (isWin) el.classList.add("win");
-    else if (isLoss) el.classList.add("loss");
+    if (isWin) {
+      el.classList.add("win");
+      if (window.EmberSound) window.EmberSound.playWin();
+    } else if (isLoss) {
+      el.classList.add("loss");
+      if (window.EmberSound) window.EmberSound.playLose();
+    }
   }
 
   async function postJSON(url, payload) {
@@ -66,7 +71,24 @@ window.EmberPlay = (function () {
     return data;
   }
 
-  return { updateBalance, postJSON, formatNumber, flashResult };
+  async function toggleFavorite(btn) {
+    const gameKey = btn.dataset.favKey;
+    try {
+      const res = await fetch("/favorites/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game_key: gameKey }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        btn.classList.toggle("active", data.favorited);
+      }
+    } catch (err) {
+      // 通信エラー時は見た目を変えない
+    }
+  }
+
+  return { updateBalance, postJSON, formatNumber, flashResult, toggleFavorite };
 })();
 
 // ページ初期表示時にも残高をオドメーター形式で描画しておく
