@@ -8,6 +8,49 @@ from extensions import db, login_manager
 from models import User
 
 
+def _auto_migrate(app):
+    """
+    新しいテーブル・列を自動的に追加する簡易マイグレーション。
+    (列の削除やリネームには対応しないが、「追加」だけなら安全に自動対応できる。
+    これにより、モデルに新しい列を増やすたびにデータベースを作り直す必要がなくなる)
+    """
+    from sqlalchemy import inspect, text
+
+    with app.app_context():
+        inspector = inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+
+        db.create_all()  # 存在しないテーブルはここで新規作成される
+
+        inspector = inspect(db.engine)  # create_all後に取り直す
+        for table in db.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue  # 今回新規作成されたテーブルは、既に最新の状態なのでスキップ
+
+            existing_columns = {col["name"] for col in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in existing_columns:
+                    continue
+
+                col_type = column.type.compile(db.engine.dialect)
+                default_clause = ""
+                if column.default is not None and not column.default.is_callable:
+                    val = column.default.arg
+                    if isinstance(val, bool):
+                        val = 1 if val else 0
+                    default_clause = f" DEFAULT '{val}'" if isinstance(val, str) else f" DEFAULT {val}"
+
+                try:
+                    db.session.execute(text(
+                        f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}{default_clause}'
+                    ))
+                    db.session.commit()
+                    print(f"[auto-migrate] {table.name}.{column.name} を追加しました。")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"[auto-migrate] {table.name}.{column.name} の追加に失敗しました: {e}")
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -29,6 +72,11 @@ def create_app():
     from sportsbook import sportsbook_bp
     from vip import vip_bp
     from chat import chat_bp
+    from giveaway import giveaway_bp
+    from events import events_bp
+    from profile import profile_bp
+    from support import support_bp
+    from demo import demo_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -40,6 +88,11 @@ def create_app():
     app.register_blueprint(sportsbook_bp)
     app.register_blueprint(vip_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(giveaway_bp)
+    app.register_blueprint(events_bp)
+    app.register_blueprint(profile_bp)
+    app.register_blueprint(support_bp)
+    app.register_blueprint(demo_bp)
 
     @app.context_processor
     def inject_user():
@@ -49,9 +102,9 @@ def create_app():
             unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
         return {"nav_user": current_user, "unread_notifications": unread_count}
 
-    with app.app_context():
-        db.create_all()
+    _auto_migrate(app)
 
+    with app.app_context():
         # 初回だけ、指定したユーザー名を自動的に管理者にする(コンソールが使えない環境向けの措置)
         initial_admin_username = os.environ.get("INITIAL_ADMIN_USERNAME", "ebi1223")
         if initial_admin_username:

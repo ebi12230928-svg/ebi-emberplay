@@ -7,6 +7,7 @@ from extensions import db
 from models import Transaction, RedeemCode, RedeemCodeRedemption
 from models import utcnow
 from config import Config
+import vip_perks
 
 rewards_bp = Blueprint("rewards", __name__)
 
@@ -48,17 +49,25 @@ def wallet():
     idx = min(streak_next_day, len(Config.LOGIN_STREAK_REWARDS)) - 1
     streak_reward_amount = Config.LOGIN_STREAK_REWARDS[idx]
 
+    hourly_cooldown = timedelta(hours=vip_perks.hourly_cooldown_hours(user))
+    spin_prizes, _spin_weights = vip_perks.spin_table(user)
+
     context = {
-        "hourly_wait": secs(_time_left(user.last_hourly_claim, timedelta(hours=1))),
+        "hourly_wait": secs(_time_left(user.last_hourly_claim, hourly_cooldown)),
         "daily_wait": secs(_time_left(user.last_daily_claim, timedelta(hours=24))),
         "weekly_wait": secs(_time_left(user.last_weekly_claim, timedelta(days=7))),
         "monthly_wait": secs(_time_left(user.last_monthly_claim, timedelta(days=30))),
         "reload_wait": secs(_time_left(user.last_reload_claim, timedelta(hours=Config.RELOAD_COOLDOWN_HOURS))),
+        "spin_wait": secs(_time_left(user.last_spin_claim, timedelta(hours=24))),
         "reload_eligible": user.balance <= Config.RELOAD_THRESHOLD,
         "monthly_locked": _monthly_locked_by_debt(user),
         "streak_ready": streak_ready,
         "streak_next_day": streak_next_day,
         "streak_reward_amount": streak_reward_amount,
+        "loan_amount": vip_perks.loan_amount(user),
+        "rakeback_rate": vip_perks.rakeback_rate(user),
+        "spin_prizes": spin_prizes,
+        "vip_tier_name": vip_perks.tier_name(user),
         "config": Config,
     }
     return render_template("wallet.html", **context)
@@ -86,12 +95,14 @@ def claim_daily():
 @rewards_bp.route("/rewards/hourly", methods=["POST"])
 @login_required
 def claim_hourly():
-    if _time_left(current_user.last_hourly_claim, timedelta(hours=1)):
+    user = current_user
+    cooldown = timedelta(hours=vip_perks.hourly_cooldown_hours(user))
+    if _time_left(user.last_hourly_claim, cooldown):
         flash("アワリー報酬はまだ受け取れません。", "error")
         return redirect(url_for("rewards.wallet"))
 
-    current_user.last_hourly_claim = utcnow()
-    _grant(current_user, Config.HOURLY_REWARD, "hourly", "アワリー報酬")
+    user.last_hourly_claim = utcnow()
+    _grant(user, Config.HOURLY_REWARD, "hourly", "アワリー報酬")
     flash(f"アワリー報酬として {Config.HOURLY_REWARD:,} Embersを受け取りました。", "success")
     return redirect(url_for("rewards.wallet"))
 
@@ -117,6 +128,25 @@ def claim_streak():
     _grant(user, amount, "login_streak", f"ログインボーナス({user.login_streak_count}日目)")
 
     flash(f"ログインボーナス({user.login_streak_count}日目)として {amount:,} Embersを受け取りました。", "success")
+    return redirect(url_for("rewards.wallet"))
+
+
+@rewards_bp.route("/rewards/spin", methods=["POST"])
+@login_required
+def claim_spin():
+    import random
+
+    user = current_user
+    if _time_left(user.last_spin_claim, timedelta(hours=24)):
+        flash("デイリースピンはまだ受け取れません。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    user.last_spin_claim = utcnow()
+    prizes, weights = vip_perks.spin_table(user)
+    amount = random.choices(prizes, weights=weights, k=1)[0]
+    _grant(user, amount, "spin", "デイリースピン" + ("(VIP)" if user.is_vip else ""))
+
+    flash(f"デイリースピンで {amount:,} Embersを獲得しました!", "success")
     return redirect(url_for("rewards.wallet"))
 
 
@@ -189,16 +219,18 @@ def borrow():
         flash("すでに借金があります。完済してからもう一度借りてください。", "error")
         return redirect(url_for("rewards.wallet"))
 
-    user.debt = Config.LOAN_AMOUNT
+    amount = vip_perks.loan_amount(user)
+
+    user.debt = amount
     user.debt_started_at = utcnow()
-    user.balance += Config.LOAN_AMOUNT
+    user.balance += amount
     db.session.add(Transaction(
-        user_id=user.id, amount=Config.LOAN_AMOUNT, kind="loan",
-        description="借金による借り入れ"
+        user_id=user.id, amount=amount, kind="loan",
+        description="借金による借り入れ" + ("(VIP枠)" if user.is_vip else "")
     ))
     db.session.commit()
 
-    flash(f"{Config.LOAN_AMOUNT:,} Embersを借り入れました。完済するまで勝利分は返済に充てられます。", "success")
+    flash(f"{amount:,} Embersを借り入れました。完済するまで勝利分は返済に充てられます。", "success")
     return redirect(url_for("rewards.wallet"))
 
 
@@ -248,3 +280,49 @@ def fairness_settings():
         return redirect(url_for("rewards.fairness_settings"))
 
     return render_template("fairness.html", user=current_user)
+
+
+@rewards_bp.route("/wallet/vault/deposit", methods=["POST"])
+@login_required
+def vault_deposit():
+    try:
+        amount = int(request.form.get("amount", "0"))
+    except ValueError:
+        amount = 0
+
+    if amount <= 0 or amount > current_user.balance:
+        flash("預け入れ額が不正です(残高を超えて預けることはできません)。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    current_user.balance -= amount
+    current_user.vault_balance += amount
+    db.session.add(Transaction(
+        user_id=current_user.id, amount=-amount, kind="vault_deposit", description="金庫に預け入れ"
+    ))
+    db.session.commit()
+
+    flash(f"{amount:,} Embersを金庫に預けました。金庫のEmbersはプレイに使われません。", "success")
+    return redirect(url_for("rewards.wallet"))
+
+
+@rewards_bp.route("/wallet/vault/withdraw", methods=["POST"])
+@login_required
+def vault_withdraw():
+    try:
+        amount = int(request.form.get("amount", "0"))
+    except ValueError:
+        amount = 0
+
+    if amount <= 0 or amount > current_user.vault_balance:
+        flash("引き出し額が不正です(金庫の残高を超えて引き出すことはできません)。", "error")
+        return redirect(url_for("rewards.wallet"))
+
+    current_user.vault_balance -= amount
+    current_user.balance += amount
+    db.session.add(Transaction(
+        user_id=current_user.id, amount=amount, kind="vault_withdraw", description="金庫から引き出し"
+    ))
+    db.session.commit()
+
+    flash(f"{amount:,} Embersを金庫から引き出しました。", "success")
+    return redirect(url_for("rewards.wallet"))

@@ -27,6 +27,7 @@ class User(UserMixin, db.Model):
 
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_vip = db.Column(db.Boolean, default=False, nullable=False)
+    vip_tier = db.Column(db.Integer, default=1, nullable=False)  # 1=Bronze 2=Silver 3=Gold 4=Diamond(is_vip=Trueの時だけ意味を持つ)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -36,10 +37,17 @@ class User(UserMixin, db.Model):
     last_reload_claim = db.Column(db.DateTime, nullable=True)
     login_streak_count = db.Column(db.Integer, default=0, nullable=False)
     last_streak_claim = db.Column(db.DateTime, nullable=True)
+    last_spin_claim = db.Column(db.DateTime, nullable=True)
+
+    # ── レベル/XP・紹介コード ──
+    xp = db.Column(db.Integer, default=0, nullable=False)
+    referral_code = db.Column(db.String(16), unique=True, nullable=True)
+    referred_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     # ── 借金機能 ──
     debt = db.Column(db.Integer, default=0, nullable=False)
     debt_started_at = db.Column(db.DateTime, nullable=True)
+    vault_balance = db.Column(db.Integer, default=0, nullable=False)  # 金庫(ここに入れた分はプレイに使われない)
 
     # ── プロヴァブリーフェア用シード ──
     server_seed = db.Column(db.String(64), default=lambda: secrets.token_hex(32))
@@ -63,6 +71,35 @@ class User(UserMixin, db.Model):
         self.server_seed = secrets.token_hex(32)
         self.nonce = 0
         return old_seed, old_nonce
+
+    @property
+    def level(self):
+        """XPからレベルを算出する(緩やかに必要XPが増えていく形式)"""
+        return int((self.xp / 500) ** 0.5) + 1
+
+    @property
+    def level_title(self):
+        lv = self.level
+        if lv >= 50:
+            return "レジェンド"
+        if lv >= 25:
+            return "ベテラン"
+        if lv >= 10:
+            return "ハイローラー"
+        if lv >= 5:
+            return "レギュラー"
+        return "ニューカマー"
+
+    @property
+    def xp_progress(self):
+        """現在のレベル内でのXP進捗(0.0〜1.0)"""
+        lv = self.level
+        current_floor = int(((lv - 1) ** 2) * 500)
+        next_floor = int((lv ** 2) * 500)
+        span = next_floor - current_floor
+        if span <= 0:
+            return 1.0
+        return max(0.0, min(1.0, (self.xp - current_floor) / span))
 
 
 class Transaction(db.Model):
@@ -319,6 +356,108 @@ class ChatMessage(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User", backref=db.backref("chat_messages", lazy="dynamic"))
+
+
+class Giveaway(db.Model):
+    """管理者が作成するプレゼント企画。参加者の中から抽選で当選者にEmbersを付与する"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    prize_amount = db.Column(db.Integer, nullable=False)
+    winner_count = db.Column(db.Integer, default=1, nullable=False)
+    status = db.Column(db.String(16), default="open", nullable=False)  # open / closed
+    created_by = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    drawn_at = db.Column(db.DateTime, nullable=True)
+
+
+class GiveawayEntry(db.Model):
+    """Giveawayへの参加エントリー(1ユーザー1回まで)"""
+    id = db.Column(db.Integer, primary_key=True)
+    giveaway_id = db.Column(db.Integer, db.ForeignKey("giveaway.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    is_winner = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    giveaway = db.relationship("Giveaway", backref=db.backref("entries", lazy="dynamic"))
+    user = db.relationship("User", backref=db.backref("giveaway_entries", lazy="dynamic"))
+
+    __table_args__ = (db.UniqueConstraint("giveaway_id", "user_id", name="uq_giveaway_user"),)
+
+
+class Event(db.Model):
+    """
+    期間限定のウェイジャーレース(賭け金ランキング大会)。
+    期間中の合計プレイ額(BetRecord.wagerの合計)が多い順に、prizes_jsonで指定した順位別の賞金を自動付与する。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    starts_at = db.Column(db.DateTime, nullable=False)
+    ends_at = db.Column(db.DateTime, nullable=False)
+    prizes_json = db.Column(db.Text, nullable=False)  # 例 "[5000, 3000, 2000]" (1位から順の賞金額)
+    game_filter = db.Column(db.String(32), nullable=True)  # 例 "slots" (前方一致で対象ゲームを絞る。Noneなら全ゲーム対象)
+    status = db.Column(db.String(16), default="scheduled", nullable=False)  # scheduled / active / finished
+    created_by = db.Column(db.String(32), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    finalized_at = db.Column(db.DateTime, nullable=True)
+    results_json = db.Column(db.Text, nullable=True)  # 終了後、確定した順位結果を保存 [{"username":..,"wagered":..,"prize":..}]
+
+
+class Favorite(db.Model):
+    """お気に入りゲーム"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    game_key = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("favorites", lazy="dynamic"))
+
+    __table_args__ = (db.UniqueConstraint("user_id", "game_key", name="uq_favorite_user_game"),)
+
+
+class UserAchievement(db.Model):
+    """解除済みの実績バッジ(定義自体はachievements.py内に静的に持つ)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    achievement_key = db.Column(db.String(64), nullable=False)
+    unlocked_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("achievements", lazy="dynamic"))
+
+    __table_args__ = (db.UniqueConstraint("user_id", "achievement_key", name="uq_achievement_user_key"),)
+
+
+class TipRequest(db.Model):
+    """
+    プレイヤー間のチップ(投げ銭)申請。
+    不正利用を防ぐため、実際の送金は管理者が承認するまで行われない。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    amount = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(16), default="pending", nullable=False)  # pending / approved / rejected
+    created_at = db.Column(db.DateTime, default=utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    from_user = db.relationship("User", foreign_keys=[from_user_id])
+    to_user = db.relationship("User", foreign_keys=[to_user_id])
+
+
+class MarketGame(db.Model):
+    """実際の暗号資産価格(CoinGecko)を使った、一定時間後の値上がり/値下がり予想ゲームの進行状態"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+
+    symbol = db.Column(db.String(32), nullable=False)
+    pick = db.Column(db.String(8), nullable=False)  # up / down
+    wager = db.Column(db.Integer, nullable=False)
+    start_price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    resolve_at = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("active_market_game", uselist=False))
 
 
 class WarGame(db.Model):

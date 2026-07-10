@@ -20,13 +20,15 @@ API_BASE = "https://www.thesportsdb.com/api/v1/json/123"
 SYNC_COOLDOWN_SECONDS = 300  # 5分に1回だけAPIを叩く(無料枠を節約するため)
 
 LEAGUES = {
-    "4328": "プレミアリーグ",
-    "4335": "ラ・リーガ",
-    "4331": "ブンデスリーガ",
-    "4480": "チャンピオンズリーグ",
+    "4328": {"name": "プレミアリーグ", "sport": "soccer"},
+    "4335": {"name": "ラ・リーガ", "sport": "soccer"},
+    "4331": {"name": "ブンデスリーガ", "sport": "soccer"},
+    "4480": {"name": "チャンピオンズリーグ", "sport": "soccer"},
+    "4424": {"name": "MLB", "sport": "baseball"},
 }
 
 DEFAULT_ODDS = {"home": 1.9, "draw": 3.2, "away": 1.9}
+DEFAULT_ODDS_2WAY = {"home": 1.85, "away": 1.85}
 ODDS_HOUSE_EDGE = 0.08
 HOME_ADVANTAGE = 0.08  # ホームチームには基本勝率に少し下駄を履かせる
 
@@ -64,7 +66,7 @@ def _fetch_standings(league_id):
 
 
 def _compute_odds(home_points, away_points):
-    """順位表の勝ち点差から、ホーム/ドロー/アウェイの倍率を算出する"""
+    """順位表の勝ち点差から、ホーム/ドロー/アウェイの倍率を算出する(サッカー用・3-way)"""
     diff = home_points - away_points
     adj = max(-0.35, min(0.35, diff * 0.01))  # 勝ち点差1につき1%、最大±35%まで調整
 
@@ -81,30 +83,53 @@ def _compute_odds(home_points, away_points):
     return to_odds(home_p), to_odds(draw_p), to_odds(away_p)
 
 
+def _compute_odds_2way(home_points, away_points):
+    """引き分けのないスポーツ(野球など)用の、ホーム/アウェイ2-wayオッズ計算"""
+    diff = home_points - away_points
+    adj = max(-0.35, min(0.35, diff * 0.012))
+
+    home_p = max(0.15, min(0.85, 0.53 + adj))  # 引き分けがない分、基本勝率をやや高めに設定
+    away_p = 1 - home_p
+
+    def to_odds(p):
+        return round((1 / p) * (1 - ODDS_HOUSE_EDGE), 2)
+
+    return to_odds(home_p), to_odds(away_p)
+
+
 def _upsert_event(ev, league_id, standings):
     external_id = ev.get("idEvent")
     if not external_id:
         return
 
+    league_info = LEAGUES.get(league_id, {"name": ev.get("strLeague") or "", "sport": "soccer"})
+    sport = league_info["sport"]
+    is_two_way = sport != "soccer"
+
     event = SportsEvent.query.filter_by(external_id=external_id).first()
     if not event:
+        defaults = DEFAULT_ODDS_2WAY if is_two_way else DEFAULT_ODDS
         event = SportsEvent(
             external_id=external_id,
-            odds_home=DEFAULT_ODDS["home"], odds_draw=DEFAULT_ODDS["draw"], odds_away=DEFAULT_ODDS["away"],
+            odds_home=defaults["home"], odds_draw=defaults.get("draw", 0), odds_away=defaults["away"],
         )
         db.session.add(event)
 
-    event.sport = "soccer"
-    event.league_name = LEAGUES.get(league_id, ev.get("strLeague") or "")
+    event.sport = sport
+    event.league_name = league_info["name"]
     event.home_team = ev.get("strHomeTeam") or ""
     event.away_team = ev.get("strAwayTeam") or ""
 
-    # 順位表からチームの勝ち点を取得できる場合は、強さに応じてオッズを再計算する
+    # 順位表からチームの勝ち点(または勝率)を取得できる場合は、強さに応じてオッズを再計算する
     # (Champions Leagueなど、国内リーグと違う枠組みのチームは順位表にないため、その場合はデフォルトのまま)
     home_points = standings.get(event.home_team)
     away_points = standings.get(event.away_team)
     if home_points is not None and away_points is not None and event.status != "finished":
-        event.odds_home, event.odds_draw, event.odds_away = _compute_odds(home_points, away_points)
+        if is_two_way:
+            event.odds_home, event.odds_away = _compute_odds_2way(home_points, away_points)
+            event.odds_draw = 0
+        else:
+            event.odds_home, event.odds_draw, event.odds_away = _compute_odds(home_points, away_points)
 
     try:
         date_str = f"{ev.get('dateEvent')} {ev.get('strTime') or '00:00:00'}"
@@ -226,6 +251,9 @@ def place_bet():
         return redirect(url_for("sportsbook.index"))
     if pick not in ("home", "draw", "away"):
         flash("選択が不正です。", "error")
+        return redirect(url_for("sportsbook.index"))
+    if pick == "draw" and event.sport != "soccer":
+        flash("このスポーツに引き分けの選択肢はありません。", "error")
         return redirect(url_for("sportsbook.index"))
 
     error = validate_wager(current_user, wager)

@@ -1,9 +1,10 @@
 import random
 
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, render_template, abort, jsonify
 from flask_login import login_required, current_user
 
-from models import BetRecord, Announcement
+from extensions import db
+from models import BetRecord, Announcement, Favorite
 from games.slots import THEMES as SLOT_THEMES
 
 lobby_bp = Blueprint("lobby", __name__)
@@ -32,6 +33,19 @@ MECHANIC_THEME = {
     "craps": {"icon": "🎲", "gradient": ["#059669", "#022c22"]},
     "threecardpoker": {"icon": "♠️", "gradient": ["#374151", "#030712"]},
     "rps": {"icon": "✊", "gradient": ["#f97316", "#431407"]},
+    "scratch": {"icon": "🎫", "gradient": ["#eab308", "#713f12"]},
+    "horserace": {"icon": "🐎", "gradient": ["#16a34a", "#052e16"]},
+    "market": {"icon": "📈", "gradient": ["#0ea5e9", "#082f49"]},
+    "fantan": {"icon": "🔴", "gradient": ["#dc2626", "#450a0a"]},
+    "overunder7": {"icon": "🎲", "gradient": ["#7c3aed", "#2e1065"]},
+    "pokerdice": {"icon": "🀄", "gradient": ["#0f766e", "#022c22"]},
+    "fishing": {"icon": "🎣", "gradient": ["#0891b2", "#083344"]},
+    "miniroulette": {"icon": "🎯", "gradient": ["#be123c", "#4c0519"]},
+    "ceelo": {"icon": "🎲", "gradient": ["#a16207", "#422006"]},
+    "dragontiger": {"icon": "🐉", "gradient": ["#b91c1c", "#3f0d0d"]},
+    "lottery": {"icon": "🎟️", "gradient": ["#c026d3", "#3b0764"]},
+    "treasurehunt": {"icon": "🗺️", "gradient": ["#65a30d", "#1a2e05"]},
+    "numbermatch": {"icon": "🔢", "gradient": ["#0d9488", "#042f2e"]},
 }
 
 GAMES = [
@@ -47,6 +61,19 @@ GAMES = [
     {"slug": "coinflip", "game_key": "coinflip", "name": "Coin Flip", "tagline": "表か裏か、シンプルな2択勝負", "ready": True, "category": "originals"},
     {"slug": "sicbo", "game_key": "sicbo", "name": "Sic Bo", "tagline": "3つのサイコロの出目を選ぶ", "ready": True, "category": "originals"},
     {"slug": "rps", "game_key": "rps", "name": "Rock Paper Scissors", "tagline": "ハウスとのじゃんけん勝負", "ready": True, "category": "originals"},
+    {"slug": "scratch", "game_key": "scratch", "name": "Scratch Card", "tagline": "3マスをスクラッチして絵柄を揃えろ", "ready": True, "category": "originals"},
+    {"slug": "horserace", "game_key": "horserace", "name": "Horse Race", "tagline": "公正な乱数によるシミュレーション競馬", "ready": True, "category": "originals"},
+    {"slug": "market", "game_key": "market", "name": "Market", "tagline": "実際の暗号資産価格で値上がり/値下がりを予想", "ready": True, "category": "originals"},
+    {"slug": "fantan", "game_key": "fantan", "name": "Fan Tan", "tagline": "0〜3の数字を当てる中国の伝統ゲーム", "ready": True, "category": "originals"},
+    {"slug": "overunder7", "game_key": "overunder7", "name": "Over/Under 7", "tagline": "2つのサイコロの合計を予想", "ready": True, "category": "originals"},
+    {"slug": "pokerdice", "game_key": "pokerdice", "name": "Poker Dice", "tagline": "5つのサイコロで役を作る", "ready": True, "category": "originals"},
+    {"slug": "fishing", "game_key": "fishing", "name": "Fishing Pond", "tagline": "釣った魚でレア度に応じて配当", "ready": True, "category": "originals"},
+    {"slug": "miniroulette", "game_key": "miniroulette", "name": "Mini Roulette", "tagline": "0〜12だけの小型ルーレット", "ready": True, "category": "table"},
+    {"slug": "ceelo", "game_key": "ceelo", "name": "Cee-lo", "tagline": "4-5-6かゾロ目で高配当の中国の伝統ゲーム", "ready": True, "category": "originals"},
+    {"slug": "dragontiger", "game_key": "dragontiger", "name": "Dragon Tiger", "tagline": "1枚勝負でシンプルに数字の大小を競う", "ready": True, "category": "table"},
+    {"slug": "lottery", "game_key": "lottery", "name": "Lucky Numbers Lottery", "tagline": "3桁の数字を当てる宝くじ", "ready": True, "category": "originals"},
+    {"slug": "treasurehunt", "game_key": "treasurehunt", "name": "Treasure Hunt", "tagline": "9マス中2つのトラップを避けろ", "ready": True, "category": "originals"},
+    {"slug": "numbermatch", "game_key": "numbermatch", "name": "Number Match", "tagline": "1〜10の数字をシンプルに的中", "ready": True, "category": "originals"},
     {"slug": "war", "game_key": "war", "name": "War", "tagline": "1枚勝負、引き分けはWarか降参", "ready": True, "category": "table"},
     {"slug": "roulette", "game_key": "roulette", "name": "Roulette", "tagline": "ヨーロピアンルーレット", "ready": True, "category": "table"},
     {"slug": "blackjack", "game_key": "blackjack", "name": "Blackjack", "tagline": "ディーラーと21を競う定番ゲーム", "ready": True, "category": "table"},
@@ -117,9 +144,26 @@ CATEGORY_LABELS = {
     "slots": "スロット",
     "third_party": "その他のプロバイダー",
 }
+CATEGORY_ICONS = {
+    "originals": "🔥",
+    "table": "🃏",
+    "slots": "🎰",
+    "third_party": "🎨",
+}
 
 CAROUSEL_PREVIEW_COUNT = 12
 RECOMMENDED_COUNT = 8
+
+
+def _online_count():
+    """直近10分以内にプレイ・チャットのあったユーザー数を「オンライン人数」の目安として算出する"""
+    from datetime import timedelta
+    from models import utcnow, BetRecord, ChatMessage
+
+    cutoff = utcnow() - timedelta(minutes=10)
+    bet_users = {r[0] for r in db.session.query(BetRecord.user_id).filter(BetRecord.created_at >= cutoff).all()}
+    chat_users = {r[0] for r in db.session.query(ChatMessage.user_id).filter(ChatMessage.created_at >= cutoff).all()}
+    return max(1, len(bet_users | chat_users))
 
 
 def _build_categories():
@@ -127,7 +171,10 @@ def _build_categories():
     for key, label in CATEGORY_LABELS.items():
         games_in_cat = [g for g in GAMES if g["category"] == key]
         if games_in_cat:
-            categories.append({"key": key, "label": label, "games": games_in_cat[:CAROUSEL_PREVIEW_COUNT]})
+            categories.append({
+                "key": key, "label": label, "icon": CATEGORY_ICONS.get(key, "✨"),
+                "games": games_in_cat[:CAROUSEL_PREVIEW_COUNT]
+            })
     return categories
 
 
@@ -165,11 +212,36 @@ def index():
     recommended = random.sample(GAMES, min(RECOMMENDED_COUNT, len(GAMES)))
     categories = _build_categories()
 
+    favorite_keys = {f.game_key for f in Favorite.query.filter_by(user_id=current_user.id).all()}
+    favorites = [g for g in GAMES if g["game_key"] in favorite_keys]
+    online_count = _online_count()
+
     return render_template(
         "index.html", games=GAMES, recent=recent, categories=categories,
         latest_announcements=latest_announcements,
-        continue_playing=continue_playing, recommended=recommended
+        continue_playing=continue_playing, recommended=recommended,
+        favorites=favorites, favorite_keys=favorite_keys, online_count=online_count
     )
+
+
+@lobby_bp.route("/favorites/toggle", methods=["POST"])
+@login_required
+def toggle_favorite():
+    from flask import request
+
+    game_key = request.get_json(force=True).get("game_key", "")
+    if not game_key:
+        return jsonify({"error": "無効なゲームです。"}), 400
+
+    existing = Favorite.query.filter_by(user_id=current_user.id, game_key=game_key).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({"favorited": False})
+
+    db.session.add(Favorite(user_id=current_user.id, game_key=game_key))
+    db.session.commit()
+    return jsonify({"favorited": True})
 
 
 @lobby_bp.route("/games/category/<key>")
@@ -191,11 +263,32 @@ def announcements():
 @lobby_bp.route("/history")
 @login_required
 def history():
-    items = (
-        BetRecord.query.filter_by(user_id=current_user.id)
-        .order_by(BetRecord.created_at.desc())
-        .limit(100)
-        .all()
-    )
-    return render_template("history.html", items=items)
+    from flask import request
+
+    tab = request.args.get("tab", "my")
+    if tab not in ("my", "all", "high"):
+        tab = "my"
+
+    if tab == "my":
+        items = (
+            BetRecord.query.filter_by(user_id=current_user.id)
+            .order_by(BetRecord.created_at.desc())
+            .limit(100)
+            .all()
+        )
+    elif tab == "high":
+        items = (
+            BetRecord.query.filter(BetRecord.payout > 0)
+            .order_by((BetRecord.payout - BetRecord.wager).desc())
+            .limit(100)
+            .all()
+        )
+    else:  # all
+        items = (
+            BetRecord.query.order_by(BetRecord.created_at.desc())
+            .limit(100)
+            .all()
+        )
+
+    return render_template("history.html", items=items, tab=tab)
 

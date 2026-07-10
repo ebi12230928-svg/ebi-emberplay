@@ -69,4 +69,10 @@ def send():
     db.session.add(msg)
     db.session.commit()
 
+    try:
+        from achievements import check_achievements
+        check_achievements(current_user)
+    except Exception:
+        pass
+
     return jsonify({"ok": True, "id": msg.id})

@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -49,9 +49,16 @@ def dashboard():
     settings_map = {row.game_key: row.payout_scalar for row in GameSetting.query.all()}
     game_scalars = [(key, name, settings_map.get(key, 1.0)) for key, name in GAME_KEYS]
 
+    giveaways = Giveaway.query.order_by(Giveaway.created_at.desc()).limit(20).all()
+    events = Event.query.order_by(Event.created_at.desc()).limit(20).all()
+    pending_tips = TipRequest.query.filter_by(status="pending").order_by(TipRequest.created_at.desc()).all()
+
+    from config import Config
+
     return render_template(
         "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
-        game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR
+        game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR,
+        giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips
     )
 
 
@@ -207,26 +214,46 @@ def toggle_admin():
     return redirect(url_for("admin.dashboard"))
 
 
-@admin_bp.route("/admin/toggle-vip", methods=["POST"])
+@admin_bp.route("/admin/set-vip", methods=["POST"])
 @login_required
 @admin_required
-def toggle_vip():
+def set_vip():
     username = request.form.get("username", "").strip()
     user = User.query.filter_by(username=username).first()
     if not user:
         flash("指定されたユーザーが見つかりません。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    user.is_vip = not user.is_vip
-    db.session.commit()
+    try:
+        tier = int(request.form.get("vip_tier", "0"))
+    except ValueError:
+        tier = 0
 
-    if user.is_vip:
-        notify(user.id, "VIPに認定されました。VIPラウンジ(/vip-lounge)が利用できるようになりました。")
-    else:
+    if tier <= 0:
+        user.is_vip = False
+        user.vip_tier = 1
+        db.session.commit()
         notify(user.id, "VIP権限が解除されました。")
+        db.session.commit()
+        flash(f"{user.username} のVIPを解除しました。", "success")
+        return redirect(url_for("admin.dashboard"))
+
+    tier = min(4, max(1, tier))
+    user.is_vip = True
+    user.vip_tier = tier
     db.session.commit()
 
-    flash(f"{user.username} のVIPを{'付与' if user.is_vip else '解除'}しました。", "success")
+    from config import Config
+    tier_name = Config.VIP_TIER_NAMES.get(tier, "Bronze")
+    notify(user.id, f"{tier_name} VIPに認定されました。VIPラウンジ(/vip-lounge)と各種特典が利用できるようになりました。")
+    try:
+        from achievements import check_achievements
+        check_achievements(user)
+    except Exception:
+        pass
+    db.session.commit()
+
+    flash(f"{user.username} を {tier_name} VIP に設定しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 
@@ -314,6 +341,68 @@ def delete_announcement():
         db.session.delete(ann)
         db.session.commit()
         flash("お知らせを削除しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/tips/<int:tip_id>/approve", methods=["POST"])
+@login_required
+@admin_required
+def approve_tip(tip_id):
+    tip = TipRequest.query.get(tip_id)
+    if not tip or tip.status != "pending":
+        flash("対象のチップ申請が見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    from models import utcnow
+
+    if tip.from_user.balance < tip.amount:
+        tip.status = "rejected"
+        tip.resolved_at = utcnow()
+        db.session.commit()
+        notify(tip.from_user_id, f"{tip.to_user.username} さんへのチップ申請は、残高不足のため自動的に却下されました。")
+        db.session.commit()
+        flash("送信者の残高が不足していたため、自動的に却下しました。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    tip.from_user.balance -= tip.amount
+    tip.to_user.balance += tip.amount
+    tip.status = "approved"
+    tip.resolved_at = utcnow()
+
+    db.session.add(Transaction(
+        user_id=tip.from_user_id, amount=-tip.amount, kind="tip_sent", description=f"{tip.to_user.username} にチップ"
+    ))
+    db.session.add(Transaction(
+        user_id=tip.to_user_id, amount=tip.amount, kind="tip_received", description=f"{tip.from_user.username} からチップ"
+    ))
+    db.session.commit()
+
+    notify(tip.to_user_id, f"{tip.from_user.username} さんから {tip.amount:,} Embersのチップが届きました。")
+    notify(tip.from_user_id, f"{tip.to_user.username} さんへのチップ({tip.amount:,} Embers)が承認されました。")
+    db.session.commit()
+
+    flash("チップを承認し、送金しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/tips/<int:tip_id>/reject", methods=["POST"])
+@login_required
+@admin_required
+def reject_tip(tip_id):
+    tip = TipRequest.query.get(tip_id)
+    if not tip or tip.status != "pending":
+        flash("対象のチップ申請が見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    from models import utcnow
+    tip.status = "rejected"
+    tip.resolved_at = utcnow()
+    db.session.commit()
+
+    notify(tip.from_user_id, f"{tip.to_user.username} さんへのチップ申請({tip.amount:,} Embers)は却下されました。")
+    db.session.commit()
+
+    flash("チップ申請を却下しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

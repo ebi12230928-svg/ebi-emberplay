@@ -38,7 +38,10 @@ def lounge():
     announcements = (
         VipAnnouncement.query.order_by(VipAnnouncement.created_at.desc()).limit(20).all()
     )
-    return render_template("vip_lounge.html", upcoming=upcoming, finished=finished, announcements=announcements)
+    from config import Config
+    return render_template(
+        "vip_lounge.html", upcoming=upcoming, finished=finished, announcements=announcements, config=Config
+    )
 
 
 @vip_bp.route("/vip-lounge/announce", methods=["POST"])
