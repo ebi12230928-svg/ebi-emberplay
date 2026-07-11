@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -20,7 +20,17 @@ GAME_KEYS = [
     ("blackjack", "Blackjack"), ("baccarat", "Baccarat"), ("videopoker", "Video Poker"),
     ("reddog", "Red Dog"), ("andarbahar", "Andar Bahar"), ("craps", "Craps"),
     ("threecardpoker", "Three Card Poker"), ("slots", "スロット(全テーマ共通)"),
+    ("rps", "Rock Paper Scissors"), ("scratch", "Scratch Card"), ("horserace", "Horse Race"),
+    ("market", "Market"), ("fantan", "Fan Tan"), ("overunder7", "Over/Under 7"),
+    ("pokerdice", "Poker Dice"), ("fishing", "Fishing Pond"), ("miniroulette", "Mini Roulette"),
+    ("ceelo", "Cee-lo"), ("dragontiger", "Dragon Tiger"), ("lottery", "Lucky Numbers Lottery"),
+    ("treasurehunt", "Treasure Hunt"), ("numbermatch", "Number Match"),
 ]
+
+# 勝率補正(win_boost)に対応しているゲーム(二択・シンプルな勝敗判定のもののみ。他は今後拡張予定)
+WIN_BOOST_GAMES = {
+    "coinflip", "rps", "fantan", "ceelo", "numbermatch", "overunder7", "miniroulette", "dragontiger",
+}
 
 
 def admin_required(view):
@@ -46,19 +56,30 @@ def dashboard():
     codes = RedeemCode.query.order_by(RedeemCode.created_at.desc()).limit(20).all()
     announcements = Announcement.query.order_by(Announcement.created_at.desc()).limit(20).all()
 
-    settings_map = {row.game_key: row.payout_scalar for row in GameSetting.query.all()}
-    game_scalars = [(key, name, settings_map.get(key, 1.0)) for key, name in GAME_KEYS]
+    settings_rows = {row.game_key: row for row in GameSetting.query.all()}
+    game_scalars = [
+        (key, name, settings_rows[key].payout_scalar if key in settings_rows else 1.0,
+         settings_rows[key].win_boost if key in settings_rows else 0.0, key in WIN_BOOST_GAMES)
+        for key, name in GAME_KEYS
+    ]
 
     giveaways = Giveaway.query.order_by(Giveaway.created_at.desc()).limit(20).all()
     events = Event.query.order_by(Event.created_at.desc()).limit(20).all()
     pending_tips = TipRequest.query.filter_by(status="pending").order_by(TipRequest.created_at.desc()).all()
+
+    gacha_settings = GachaSetting.query.get("default")
+    if not gacha_settings:
+        gacha_settings = GachaSetting(key="default", cost_single=200, cost_ten=1800)
+        db.session.add(gacha_settings)
+        db.session.commit()
 
     from config import Config
 
     return render_template(
         "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
         game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR,
-        giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips
+        giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips,
+        gacha_settings=gacha_settings
     )
 
 
@@ -406,6 +427,33 @@ def reject_tip(tip_id):
     return redirect(url_for("admin.dashboard"))
 
 
+@admin_bp.route("/admin/set-gacha-cost", methods=["POST"])
+@login_required
+@admin_required
+def set_gacha_cost():
+    try:
+        cost_single = int(request.form.get("cost_single", "200"))
+        cost_ten = int(request.form.get("cost_ten", "1800"))
+    except ValueError:
+        flash("必要ポイントは数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if cost_single <= 0 or cost_ten <= 0:
+        flash("必要ポイントは1以上にしてください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    row = GachaSetting.query.get("default")
+    if not row:
+        row = GachaSetting(key="default")
+        db.session.add(row)
+    row.cost_single = cost_single
+    row.cost_ten = cost_ten
+    db.session.commit()
+
+    flash(f"ガチャの必要ポイントを 1回={cost_single:,} / 10連={cost_ten:,} に設定しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
 @admin_bp.route("/admin/set-game-scalar", methods=["POST"])
 @login_required
 @admin_required
@@ -422,16 +470,23 @@ def set_game_scalar():
         flash("倍率は数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
+    try:
+        boost = float(request.form.get("win_boost", "0.0"))
+    except ValueError:
+        boost = 0.0
+    boost = max(-1.0, min(1.0, boost))  # ±1.0で「常に勝ち/常に負け」になるため、これが数学的な上限・下限
+
     scalar = max(MIN_PAYOUT_SCALAR, min(MAX_PAYOUT_SCALAR, scalar))
 
     row = GameSetting.query.get(game_key)
     if row:
         row.payout_scalar = scalar
+        row.win_boost = boost
     else:
-        db.session.add(GameSetting(game_key=game_key, payout_scalar=scalar))
+        db.session.add(GameSetting(game_key=game_key, payout_scalar=scalar, win_boost=boost))
     db.session.commit()
 
-    flash(f"{game_key} の配当倍率スケールを {scalar}x に設定しました。", "success")
+    flash(f"{game_key} の配当倍率を {scalar}x、勝率補正を {boost:+.2f} に設定しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

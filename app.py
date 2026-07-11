@@ -78,6 +78,13 @@ def create_app():
     from support import support_bp
     from demo import demo_bp
     from stream import stream_bp
+    from challenges import challenges_bp
+    from friends import friends_bp
+    from gacha import gacha_bp
+    from collection import collection_bp
+    from towerdefense import towerdefense_bp
+    from squad import squad_bp
+    from rpgboss import rpgboss_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -95,6 +102,13 @@ def create_app():
     app.register_blueprint(support_bp)
     app.register_blueprint(demo_bp)
     app.register_blueprint(stream_bp)
+    app.register_blueprint(challenges_bp)
+    app.register_blueprint(friends_bp)
+    app.register_blueprint(gacha_bp)
+    app.register_blueprint(collection_bp)
+    app.register_blueprint(towerdefense_bp)
+    app.register_blueprint(squad_bp)
+    app.register_blueprint(rpgboss_bp)
 
     @app.context_processor
     def inject_user():

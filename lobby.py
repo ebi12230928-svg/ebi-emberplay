@@ -46,6 +46,15 @@ MECHANIC_THEME = {
     "lottery": {"icon": "🎟️", "gradient": ["#c026d3", "#3b0764"]},
     "treasurehunt": {"icon": "🗺️", "gradient": ["#65a30d", "#1a2e05"]},
     "numbermatch": {"icon": "🔢", "gradient": ["#0d9488", "#042f2e"]},
+    "memorymatch": {"icon": "🧠", "gradient": ["#8b5cf6", "#3b0764"]},
+    "field": {"icon": "🎲", "gradient": ["#059669", "#022c22"]},
+    "dragonbonus": {"icon": "🐉", "gradient": ["#dc2626", "#450a0a"]},
+    "casinoholdem": {"icon": "🂡", "gradient": ["#1e40af", "#0c1a3d"]},
+    "letitride": {"icon": "🃏", "gradient": ["#b45309", "#451a03"]},
+    "tictactoe": {"icon": "⭕", "gradient": ["#0891b2", "#083344"]},
+    "trivia": {"icon": "🧩", "gradient": ["#7c3aed", "#2e1065"]},
+    "reaction": {"icon": "⚡", "gradient": ["#eab308", "#713f12"]},
+    "typingtest": {"icon": "⌨️", "gradient": ["#16a34a", "#052e16"]},
 }
 
 GAMES = [
@@ -74,6 +83,15 @@ GAMES = [
     {"slug": "lottery", "game_key": "lottery", "name": "Lucky Numbers Lottery", "tagline": "3桁の数字を当てる宝くじ", "ready": True, "category": "originals"},
     {"slug": "treasurehunt", "game_key": "treasurehunt", "name": "Treasure Hunt", "tagline": "9マス中2つのトラップを避けろ", "ready": True, "category": "originals"},
     {"slug": "numbermatch", "game_key": "numbermatch", "name": "Number Match", "tagline": "1〜10の数字をシンプルに的中", "ready": True, "category": "originals"},
+    {"slug": "memorymatch", "game_key": "memorymatch", "name": "Memory Match", "tagline": "16マス中2つ選んでペアを当てろ", "ready": True, "category": "originals"},
+    {"slug": "field", "game_key": "field", "name": "Field", "tagline": "1回振るだけのシンプルなサイコロ勝負", "ready": True, "category": "table"},
+    {"slug": "dragonbonus", "game_key": "dragonbonus", "name": "Dragon Bonus", "tagline": "バカラのサイドベット、大差勝ちで高配当", "ready": True, "category": "table"},
+    {"slug": "casinoholdem", "game_key": "casinoholdem", "name": "Casino Hold'em", "tagline": "コミュニティカードでディーラーと役を競う", "ready": True, "category": "table"},
+    {"slug": "letitride", "game_key": "letitride", "name": "Let It Ride", "tagline": "5枚の役でペア・オブ・テンズ以上を狙え", "ready": True, "category": "table"},
+    {"slug": "tictactoe", "game_key": "tictactoe", "name": "三目並べ", "tagline": "賭けなし・AI対戦で勝ってEmbers獲得", "ready": True, "category": "minigames"},
+    {"slug": "trivia", "game_key": "trivia", "name": "クイズ", "tagline": "賭けなし・正解でEmbers獲得", "ready": True, "category": "minigames"},
+    {"slug": "reaction", "game_key": "reaction", "name": "反射神経テスト", "tagline": "賭けなし・速さに応じてEmbers獲得", "ready": True, "category": "minigames"},
+    {"slug": "typingtest", "game_key": "typingtest", "name": "タイピングテスト", "tagline": "賭けなし・速さと正確さでEmbers獲得", "ready": True, "category": "minigames"},
     {"slug": "war", "game_key": "war", "name": "War", "tagline": "1枚勝負、引き分けはWarか降参", "ready": True, "category": "table"},
     {"slug": "roulette", "game_key": "roulette", "name": "Roulette", "tagline": "ヨーロピアンルーレット", "ready": True, "category": "table"},
     {"slug": "blackjack", "game_key": "blackjack", "name": "Blackjack", "tagline": "ディーラーと21を競う定番ゲーム", "ready": True, "category": "table"},
@@ -143,12 +161,14 @@ CATEGORY_LABELS = {
     "table": "テーブルゲーム",
     "slots": "スロット",
     "third_party": "その他のプロバイダー",
+    "minigames": "🎮 ミニゲーム(賭けなし)",
 }
 CATEGORY_ICONS = {
     "originals": "🔥",
     "table": "🃏",
     "slots": "🎰",
     "third_party": "🎨",
+    "minigames": "🎮",
 }
 
 CAROUSEL_PREVIEW_COUNT = 12
@@ -202,8 +222,11 @@ def _continue_playing(user_id):
 @lobby_bp.route("/")
 @login_required
 def index():
-    recent = (
-        BetRecord.query.order_by(BetRecord.created_at.desc()).limit(12).all()
+    big_wins = (
+        BetRecord.query.filter(BetRecord.multiplier >= 2.0, BetRecord.payout > BetRecord.wager)
+        .order_by(BetRecord.created_at.desc())
+        .limit(15)
+        .all()
     )
     latest_announcements = (
         Announcement.query.order_by(Announcement.created_at.desc()).limit(3).all()
@@ -217,7 +240,7 @@ def index():
     online_count = _online_count()
 
     return render_template(
-        "index.html", games=GAMES, recent=recent, categories=categories,
+        "index.html", games=GAMES, big_wins=big_wins, categories=categories,
         latest_announcements=latest_announcements,
         continue_playing=continue_playing, recommended=recommended,
         favorites=favorites, favorite_keys=favorite_keys, online_count=online_count

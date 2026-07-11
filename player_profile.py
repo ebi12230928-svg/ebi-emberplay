@@ -69,7 +69,8 @@ def index():
     return render_template(
         "profile.html", user=user, total_bets=total_bets or 0, total_wagered=total_wagered or 0,
         net_profit=net_profit, max_multiplier=max_multiplier or 0, badge_list=badge_list,
-        referral_count=referral_count, giveaway_wins=giveaway_wins, next_level_xp=next_level_xp
+        referral_count=referral_count, giveaway_wins=giveaway_wins, next_level_xp=next_level_xp,
+        avatar_choices=AVATAR_CHOICES
     )
 
 
@@ -142,4 +143,25 @@ def tip():
     db.session.commit()
 
     flash(f"{target.username} さんへの {amount:,} Embersのチップを申請しました。管理者の承認後に送金されます。", "success")
+    return redirect(url_for("profile.index"))
+
+
+AVATAR_CHOICES = [
+    "🔥", "🐲", "🎲", "🃏", "🎰", "💎", "👑", "🍀", "⚡", "🌙",
+    "🦊", "🐼", "🐯", "🦁", "🐸", "🐙", "🦄", "🐧", "🌸", "🍒",
+    "🍩", "🍭", "🎯", "🎪", "🚀", "⭐", "🌈", "🎨", "😎", "🤖",
+]
+
+
+@profile_bp.route("/profile/avatar", methods=["POST"])
+@login_required
+def set_avatar():
+    avatar = request.form.get("avatar", "").strip()
+    if avatar not in AVATAR_CHOICES:
+        flash("選択できないアバターです。", "error")
+        return redirect(url_for("profile.index"))
+
+    current_user.avatar = avatar
+    db.session.commit()
+    flash("アバターを変更しました。", "success")
     return redirect(url_for("profile.index"))

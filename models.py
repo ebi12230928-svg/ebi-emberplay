@@ -20,6 +20,7 @@ def utcnow():
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    avatar = db.Column(db.String(8), default="🔥", nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
 
     balance = db.Column(db.Integer, default=0, nullable=False)
@@ -285,13 +286,14 @@ class AppState(db.Model):
 
 class GameSetting(db.Model):
     """
-    管理者が各ゲームの配当を調整するための倍率。
-    最終的な配当・表示倍率に payout_scalar を掛け合わせることで、
-    個々のゲームの内部ロジックを変更せずに「甘さ/渋さ」を一括調整できる。
-    (1.0 = 通常、0.8 = 配当を20%下げる、1.2 = 配当を20%上げる、など)
+    管理者が各ゲームの配当・勝率を調整するための設定。
+    - payout_scalar: 最終的な配当・表示倍率に掛け合わせる倍率(1.0 = 通常、0.8 = 配当20%減、1.2 = 配当20%増、など)
+    - win_boost: 自然な抽選結果の勝敗を確率的に上書きする補正値(0.0 = 補正なし、
+      正の値 = 負けを勝ちに変える確率、負の値 = 勝ちを負けに変える確率。±1.0で常に反転)
     """
     game_key = db.Column(db.String(64), primary_key=True)
     payout_scalar = db.Column(db.Float, default=1.0, nullable=False)
+    win_boost = db.Column(db.Float, default=0.0, nullable=False)
 
 
 class SportsEvent(db.Model):
@@ -496,6 +498,54 @@ class StreamSignal(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
 
+class DailyChallengeClaim(db.Model):
+    """デイリーチャレンジの受け取り済み記録(定義自体はchallenges.py内に静的に持つ)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    challenge_key = db.Column(db.String(64), nullable=False)
+    challenge_date = db.Column(db.String(10), nullable=False)  # "YYYY-MM-DD"(UTC基準)
+    claimed_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "challenge_key", "challenge_date", name="uq_daily_claim"),)
+
+
+class Friendship(db.Model):
+    """
+    フレンド申請/フレンド関係。requester(申請した側) -> addressee(申請された側)の1レコードで表現する。
+    status: pending(申請中) / accepted(承認済み)
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    requester_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    addressee_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    status = db.Column(db.String(16), default="pending", nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    requester = db.relationship("User", foreign_keys=[requester_id])
+    addressee = db.relationship("User", foreign_keys=[addressee_id])
+
+    __table_args__ = (db.UniqueConstraint("requester_id", "addressee_id", name="uq_friendship_pair"),)
+
+
+class ChatReaction(db.Model):
+    """チャットメッセージへの絵文字リアクション(1人1メッセージにつき1つまで)"""
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.Integer, db.ForeignKey("chat_message.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    emoji = db.Column(db.String(8), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("message_id", "user_id", name="uq_chat_reaction_user"),)
+
+
+class TicTacToeGame(db.Model):
+    """カジノとは無関係のミニゲーム: AI対戦の三目並べ。賭け金は使わず、勝利でEmbersを直接獲得する"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+    board_json = db.Column(db.Text, nullable=False)  # 9マスの配列("", "X", "O")
+    status = db.Column(db.String(16), default="playing", nullable=False)  # playing / won / lost / draw
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
 class WarGame(db.Model):
     """War(引き分け時の「戦争に行く/降参」待ち状態)を保持するモデル"""
     id = db.Column(db.Integer, primary_key=True)
@@ -548,3 +598,65 @@ class ThreeCardPokerGame(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User", backref=db.backref("active_threecard_game", uselist=False))
+
+
+class GachaSetting(db.Model):
+    """管理者が設定するガチャの必要ポイント(KVストア形式。1行だけ使う)"""
+    key = db.Column(db.String(32), primary_key=True)
+    cost_single = db.Column(db.Integer, default=200, nullable=False)
+    cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
+
+
+class UserCharacter(db.Model):
+    """ガチャで入手したキャラクターの所持状況。重複取得でcountが増え、レベルアップに使われる"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    character_key = db.Column(db.String(64), nullable=False)
+    count = db.Column(db.Integer, default=1, nullable=False)
+    obtained_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User", backref=db.backref("characters", lazy="dynamic"))
+
+    __table_args__ = (db.UniqueConstraint("user_id", "character_key", name="uq_user_character"),)
+
+
+class TowerDefenseRun(db.Model):
+    """タワーディフェンスのプレイ記録(結果とクリアしたウェーブ数を保存)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    waves_cleared = db.Column(db.Integer, nullable=False)
+    victory = db.Column(db.Boolean, default=False, nullable=False)
+    reward = db.Column(db.Integer, default=0, nullable=False)
+    characters_used = db.Column(db.Text, nullable=True)  # JSON配列
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+class SquadRoom(db.Model):
+    """
+    フレンドと協力プレイするための部屋。タワーディフェンス・RPGボス討伐どちらにも使う汎用的な仕組み。
+    人数が増えるほど難易度(敵の強さ)がスケーリングし、結果に応じた報酬は参加者全員に配られる。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    host_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    mode = db.Column(db.String(32), nullable=False)  # towerdefense / rpgboss
+    status = db.Column(db.String(16), default="forming", nullable=False)  # forming / battling / finished
+    created_at = db.Column(db.DateTime, default=utcnow)
+    result_json = db.Column(db.Text, nullable=True)
+
+    host = db.relationship("User")
+
+
+class SquadMember(db.Model):
+    """部屋の参加者と、その人が持ち寄るキャラクター編成"""
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("squad_room.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    character_keys_json = db.Column(db.Text, default="[]", nullable=False)
+    ready = db.Column(db.Boolean, default=False, nullable=False)
+    joined_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("room_id", "user_id", name="uq_squad_member"),)

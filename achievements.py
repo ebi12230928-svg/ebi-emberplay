@@ -28,6 +28,9 @@ ACHIEVEMENTS = {
     "giveaway_win": ("当選者", "プレゼント企画に当選した", "🎁", lambda s: s["giveaway_wins"] >= 1),
     "event_win": ("トップランカー", "イベントで入賞した", "🏁", lambda s: s["event_wins"] >= 1),
     "night_owl": ("夜更かし", "深夜0時〜4時にプレイした", "🦉", lambda s: s["night_bet"]),
+    "first_gacha": ("召喚士デビュー", "初めてガチャでキャラクターを手に入れた", "🎴", lambda s: s["character_count"] >= 1),
+    "collector": ("コレクター", "10種類以上のキャラクターを集めた", "📖", lambda s: s["character_count"] >= 10),
+    "td_victory": ("タワーディフェンス制覇", "タワーディフェンスを全ウェーブクリアした", "🏰", lambda s: s["td_victories"] >= 1),
 }
 
 
@@ -67,6 +70,15 @@ def _collect_stats(user):
 
     giveaway_wins = GiveawayEntry.query.filter_by(user_id=user.id, is_winner=True).count()
 
+    character_count = 0
+    td_victories = 0
+    try:
+        from models import UserCharacter, TowerDefenseRun
+        character_count = UserCharacter.query.filter_by(user_id=user.id).count()
+        td_victories = TowerDefenseRun.query.filter_by(user_id=user.id, victory=True).count()
+    except Exception:
+        pass
+
     return {
         "total_bets": total_bets or 0,
         "total_wagered": total_wagered or 0,
@@ -79,6 +91,8 @@ def _collect_stats(user):
         "giveaway_wins": giveaway_wins,
         "event_wins": getattr(user, "_event_wins_hint", 0),
         "night_bet": night_bet,
+        "character_count": character_count,
+        "td_victories": td_victories,
     }
 
 
