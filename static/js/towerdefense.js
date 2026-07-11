@@ -311,7 +311,7 @@
     el.className = "td-enemy";
     const emoji = cfg.isBoss ? "👑" : (currentWave % 4 === 0 ? "👹" : "🐛");
     if (cfg.isBoss) el.style.fontSize = "160%";
-    el.innerHTML = `<span class="td-enemy-sprite">${emoji}</span><div class="td-enemy-hp"><div class="td-enemy-hp-fill" style="width:100%;"></div></div>`;
+    el.innerHTML = `<div class="td-enemy-shadow"></div><span class="td-enemy-sprite">${emoji}</span><div class="td-enemy-hp"><div class="td-enemy-hp-fill" style="width:100%;"></div></div>`;
     tdGrid.appendChild(el);
     enemies.push({
       uid, el, t: 0, hp: cfg.hp, maxHp: cfg.hp, baseSpeed: cfg.speed, speed: cfg.speed,
@@ -341,13 +341,33 @@
 
   function spawnProjectile(fromRow, fromCol, toX, toY, color) {
     const from = cellCenter(fromRow, fromCol);
+    const c = color || "var(--ember)";
     const el = document.createElement("div");
     el.className = "td-projectile";
     el.style.left = from.x + "%";
     el.style.top = from.y + "%";
-    el.style.background = color || "var(--ember)";
-    el.style.boxShadow = `0 0 10px 3px ${color || "var(--ember)"}`;
+    el.innerHTML = `
+      <svg viewBox="0 0 20 20" width="16" height="16">
+        <circle cx="10" cy="10" r="7" fill="${c}" opacity="0.9"/>
+        <circle cx="10" cy="10" r="9" fill="none" stroke="${c}" stroke-width="1.5" opacity="0.5"/>
+      </svg>`;
+    el.style.filter = `drop-shadow(0 0 6px ${c})`;
     fxLayer.appendChild(el);
+
+    // 弾が通った跡が一瞬光の尾を引くように、複数の残像を等間隔で残す
+    const steps = 4;
+    for (let i = 1; i <= steps; i++) {
+      setTimeout(() => {
+        const trail = document.createElement("div");
+        trail.className = "td-projectile-trail";
+        trail.style.left = (from.x + (toX - from.x) * (i / steps)) + "%";
+        trail.style.top = (from.y + (toY - from.y) * (i / steps)) + "%";
+        trail.style.background = c;
+        fxLayer.appendChild(trail);
+        setTimeout(() => trail.remove(), 180);
+      }, i * 15);
+    }
+
     requestAnimationFrame(() => {
       el.style.transition = "left 0.22s ease-out, top 0.22s ease-out, opacity 0.22s linear";
       el.style.left = toX + "%";
@@ -384,14 +404,38 @@
     enemy.el.classList.add("td-hit-flash");
   }
 
-  function spawnImpact(x, y) {
+  function spawnImpact(x, y, color) {
     const el = document.createElement("div");
     el.className = "td-impact-fx";
     el.style.left = x + "%";
     el.style.top = y + "%";
-    el.textContent = "💢";
+    const c = color || "#ffffff";
+    // 絵文字ではなく実際のSVGで斬撃(スラッシュ)の軌跡を描画する
+    el.innerHTML = `
+      <svg viewBox="0 0 100 100" width="46" height="46">
+        <path d="M15 75 Q50 10 90 30" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.95"/>
+        <path d="M20 85 Q55 25 85 15" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8"/>
+      </svg>`;
     fxLayer.appendChild(el);
-    setTimeout(() => el.remove(), 260);
+    setTimeout(() => el.remove(), 280);
+  }
+
+  function spawnHitSpark(x, y) {
+    const el = document.createElement("div");
+    el.className = "td-spark-fx";
+    el.style.left = x + "%";
+    el.style.top = y + "%";
+    el.innerHTML = `
+      <svg viewBox="0 0 40 40" width="30" height="30">
+        <g stroke="#fff" stroke-width="3" stroke-linecap="round">
+          <line x1="20" y1="2" x2="20" y2="12"/>
+          <line x1="20" y1="28" x2="20" y2="38"/>
+          <line x1="2" y1="20" x2="12" y2="20"/>
+          <line x1="28" y1="20" x2="38" y2="20"/>
+        </g>
+      </svg>`;
+    fxLayer.appendChild(el);
+    setTimeout(() => el.remove(), 200);
   }
 
   function knockbackEnemy(enemy) {
@@ -567,9 +611,10 @@
           towerEl.classList.add("attacking");
         }
 
-        // 弾が着弾するタイミングで、命中の斬撃エフェクト+敵のノックバックを発生させる(戦っている様子の演出)
+        // 弾が着弾するタイミングで、命中の斬撃エフェクト+火花+敵のノックバックを発生させる(戦っている様子の演出)
         setTimeout(() => {
-          spawnImpact(targetPos.x, targetPos.y);
+          spawnImpact(targetPos.x, targetPos.y, tower.color);
+          spawnHitSpark(targetPos.x, targetPos.y);
           knockbackEnemy(target);
         }, 140);
       }
