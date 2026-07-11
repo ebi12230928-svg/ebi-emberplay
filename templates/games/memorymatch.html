@@ -20,7 +20,7 @@
 
   <div>
     <div class="game-stage" style="flex-direction: column; gap: 16px;">
-      <div id="grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 260px;">
+      <div id="grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; max-width: 260px;">
         {% for i in range(grid_size) %}
         <button type="button" class="mine-tile" data-index="{{ i }}" style="height:56px; font-size: 22px;">❔</button>
         {% endfor %}
