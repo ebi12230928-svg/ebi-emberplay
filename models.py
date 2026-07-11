@@ -620,6 +620,28 @@ class UserCharacter(db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "character_key", name="uq_user_character"),)
 
 
+class CustomCharacter(db.Model):
+    """
+    管理者が「ランダム生成」ボタンで作成したキャラクター。
+    静的なキャラクター図鑑(characters.py)を補う形で、ガチャ・タワーディフェンス・RPGすべてに登場する。
+    """
+    key = db.Column(db.String(64), primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    rarity = db.Column(db.String(16), nullable=False)
+    element = db.Column(db.String(16), nullable=False)
+    icon = db.Column(db.String(8), nullable=False)
+    attack = db.Column(db.Float, nullable=False)
+    defense = db.Column(db.Float, default=10, nullable=False)
+    range = db.Column(db.Float, nullable=False)
+    speed = db.Column(db.Float, nullable=False)
+    cost = db.Column(db.Integer, nullable=False)
+    splash = db.Column(db.Float, default=0, nullable=False)
+    abilities_json = db.Column(db.Text, default="[]", nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.String(32), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
 class TowerDefenseRun(db.Model):
     """タワーディフェンスのプレイ記録(結果とクリアしたウェーブ数を保存)"""
     id = db.Column(db.Integer, primary_key=True)
@@ -631,6 +653,47 @@ class TowerDefenseRun(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User")
+
+
+class Season(db.Model):
+    """
+    エンドレスモードのランキング・シーズンパスをまとめる「シーズン」。
+    シーズンが終了すると、エンドレスランキング1位のプレイヤーに指定レアリティのキャラクターが贈られる。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.Integer, unique=True, nullable=False)
+    started_at = db.Column(db.DateTime, default=utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(16), default="active", nullable=False)  # active / finished
+    endless_reward_rarity = db.Column(db.String(16), default="epic", nullable=False)  # 1位に贈るレアリティ(えびは対象外)
+    pass_reward_rarity = db.Column(db.String(16), default="epic", nullable=False)  # シーズンパス最終報酬のレアリティ(えびは対象外)
+    winner_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    winner_character_key = db.Column(db.String(64), nullable=True)
+
+    winner = db.relationship("User")
+
+
+class EndlessScore(db.Model):
+    """エンドレスモードの記録(タワーディフェンスのウェーブ数・RPGのボス撃破数)。シーズンごとのランキングに使う"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    season_id = db.Column(db.Integer, db.ForeignKey("season.id"), nullable=False, index=True)
+    mode = db.Column(db.String(16), nullable=False)  # towerdefense / rpgboss
+    score = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+class SeasonPassProgress(db.Model):
+    """シーズンパスの進行状況。ポイントを貯めて各ティアの報酬を受け取れる(最終ティアはVIP限定)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    season_id = db.Column(db.Integer, db.ForeignKey("season.id"), nullable=False, index=True)
+    points = db.Column(db.Integer, default=0, nullable=False)
+    claimed_tiers_json = db.Column(db.Text, default="[]", nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "season_id", name="uq_season_pass"),)
 
 
 class SquadRoom(db.Model):

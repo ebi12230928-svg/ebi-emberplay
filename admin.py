@@ -1,11 +1,13 @@
 import secrets
+import json
+import uuid
 from functools import wraps
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -73,13 +75,23 @@ def dashboard():
         db.session.add(gacha_settings)
         db.session.commit()
 
+    import characters as ch
+    character_choices = []
+    for key, info in ch.all_characters_dict().items():
+        character_choices.append((key, info[0], info[1]))  # (key, name, rarity)
+    character_choices.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c[2]), c[1]))
+
+    from seasons import get_current_season
+    current_season = get_current_season()
+
     from config import Config
 
     return render_template(
         "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
         game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR,
         giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips,
-        gacha_settings=gacha_settings
+        gacha_settings=gacha_settings, character_choices=character_choices, rarity_names=ch.RARITY_NAMES,
+        current_season=current_season
     )
 
 
@@ -424,6 +436,195 @@ def reject_tip(tip_id):
     db.session.commit()
 
     flash("チップ申請を却下しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/season/set-rarities", methods=["POST"])
+@login_required
+@admin_required
+def season_set_rarities():
+    import characters as ch
+    from seasons import get_current_season
+
+    endless_rarity = request.form.get("endless_reward_rarity", "epic")
+    pass_rarity = request.form.get("pass_reward_rarity", "epic")
+    valid_rarities = [r for r in ch.RARITY_NAMES if r != "ultimate"]  # えびを含むultimateは対象外にする(安全のため一括除外)
+    if endless_rarity not in valid_rarities or pass_rarity not in valid_rarities:
+        flash("えび(アルティメット)をシーズン報酬に設定することはできません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    season = get_current_season()
+    season.endless_reward_rarity = endless_rarity
+    season.pass_reward_rarity = pass_rarity
+    db.session.commit()
+    flash("シーズン報酬のレアリティを更新しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/season/end", methods=["POST"])
+@login_required
+@admin_required
+def season_end():
+    import random
+    import characters as ch
+    from seasons import get_current_season
+
+    season = get_current_season()
+
+    top_score = (
+        EndlessScore.query.filter_by(season_id=season.id).order_by(EndlessScore.score.desc()).first()
+    )
+
+    if top_score:
+        winner = User.query.get(top_score.user_id)
+        candidates = [k for k in ch.all_keys_by_rarity(season.endless_reward_rarity) if k != "ebi"]
+        if candidates:
+            key = random.choice(candidates)
+            row = UserCharacter.query.filter_by(user_id=winner.id, character_key=key).first()
+            if row:
+                row.count += 1
+            else:
+                db.session.add(UserCharacter(user_id=winner.id, character_key=key, count=1))
+            info = ch.character_info(key)
+
+            from notifications import notify
+            notify(winner.id, f"🏆 シーズン{season.number}のエンドレスランキング1位おめでとうございます!「{info['name']}」を獲得しました。")
+
+            season.winner_user_id = winner.id
+            season.winner_character_key = key
+            flash(f"シーズン{season.number}終了。1位の{winner.username}に「{info['name']}」を贈りました。", "success")
+        else:
+            flash("報酬レアリティに該当するキャラクターが見つかりませんでした。", "error")
+    else:
+        flash(f"シーズン{season.number}終了。エンドレスモードの記録がなかったため、今回は受賞者なしです。", "success")
+
+    season.status = "finished"
+    from models import utcnow
+    season.ended_at = utcnow()
+
+    new_season = Season(
+        number=season.number + 1, endless_reward_rarity=season.endless_reward_rarity,
+        pass_reward_rarity=season.pass_reward_rarity
+    )
+    db.session.add(new_season)
+    db.session.commit()
+
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/generate-character", methods=["POST"])
+@login_required
+@admin_required
+def generate_character():
+    import random
+    import characters as ch
+
+    rarity = request.form.get("rarity", "common")
+    if rarity not in ch.RARITY_NAMES:
+        flash("レアリティの指定が不正です。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    STAT_RANGES = {
+        "common":    {"atk": (6, 16), "def": (5, 12), "range": (1, 2), "speed": (0.6, 1.6), "cost": (16, 26)},
+        "rare":      {"atk": (15, 25), "def": (10, 20), "range": (1, 3), "speed": (0.7, 1.4), "cost": (38, 48)},
+        "epic":      {"atk": (28, 40), "def": (18, 32), "range": (2, 3), "speed": (0.8, 1.5), "cost": (68, 82)},
+        "legendary": {"atk": (48, 62), "def": (30, 48), "range": (3, 4), "speed": (0.9, 1.5), "cost": (125, 145)},
+        "ultimate":  {"atk": (78, 95), "def": (50, 70), "range": (4, 5), "speed": (0.7, 0.9), "cost": (220, 260)},
+    }
+    PREFIXES = [
+        "紅蓮の", "蒼き", "翠玉の", "漆黒の", "黄金の", "銀白の", "深緑の", "灼熱の", "氷結の", "疾風の",
+        "聖なる", "呪われし", "古の", "幼き", "猛き", "気高き", "闇纏う", "光帯びる", "嵐呼ぶ", "大地の",
+        "深淵の", "天空の", "煌めく", "朽ちた", "不滅の", "血染めの", "月影の", "陽炎の", "雷鳴の", "白銀の",
+    ]
+    SPECIES = [
+        ("ドラゴン", "🐉"), ("ウルフ", "🐺"), ("フェニックス", "🦅"), ("ゴーレム", "🗿"), ("ウィッチ", "🧙"),
+        ("ナイト", "🛡️"), ("デーモン", "👹"), ("エンジェル", "😇"), ("グリフォン", "🦁"), ("ユニコーン", "🦄"),
+        ("リッチ", "💀"), ("パラディン", "⚔️"), ("アサシン", "🗡️"), ("レンジャー", "🏹"), ("シャーマン", "🪄"),
+        ("ヴァンパイア", "🧛"), ("ミノタウロス", "🐂"), ("ハーピー", "🦉"), ("ペガサス", "🐴"), ("キマイラ", "🐐"),
+    ]
+    ELEMENTS = list(ch.ELEMENT_NAMES.keys())
+    ABILITY_KEYS = list(ch.ABILITIES.keys())
+    DESCRIPTIONS = [
+        "その名を聞いた者は恐れおののく。", "戦場に舞い降りる度、勝利を約束する。", "静かなる強さを秘めた戦士。",
+        "一撃に全てを込める破壊者。", "仲間を守るため、盾となる者。", "古より伝わる力を宿す。",
+        "管理者の手によって生み出された、新たな戦力。",
+    ]
+
+    rng = STAT_RANGES[rarity]
+    prefix = random.choice(PREFIXES)
+    species, icon = random.choice(SPECIES)
+    name = prefix + species
+
+    attack = round(random.uniform(*rng["atk"]), 1)
+    defense = round(random.uniform(*rng["def"]), 1)
+    range_ = random.randint(*rng["range"])
+    speed = round(random.uniform(*rng["speed"]), 2)
+    cost = random.randint(*rng["cost"])
+    element = random.choice(ELEMENTS)
+    description = random.choice(DESCRIPTIONS)
+
+    ability_count = {"common": 0, "rare": 1, "epic": 2, "legendary": 2, "ultimate": 3}[rarity]
+    abilities = random.sample(ABILITY_KEYS, min(ability_count, len(ABILITY_KEYS))) if ability_count > 0 else []
+    splash = 1 if ("aoe" in abilities or "splash" in abilities) else 0
+
+    key = f"custom_{uuid.uuid4().hex[:12]}"
+    db.session.add(CustomCharacter(
+        key=key, name=name, rarity=rarity, element=element, icon=icon, attack=attack, defense=defense,
+        range=range_, speed=speed, cost=cost, splash=splash, abilities_json=json.dumps(abilities),
+        description=description, created_by=current_user.username,
+    ))
+    db.session.commit()
+
+    flash(
+        f"新キャラクター「{name}」({ch.RARITY_NAMES[rarity]})を生成しました。"
+        f"攻撃力{attack} / 防御力{defense} / アビリティ: {', '.join(ch.ABILITIES[a]['label'] for a in abilities) or 'なし'}",
+        "success"
+    )
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/grant-character", methods=["POST"])
+@login_required
+@admin_required
+def grant_character():
+    import characters as ch
+
+    username = request.form.get("username", "").strip()
+    character_key = request.form.get("character_key", "").strip()
+    try:
+        count = int(request.form.get("count", "1"))
+    except ValueError:
+        count = 1
+    count = max(1, min(999, count))
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if character_key not in ch.all_characters_dict():
+        flash("指定されたキャラクターが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    row = UserCharacter.query.filter_by(user_id=user.id, character_key=character_key).first()
+    if row:
+        row.count += count
+    else:
+        row = UserCharacter(user_id=user.id, character_key=character_key, count=count)
+        db.session.add(row)
+    db.session.commit()
+
+    info = ch.character_info(character_key)
+    notify(user.id, f"管理者から「{info['name']}」を{count}体受け取りました。")
+    db.session.commit()
+
+    try:
+        from achievements import check_achievements
+        check_achievements(user)
+    except Exception:
+        pass
+
+    flash(f"{user.username} に「{info['name']}」を{count}体付与しました(所持数: {row.count})。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

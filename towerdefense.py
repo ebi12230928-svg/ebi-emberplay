@@ -20,8 +20,8 @@ MAX_TEAM_SIZE = 6
 # waves=Noneはエンドレス(上限なし)を意味する。lastbossは1ウェーブだけ、非常に頑丈な敵1体と戦う特別な形式
 TD_MODES = {
     "normal":   {"label": "通常",     "waves": 10, "hp_mult": 1.0, "reward_per_wave": 40, "victory_bonus": 600},
-    "raid":     {"label": "レイド",   "waves": 10, "hp_mult": 1.7, "reward_per_wave": 75, "victory_bonus": 1300},
-    "lastboss": {"label": "ラスボス", "waves": 1,  "hp_mult": 1.0, "reward_per_wave": 0, "victory_bonus": 2500},
+    "raid":     {"label": "レイド",   "waves": 10, "hp_mult": 2.6, "reward_per_wave": 90, "victory_bonus": 1600},
+    "lastboss": {"label": "ラスボス", "waves": 1,  "hp_mult": 1.0, "reward_per_wave": 0, "victory_bonus": 3500},
     "endless":  {"label": "エンドレス", "waves": None, "hp_mult": 1.0, "reward_per_wave": 30, "victory_bonus": 0},
 }
 ENDLESS_REWARD_CAP_WAVES = 60  # 経済保護のため、報酬計算上はこのウェーブ数で頭打ちにする
@@ -73,7 +73,7 @@ def index():
             if info:
                 info["count"] = row.count
                 roster.append(info)
-        roster.sort(key=lambda c: (-["common", "rare", "epic", "legendary"].index(c["rarity"]), -c["attack"]))
+        roster.sort(key=lambda c: (-["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), -c["attack"]))
 
     recent_runs = (
         TowerDefenseRun.query.filter_by(user_id=current_user.id)
@@ -131,10 +131,22 @@ def complete():
     ))
     db.session.commit()
 
+    rank_message = None
+    try:
+        from seasons import award_season_points, record_endless_score
+        award_season_points(current_user, reward)
+        if mode == "endless":
+            record_endless_score(current_user, "towerdefense", waves_cleared)
+            rank_message = "エンドレスランキングに記録しました"
+    except Exception:
+        pass
+
     try:
         from achievements import check_achievements
         check_achievements(current_user)
     except Exception:
         pass
 
-    return jsonify({"reward": reward, "victory": victory, "balance": current_user.balance})
+    return jsonify({
+        "reward": reward, "victory": victory, "balance": current_user.balance, "rank_message": rank_message
+    })

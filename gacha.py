@@ -28,13 +28,20 @@ def _roll_one(force_min_rarity=None):
     weights = list(ch.RARITY_WEIGHTS.values())
 
     if force_min_rarity:
-        order = ["common", "rare", "epic", "legendary"]
+        order = ["common", "rare", "epic", "legendary", "ultimate"]
         min_idx = order.index(force_min_rarity)
         allowed = order[min_idx:]
         rarities = [r for r in rarities if r in allowed]
         weights = [ch.RARITY_WEIGHTS[r] for r in rarities]
 
     rarity = random.choices(rarities, weights=weights, k=1)[0]
+
+    if rarity == "ultimate":
+        # アルティメット内はさらに重み付き抽選(「えび」だけ桁違いに低い確率)
+        keys = list(ch.ULTIMATE_WEIGHTS.keys())
+        w = list(ch.ULTIMATE_WEIGHTS.values())
+        return random.choices(keys, weights=w, k=1)[0]
+
     key = random.choice(ch.all_keys_by_rarity(rarity))
     return key
 
@@ -58,15 +65,15 @@ def index():
     settings = _get_settings()
     owned = {c.character_key: c.count for c in UserCharacter.query.filter_by(user_id=current_user.id).all()}
     roster = []
-    for key in ch.CHARACTERS:
+    for key in ch.all_characters_dict():
         info = ch.character_info(key)
         info["owned_count"] = owned.get(key, 0)
         roster.append(info)
-    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary"].index(c["rarity"]), c["name"]))
+    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), c["name"]))
 
     return render_template(
         "gacha.html", cost_single=settings.cost_single, cost_ten=settings.cost_ten,
-        roster=roster, owned_count=len(owned), total_count=len(ch.CHARACTERS)
+        roster=roster, owned_count=len(owned), total_count=len(ch.all_characters_dict())
     )
 
 

@@ -20,7 +20,7 @@ def index():
             owned[row.character_key] = info
 
     roster = []
-    for key in ch.CHARACTERS:
+    for key in ch.all_characters_dict():
         if key in owned:
             roster.append(owned[key])
         else:
@@ -28,11 +28,11 @@ def index():
             base["locked"] = True
             roster.append(base)
 
-    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary"].index(c["rarity"]), c["name"]))
+    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), c["name"]))
 
     total_power = sum(c["attack"] for c in owned.values())
 
     return render_template(
-        "collection.html", roster=roster, owned_count=len(owned), total_count=len(ch.CHARACTERS),
+        "collection.html", roster=roster, owned_count=len(owned), total_count=len(ch.all_characters_dict()),
         total_power=round(total_power, 1)
     )
