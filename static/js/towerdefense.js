@@ -51,6 +51,18 @@
   const resultScreen = document.getElementById("result-screen");
   const resultTitle = document.getElementById("result-title");
   const resultDetail = document.getElementById("result-detail");
+  const battleLogPanel = document.getElementById("battle-log-panel");
+  const battleLogEl = document.getElementById("battle-log");
+
+  function pushLog(text, colorClass) {
+    if (!battleLogEl) return;
+    const line = document.createElement("div");
+    if (colorClass) line.style.color = colorClass;
+    line.textContent = text;
+    battleLogEl.appendChild(line);
+    while (battleLogEl.children.length > 80) battleLogEl.removeChild(battleLogEl.firstChild);
+    battleLogEl.scrollTop = battleLogEl.scrollHeight;
+  }
   const restartBtn = document.getElementById("restart-btn");
 
   let selectedCharacters = []; // 出撃メンバー(選択済み、まだ配置前)
@@ -227,6 +239,7 @@
   let lastFrameTime = 0;
   let battleEnded = false;
   let regenTimer = 0;
+  let lastAttackLogTime = 0;
 
   function updateGoldDisplay() {
     if (hudGold) hudGold.textContent = String(gold);
@@ -261,10 +274,12 @@
   startWaveBtn.addEventListener("click", () => {
     placementScreen.style.display = "none";
     battleHud.style.display = "block";
+    if (battleLogPanel) battleLogPanel.style.display = "block";
     startWaveBtn.disabled = true;
     running = true;
     lastFrameTime = performance.now();
     updateGoldDisplay();
+    pushLog(`🚩 出撃!配置した${placedTowers.length}体で戦闘開始。`);
     startNextWave();
     requestAnimationFrame(gameLoop);
   });
@@ -278,6 +293,7 @@
     const bonus = Math.round(base * goldBoostCount() * 0.3);
     gold += base + bonus;
     updateGoldDisplay();
+    pushLog(`💰 ウェーブクリア報酬 +${base + bonus} ゴールド(所持: ${gold})`, "var(--gold)");
   }
 
   function startNextWave() {
@@ -289,6 +305,7 @@
     const cfg = waveConfig(currentWave);
     spawnQueue = Array(cfg.count).fill(cfg);
     spawnTimer = 0;
+    pushLog(`🌊 ウェーブ ${currentWave} 開始!(敵${cfg.count}体・HP${cfg.hp})`, "var(--ember)");
   }
 
   function cellCenter(row, col) {
@@ -527,6 +544,7 @@
         enemy.leaked = true;
         lives -= enemy.livesCost;
         enemy.el.remove();
+        pushLog(`❌ 敵が突破!ライフ-${enemy.livesCost}(残り${Math.max(0, lives)})`, "var(--loss)");
         continue;
       }
       const pos = positionOnPath(enemy.t);
@@ -574,6 +592,15 @@
         }
 
         const isCrit = Math.random() < (abilities.includes("crit_boost") ? 0.35 : 0.08);
+        const primaryDmg = Math.round(tower.attack * (isCrit ? 1.6 : 1));
+
+        if (now - lastAttackLogTime > 350) {
+          lastAttackLogTime = now;
+          const critText = isCrit ? "(会心の一撃!)" : "";
+          const targetCount = targets.length + (pierceTarget ? 1 : 0);
+          const multiText = targetCount > 1 ? `他${targetCount - 1}体にも範囲攻撃` : "";
+          pushLog(`⚔️ ${tower.icon}${tower.name} が攻撃!${primaryDmg}ダメージ${critText} ${multiText}`);
+        }
 
         for (const real of targets) {
           if (real.dead) continue;
@@ -628,6 +655,7 @@
         const pos = positionOnPath(enemy.t);
         spawnDeathEffect(pos.x, pos.y);
         enemy.el.remove();
+        pushLog(`💀 敵を撃破!(合計撃破数 ${kills})`, "var(--win)");
         return false;
       }
       const fill = enemy.el.querySelector(".td-enemy-hp-fill");
@@ -665,6 +693,7 @@
     if (upgradePanel) upgradePanel.style.display = "none";
     resultScreen.style.display = "block";
     resultTitle.textContent = victory ? "🏆 勝利!" : (MODE === "endless" ? "💥 力尽きました" : "💥 拠点が陥落しました");
+    pushLog(victory ? "🏆 勝利!すべてのウェーブを撃退した!" : "💥 拠点が陥落した…", victory ? "var(--win)" : "var(--loss)");
     resultTitle.style.color = victory ? "var(--win)" : "var(--loss)";
 
     const wavesCleared = victory ? (TOTAL_WAVES || currentWave) : Math.max(0, currentWave - 1);
