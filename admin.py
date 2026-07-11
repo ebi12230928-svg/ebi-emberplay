@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -84,6 +84,8 @@ def dashboard():
     from seasons import get_current_season
     current_season = get_current_season()
 
+    active_polls = Poll.query.filter_by(is_active=True).order_by(Poll.created_at.desc()).all()
+
     from config import Config
 
     return render_template(
@@ -92,7 +94,7 @@ def dashboard():
         giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips,
         gacha_settings=gacha_settings, character_choices=character_choices, rarity_names=ch.RARITY_NAMES,
         rarity_order=ch.RARITY_ORDER,
-        current_season=current_season
+        current_season=current_season, active_polls=active_polls
     )
 
 
@@ -609,6 +611,53 @@ def generate_character():
         f"攻撃力{attack} / 防御力{defense} / アビリティ: {', '.join(ch.ABILITIES[a]['label'] for a in abilities) or 'なし'}",
         "success"
     )
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/polls/create", methods=["POST"])
+@login_required
+@admin_required
+def poll_create():
+    question = request.form.get("question", "").strip()
+    raw_options = request.form.get("options", "")
+    options = [o.strip() for o in raw_options.split("\n") if o.strip()]
+    try:
+        reward = int(request.form.get("reward", "0"))
+    except ValueError:
+        reward = 0
+
+    if not question or len(options) < 2:
+        flash("質問と、2つ以上の選択肢(改行区切り)を入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if len(options) > 8:
+        flash("選択肢は最大8個までです。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    db.session.add(Poll(
+        question=question, options_json=json.dumps(options), reward=max(0, reward),
+        created_by=current_user.username
+    ))
+    db.session.commit()
+
+    try:
+        notify_all(f"📊 新しいアンケート「{question}」が始まりました。ぜひ投票してください。")
+        db.session.commit()
+    except Exception:
+        pass
+
+    flash("アンケートを作成しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/polls/<int:poll_id>/close", methods=["POST"])
+@login_required
+@admin_required
+def poll_close(poll_id):
+    poll = Poll.query.get(poll_id)
+    if poll:
+        poll.is_active = False
+        db.session.commit()
+        flash("アンケートを終了しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

@@ -696,6 +696,30 @@ class SeasonPassProgress(db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "season_id", name="uq_season_pass"),)
 
 
+class Poll(db.Model):
+    """管理者が作成するアンケート。選択肢は options_json に JSON配列として保存する"""
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String(255), nullable=False)
+    options_json = db.Column(db.Text, nullable=False)  # ["選択肢1", "選択肢2", ...]
+    reward = db.Column(db.Integer, default=0, nullable=False)  # 投票してくれた人への謝礼(Embers・任意)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_by = db.Column(db.String(32), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class PollVote(db.Model):
+    """アンケートへの投票(1人1回まで)"""
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey("poll.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    option_index = db.Column(db.Integer, nullable=False)
+    voted_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("poll_id", "user_id", name="uq_poll_vote"),)
+
+
 class SquadRoom(db.Model):
     """
     フレンドと協力プレイするための部屋。タワーディフェンス・RPGボス討伐どちらにも使う汎用的な仕組み。

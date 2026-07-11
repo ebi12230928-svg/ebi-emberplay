@@ -86,6 +86,7 @@ def create_app():
     from squad import squad_bp
     from rpgboss import rpgboss_bp
     from seasons import seasons_bp
+    from polls import polls_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -111,6 +112,7 @@ def create_app():
     app.register_blueprint(squad_bp)
     app.register_blueprint(rpgboss_bp)
     app.register_blueprint(seasons_bp)
+    app.register_blueprint(polls_bp)
 
     @app.context_processor
     def inject_user():
