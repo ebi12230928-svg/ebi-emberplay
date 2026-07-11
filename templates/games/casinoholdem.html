@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Casino Hold'em ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🂡 Casino Hold'em</span>
+<h1>Casino Hold'em</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  ※ 通常のCasino Hold'emにあるコール/フォールドの駆け引きは省略し、アンティのみの1回勝負にしています。
+  ディーラーはJacks or Better以上で成立(不成立ならアンティ返金)。プレイヤーが勝てば役に応じたボーナス配当が付きます。
+</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">アンティ</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="play-btn">配る</button>
+    <hr class="divider">
+    <p style="font-size: 11px;">{% for hand, payout in bonus_payouts.items() %}{{ hand }}=+{{ payout }}x　{% endfor %}</p>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 14px;">
+      <div>
+        <div class="eyebrow">Dealer</div>
+        <div id="dealer-hole" class="mono" style="font-size: 24px;">🂠 🂠</div>
+        <div class="text-muted" id="dealer-hand-label" style="font-size: 11px;"></div>
+      </div>
+      <div>
+        <div class="eyebrow">Community</div>
+        <div id="community" class="mono" style="font-size: 24px;">❔ ❔ ❔ ❔ ❔</div>
+      </div>
+      <div>
+        <div class="eyebrow">You</div>
+        <div id="player-hole" class="mono" style="font-size: 24px;">🂠 🂠</div>
+        <div class="text-muted" id="player-hand-label" style="font-size: 11px;"></div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/casinoholdem.js') }}"></script>
+{% endblock %}

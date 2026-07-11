@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}反射神経テスト ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">⚡ Mini Game(賭けなし)</span>
+<h1>反射神経テスト</h1>
+<p>カジノ要素は一切なし、賭け金も使いません。画面が緑色に変わったらすぐタップ。速いほど報酬が増えます({{ min_reward }}〜{{ max_reward }} Embers)。</p>
+
+<div class="panel">
+  <div id="reaction-box" style="height: 220px; border-radius: 14px; display:flex; align-items:center; justify-content:center; font-size: 20px; font-weight: 700; cursor: pointer; background: var(--bg-raised); border: 1px solid var(--panel-border); transition: background 0.15s ease;">
+    タップしてスタート
+  </div>
+  <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reaction.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Tic-Tac-Toe ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">⭕❌ Mini Game(賭けなし)</span>
+<h1>三目並べ</h1>
+<p>カジノ要素は一切なし、賭け金も使いません。AI相手に勝てば{{ reward_win }} Embers、引き分けで{{ reward_draw }} Embersを直接獲得できます。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <button class="btn btn-ember btn-block" id="start-btn">新しく始める</button>
+    <p id="status-text" class="text-muted" style="font-size: 13px; margin-top: 10px;">あなたは❌、AIは⭕です。</p>
+    <button type="button" data-cancel-url="/games/tictactoe/cancel" class="btn btn-ghost" style="font-size: 11px; padding: 4px 10px; margin-top: 8px;">動かなくなった場合はこちら</button>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div id="board" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 210px;">
+        {% for i in range(9) %}
+        <button type="button" class="mine-tile" data-cell="{{ i }}" style="height:64px; font-size: 30px;" disabled></button>
+        {% endfor %}
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tictactoe.js') }}"></script>
+{% endblock %}

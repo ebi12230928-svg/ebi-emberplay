@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}クイズ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🧩 Mini Game(賭けなし)</span>
+<h1>クイズ</h1>
+<p>カジノ要素は一切なし、賭け金も使いません。正解すると{{ reward }} Embersを直接獲得できます。</p>
+
+<div class="panel">
+  <button class="btn btn-ember btn-block" id="next-btn">出題する</button>
+  <div id="question-area" style="margin-top: 16px; display:none;">
+    <h3 id="question-text" style="margin-bottom: 12px;"></h3>
+    <div id="choices" style="display:flex; flex-direction: column; gap: 8px;"></div>
+  </div>
+  <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/trivia.js') }}"></script>
+{% endblock %}

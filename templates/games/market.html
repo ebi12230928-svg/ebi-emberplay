@@ -31,6 +31,7 @@
     <p>予想受付中の銘柄: <strong>{{ symbols.get(game.symbol, game.symbol) }}</strong>({{ "上がる" if game.pick == "up" else "下がる" }}に予想)</p>
     <p class="mono">開始時の価格: ${{ game.start_price }}</p>
     <p id="countdown-text" class="mono text-muted"></p>
+    <button class="btn btn-ghost" id="cancel-btn" style="margin-top: 12px; font-size: 12px;">動かなくなった場合はこちら(強制キャンセル・全額返金)</button>
     {% endif %}
   </div>
 

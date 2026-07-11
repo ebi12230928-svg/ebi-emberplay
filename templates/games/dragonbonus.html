@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Dragon Bonus ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🐉 Baccarat Dragon Bonus</span>
+<h1>Dragon Bonus</h1>
+<p>バカラのサイドベット。選んだ側(Player/Banker)が4点差以上の大差で勝てば配当。僅差の勝ちはハズレ扱い、引き分けは返金です。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <div style="display:flex; gap: 10px;">
+      <button class="btn btn-ember pick-btn" data-pick="player" style="flex:1;">Player</button>
+      <button class="btn btn-ember pick-btn" data-pick="banker" style="flex:1;">Banker</button>
+    </div>
+    <hr class="divider">
+    <p style="font-size: 11px;">{% for margin, payout in payouts.items() %}{{ margin }}点差={{ payout }}x　{% endfor %}</p>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div style="display:flex; gap: 40px;">
+        <div style="text-align:center;">
+          <div class="eyebrow">Player</div>
+          <div class="mono" id="player-total" style="font-size: 32px;">-</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="eyebrow">Banker</div>
+          <div class="mono" id="banker-total" style="font-size: 32px;">-</div>
+        </div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dragonbonus.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Field ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">Field</span>
+<h1>Field</h1>
+<p>2つのサイコロを1回振るだけのシンプルな勝負。合計が2,3,4,9,10,11,12のいずれかなら勝ちです(2・12は特別配当)。</p>
+
+<div class="game-layout">
+  <div class="panel">
+    <div class="field">
+      <label for="wager">プレイ料</label>
+      <input type="number" id="wager" value="100" min="1">
+    </div>
+    <button class="btn btn-ember btn-block" id="roll-btn">振る</button>
+    <hr class="divider">
+    <p style="font-size: 12px;">2, 12 = {{ triple_payout }}x ・ 3,4,9,10,11 = {{ double_payout }}x ・ 5,6,7,8 = ハズレ</p>
+  </div>
+
+  <div>
+    <div class="game-stage" style="flex-direction: column; gap: 16px;">
+      <div style="display:flex; gap: 12px; font-size: 44px;">
+        <div id="die-0">🎲</div>
+        <div id="die-1">🎲</div>
+      </div>
+      <div class="result-readout" id="result-readout"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/field.js') }}"></script>
+{% endblock %}

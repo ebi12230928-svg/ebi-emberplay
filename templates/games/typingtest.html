@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}タイピングテスト ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">⌨️ Mini Game(賭けなし)</span>
+<h1>タイピングテスト</h1>
+<p>カジノ要素は一切なし、賭け金も使いません。表示された文章を素早く正確に打ち込むとEmbersを直接獲得できます。</p>
+
+<div class="panel">
+  <button class="btn btn-ember btn-block" id="start-btn">スタート</button>
+  <div id="play-area" style="display:none; margin-top: 16px;">
+    <p id="target-sentence" class="mono" style="font-size: 16px; padding: 12px; background: var(--bg-raised); border-radius: 8px;"></p>
+    <input type="text" id="typing-input" placeholder="ここに入力..." style="width:100%; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text); margin-top: 8px;" disabled>
+  </div>
+  <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/typingtest.js') }}"></script>
+{% endblock %}
