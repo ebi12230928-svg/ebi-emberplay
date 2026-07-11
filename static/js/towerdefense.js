@@ -40,6 +40,7 @@
   const placementScreen = document.getElementById("placement-screen");
   const placementRoster = document.getElementById("placement-roster");
   const tdGrid = document.getElementById("td-grid");
+  const fxLayer = document.getElementById("td-fx-layer") || tdGrid;
   const startWaveBtn = document.getElementById("start-wave-btn");
   const battleHud = document.getElementById("battle-hud");
   const hudLives = document.getElementById("hud-lives");
@@ -166,7 +167,7 @@
 
     const towerEl = document.createElement("div");
     towerEl.className = "td-tower";
-    towerEl.textContent = activePlacementChar.icon;
+    towerEl.innerHTML = `<span class="td-tower-icon">${activePlacementChar.icon}</span>`;
     towerEl.style.borderColor = activePlacementChar.color;
     towerEl.dataset.uid = activePlacementChar.uid;
     cellEl.appendChild(towerEl);
@@ -230,6 +231,17 @@
   function updateGoldDisplay() {
     if (hudGold) hudGold.textContent = String(gold);
   }
+
+  let speedMultiplier = 1;
+  document.querySelectorAll(".speed-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      speedMultiplier = parseInt(btn.dataset.speed, 10);
+      document.querySelectorAll(".speed-btn").forEach((b) => {
+        b.classList.toggle("btn-ember", b === btn);
+        b.classList.toggle("btn-ghost", b !== btn);
+      });
+    });
+  });
 
   function waveConfig(wave) {
     if (MODE === "lastboss") {
@@ -308,6 +320,25 @@
     });
   }
 
+  function spawnBeam(fromRow, fromCol, toX, toY, color) {
+    const from = cellCenter(fromRow, fromCol);
+    const rect = tdGrid.getBoundingClientRect();
+    const dx = (toX - from.x) / 100 * rect.width;
+    const dy = (toY - from.y) / 100 * rect.height;
+    const length = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    const el = document.createElement("div");
+    el.className = "td-beam";
+    el.style.left = from.x + "%";
+    el.style.top = from.y + "%";
+    el.style.width = length + "px";
+    el.style.background = `linear-gradient(90deg, ${color || "var(--ember)"}, transparent)`;
+    el.style.transform = `rotate(${angle}deg)`;
+    fxLayer.appendChild(el);
+    setTimeout(() => el.remove(), 200);
+  }
+
   function spawnProjectile(fromRow, fromCol, toX, toY, color) {
     const from = cellCenter(fromRow, fromCol);
     const el = document.createElement("div");
@@ -315,23 +346,26 @@
     el.style.left = from.x + "%";
     el.style.top = from.y + "%";
     el.style.background = color || "var(--ember)";
-    tdGrid.appendChild(el);
+    el.style.boxShadow = `0 0 10px 3px ${color || "var(--ember)"}`;
+    fxLayer.appendChild(el);
     requestAnimationFrame(() => {
-      el.style.transition = "left 0.15s linear, top 0.15s linear, opacity 0.15s linear";
+      el.style.transition = "left 0.22s ease-out, top 0.22s ease-out, opacity 0.22s linear";
       el.style.left = toX + "%";
       el.style.top = toY + "%";
     });
-    setTimeout(() => el.remove(), 180);
+    setTimeout(() => el.remove(), 260);
   }
 
   function spawnDamageNumber(x, y, amount, kind) {
     const el = document.createElement("div");
     el.className = "td-dmg-number" + (kind ? ` td-dmg-${kind}` : "");
     el.textContent = kind === "heal" ? `+${amount}` : `-${Math.round(amount)}`;
-    el.style.left = x + "%";
+    // 同時多発の数字が完全に重なって読めなくならないよう、わずかに横方向へばらける
+    const jitter = (Math.random() - 0.5) * 4;
+    el.style.left = (x + jitter) + "%";
     el.style.top = y + "%";
-    tdGrid.appendChild(el);
-    setTimeout(() => el.remove(), 700);
+    fxLayer.appendChild(el);
+    setTimeout(() => el.remove(), 900);
   }
 
   function spawnDeathEffect(x, y) {
@@ -339,9 +373,32 @@
     el.className = "td-death-fx";
     el.style.left = x + "%";
     el.style.top = y + "%";
-    el.textContent = "💫";
-    tdGrid.appendChild(el);
-    setTimeout(() => el.remove(), 400);
+    el.textContent = "💥";
+    fxLayer.appendChild(el);
+    setTimeout(() => el.remove(), 500);
+  }
+
+  function flashEnemyHit(enemy) {
+    enemy.el.classList.remove("td-hit-flash");
+    void enemy.el.offsetWidth;
+    enemy.el.classList.add("td-hit-flash");
+  }
+
+  function spawnImpact(x, y) {
+    const el = document.createElement("div");
+    el.className = "td-impact-fx";
+    el.style.left = x + "%";
+    el.style.top = y + "%";
+    el.textContent = "💢";
+    fxLayer.appendChild(el);
+    setTimeout(() => el.remove(), 260);
+  }
+
+  function knockbackEnemy(enemy) {
+    if (enemy.dead) return;
+    enemy.el.classList.remove("td-knockback");
+    void enemy.el.offsetWidth;
+    enemy.el.classList.add("td-knockback");
   }
 
   function applyDamage(enemy, amount) {
@@ -350,6 +407,7 @@
     enemy.hp -= dmg;
     const pos = positionOnPath(enemy.t);
     spawnDamageNumber(pos.x, pos.y, dmg);
+    flashEnemyHit(enemy);
   }
 
   function applyOnHitEffects(enemy, tower, abilities, now) {
@@ -372,7 +430,7 @@
 
   function gameLoop(now) {
     if (!running) return;
-    const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    const dt = Math.min(0.05, (now - lastFrameTime) / 1000) * speedMultiplier;
     lastFrameTime = now;
 
     // 敵のスポーン
@@ -492,14 +550,28 @@
         }
 
         const targetPos = positionOnPath(target.t);
+        spawnBeam(tower.row, tower.col, targetPos.x, targetPos.y, tower.color);
         spawnProjectile(tower.row, tower.col, targetPos.x, targetPos.y, tower.color);
 
         const towerEl = tdGrid.querySelector(`.td-tower[data-uid="${tower.uid}"]`);
         if (towerEl) {
+          // タワーを攻撃対象の方向へ向ける(実際に狙って戦っている様子を出す)
+          const tCenterPx = cellCenter(tower.row, tower.col);
+          const angle = Math.atan2(targetPos.y - tCenterPx.y, targetPos.x - tCenterPx.x) * (180 / Math.PI);
+          towerEl.style.transform = `rotate(${angle}deg)`;
+          const iconEl = towerEl.querySelector(".td-tower-icon");
+          if (iconEl) iconEl.style.transform = `rotate(${-angle}deg)`; // アイコン自体の向きは正立させる
+
           towerEl.classList.remove("attacking");
           void towerEl.offsetWidth;
           towerEl.classList.add("attacking");
         }
+
+        // 弾が着弾するタイミングで、命中の斬撃エフェクト+敵のノックバックを発生させる(戦っている様子の演出)
+        setTimeout(() => {
+          spawnImpact(targetPos.x, targetPos.y);
+          knockbackEnemy(target);
+        }, 140);
       }
     }
 
