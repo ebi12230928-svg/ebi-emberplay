@@ -6,6 +6,8 @@
   const TOTAL_WAVES = MODE_CFG.waves; // nullならエンドレス(上限なし)
   const MAX_TEAM = window.TD_MAX_TEAM || 6;
   const START_LIVES = 20;
+  const MAX_LIVES = 30; // regenアビリティでの回復上限
+  const START_GOLD = 150;
   const SQUAD = window.TD_SQUAD || null;
   const DIFFICULTY = (SQUAD ? SQUAD.difficulty : 1.0) * MODE_CFG.hp_mult;
 
@@ -43,26 +45,39 @@
   const hudLives = document.getElementById("hud-lives");
   const hudWave = document.getElementById("hud-wave");
   const hudKills = document.getElementById("hud-kills");
+  const hudGold = document.getElementById("hud-gold");
+  const upgradePanel = document.getElementById("upgrade-panel");
   const resultScreen = document.getElementById("result-screen");
   const resultTitle = document.getElementById("result-title");
   const resultDetail = document.getElementById("result-detail");
   const restartBtn = document.getElementById("restart-btn");
 
   let selectedCharacters = []; // 出撃メンバー(選択済み、まだ配置前)
-  let placedTowers = []; // { char, row, col, cooldown }
+  let placedTowers = []; // { char, row, col, cooldown, level, abilities }
   let activePlacementChar = null;
+
+  function parseAbilities(raw) {
+    try {
+      return JSON.parse(raw || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function charFromDataset(item) {
+    return {
+      key: item.dataset.key, realKey: item.dataset.realkey, name: item.dataset.name, icon: item.dataset.icon,
+      attack: parseFloat(item.dataset.attack), range: parseFloat(item.dataset.range),
+      speed: parseFloat(item.dataset.speed), splash: parseFloat(item.dataset.splash),
+      color: item.dataset.color, rarity: item.dataset.rarity, abilities: parseAbilities(item.dataset.abilities),
+    };
+  }
 
   // ───────── メンバー選択 ─────────
   if (SQUAD) {
     // スクワッドモードでは、参加者全員の持ち寄りキャラクターを自動的に全員選択済みにする
     rosterGrid.querySelectorAll(".td-roster-item").forEach((item) => {
-      const key = item.dataset.key;
-      selectedCharacters.push({
-        key, realKey: item.dataset.realkey, name: item.dataset.name, icon: item.dataset.icon,
-        attack: parseFloat(item.dataset.attack), range: parseFloat(item.dataset.range),
-        speed: parseFloat(item.dataset.speed), splash: parseFloat(item.dataset.splash),
-        color: item.dataset.color, rarity: item.dataset.rarity,
-      });
+      selectedCharacters.push(charFromDataset(item));
     });
     setupScreen.style.display = "none";
     placementScreen.style.display = "block";
@@ -78,12 +93,7 @@
           item.classList.remove("selected");
         } else {
           if (selectedCharacters.length >= MAX_TEAM) return;
-          selectedCharacters.push({
-            key, realKey: item.dataset.realkey, name: item.dataset.name, icon: item.dataset.icon,
-            attack: parseFloat(item.dataset.attack), range: parseFloat(item.dataset.range),
-            speed: parseFloat(item.dataset.speed), splash: parseFloat(item.dataset.splash),
-            color: item.dataset.color, rarity: item.dataset.rarity,
-          });
+          selectedCharacters.push(charFromDataset(item));
           item.classList.add("selected");
         }
         selectedCountEl.textContent = String(selectedCharacters.length);
@@ -117,14 +127,22 @@
     }
   }
 
+  function abilityIcons(abilities) {
+    const ICONS = {
+      aoe: "💥", splash: "🌊", poison: "☠️", fire: "🔥", slow: "🧊", stun: "⭐",
+      pierce: "🏹", lifesteal: "🩸", crit_boost: "✨", armor_break: "🔨", regen: "💚", gold_boost: "💰",
+    };
+    return (abilities || []).map((a) => ICONS[a] || "").join("");
+  }
+
   function renderPlacementRoster() {
     placementRoster.innerHTML = "";
     selectedCharacters.forEach((c) => {
       const isPlaced = placedTowers.some((t) => t.uid === c.uid);
       const el = document.createElement("div");
       el.className = "panel td-roster-item" + (isPlaced ? " placed" : "");
-      el.style.cssText = "flex: 0 0 64px; text-align:center; padding: 8px; border-color:" + c.color;
-      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div>`;
+      el.style.cssText = "flex: 0 0 68px; text-align:center; padding: 8px; border-color:" + c.color;
+      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div>`;
       if (!isPlaced) {
         el.addEventListener("click", () => {
           activePlacementChar = c;
@@ -143,7 +161,7 @@
 
     activePlacementChar.uid = activePlacementChar.uid || `u${uidCounter++}`;
     placedTowers.push({
-      ...activePlacementChar, row, col, cooldownLeft: 0,
+      ...activePlacementChar, row, col, cooldownLeft: 0, level: 0,
     });
 
     const towerEl = document.createElement("div");
@@ -153,14 +171,51 @@
     towerEl.dataset.uid = activePlacementChar.uid;
     cellEl.appendChild(towerEl);
     cellEl.classList.remove("buildable");
+    const placedUid = activePlacementChar.uid;
+    towerEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (running) openUpgradePanel(placedUid);
+    });
 
     activePlacementChar = null;
     renderPlacementRoster();
     startWaveBtn.disabled = placedTowers.length === 0;
   }
 
+  // ───────── タワーのアップグレード ─────────
+  function upgradeCost(tower) {
+    return Math.round(35 * Math.pow(1.6, tower.level));
+  }
+
+  function openUpgradePanel(uid) {
+    const tower = placedTowers.find((t) => t.uid === uid);
+    if (!tower || !upgradePanel) return;
+    const cost = upgradeCost(tower);
+    upgradePanel.style.display = "block";
+    upgradePanel.innerHTML = `
+      <div style="display:flex; justify-content: space-between; align-items:center;">
+        <div><strong>${tower.icon} ${tower.name}</strong> ・ Lv.${tower.level + 1}</div>
+        <button type="button" id="upgrade-close" class="btn btn-ghost" style="padding:2px 8px; font-size:11px;">✕</button>
+      </div>
+      <p class="mono text-muted" style="font-size:12px; margin:4px 0;">現在の攻撃力: ${tower.attack.toFixed(1)}</p>
+      <button type="button" id="upgrade-buy" class="btn btn-ember" style="font-size:12px; padding:6px 12px;">
+        ${cost}💰 でアップグレード(攻撃力+20%)
+      </button>
+    `;
+    document.getElementById("upgrade-close").addEventListener("click", () => { upgradePanel.style.display = "none"; });
+    document.getElementById("upgrade-buy").addEventListener("click", () => {
+      if (gold < cost) { alert("ゴールドが足りません。"); return; }
+      gold -= cost;
+      tower.attack = Math.round(tower.attack * 1.2 * 10) / 10;
+      tower.level += 1;
+      updateGoldDisplay();
+      openUpgradePanel(uid);
+    });
+  }
+
   // ───────── バトル本体 ─────────
   let lives = START_LIVES;
+  let gold = START_GOLD;
   let currentWave = 0;
   let kills = 0;
   let enemies = [];
@@ -170,12 +225,17 @@
   let running = false;
   let lastFrameTime = 0;
   let battleEnded = false;
+  let regenTimer = 0;
+
+  function updateGoldDisplay() {
+    if (hudGold) hudGold.textContent = String(gold);
+  }
 
   function waveConfig(wave) {
     if (MODE === "lastboss") {
-      // ラスボスモードは1体だけの非常に頑丈な敵と戦う特別な構成
+      // ラスボスモードは1体だけの非常に頑丈な敵と戦う特別な構成(通常モードの何倍もの強さ)
       return {
-        count: 1, hp: Math.round(3200 * DIFFICULTY), speed: 0.75, spawnInterval: 0, livesCost: 5, isBoss: true,
+        count: 1, hp: Math.round(9000 * DIFFICULTY), speed: 0.65, spawnInterval: 0, livesCost: 8, isBoss: true,
       };
     }
     const count = Math.round((5 + wave) * (1 + (DIFFICULTY - 1) * 0.5));
@@ -192,11 +252,24 @@
     startWaveBtn.disabled = true;
     running = true;
     lastFrameTime = performance.now();
+    updateGoldDisplay();
     startNextWave();
     requestAnimationFrame(gameLoop);
   });
 
+  function goldBoostCount() {
+    return placedTowers.filter((t) => t.abilities.includes("gold_boost")).length;
+  }
+
+  function grantWaveGold() {
+    const base = 25 + currentWave * 4;
+    const bonus = Math.round(base * goldBoostCount() * 0.3);
+    gold += base + bonus;
+    updateGoldDisplay();
+  }
+
   function startNextWave() {
+    if (currentWave > 0) grantWaveGold(); // 2ウェーブ目以降、前のウェーブクリア分のゴールドを付与
     currentWave += 1;
     hudWave.textContent = String(currentWave);
     hudLives.textContent = String(lives);
@@ -226,10 +299,12 @@
     el.className = "td-enemy";
     const emoji = cfg.isBoss ? "👑" : (currentWave % 4 === 0 ? "👹" : "🐛");
     if (cfg.isBoss) el.style.fontSize = "160%";
-    el.innerHTML = `<span>${emoji}</span><div class="td-enemy-hp"><div class="td-enemy-hp-fill" style="width:100%;"></div></div>`;
+    el.innerHTML = `<span class="td-enemy-sprite">${emoji}</span><div class="td-enemy-hp"><div class="td-enemy-hp-fill" style="width:100%;"></div></div>`;
     tdGrid.appendChild(el);
     enemies.push({
-      uid, el, t: 0, hp: cfg.hp, maxHp: cfg.hp, speed: cfg.speed, livesCost: cfg.livesCost, dead: false,
+      uid, el, t: 0, hp: cfg.hp, maxHp: cfg.hp, baseSpeed: cfg.speed, speed: cfg.speed,
+      livesCost: cfg.livesCost, dead: false,
+      poison: null, fire: null, slowUntil: 0, stunUntil: 0, armorBreakUntil: 0,
     });
   }
 
@@ -249,6 +324,52 @@
     setTimeout(() => el.remove(), 180);
   }
 
+  function spawnDamageNumber(x, y, amount, kind) {
+    const el = document.createElement("div");
+    el.className = "td-dmg-number" + (kind ? ` td-dmg-${kind}` : "");
+    el.textContent = kind === "heal" ? `+${amount}` : `-${Math.round(amount)}`;
+    el.style.left = x + "%";
+    el.style.top = y + "%";
+    tdGrid.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+  }
+
+  function spawnDeathEffect(x, y) {
+    const el = document.createElement("div");
+    el.className = "td-death-fx";
+    el.style.left = x + "%";
+    el.style.top = y + "%";
+    el.textContent = "💫";
+    tdGrid.appendChild(el);
+    setTimeout(() => el.remove(), 400);
+  }
+
+  function applyDamage(enemy, amount) {
+    let dmg = amount;
+    if (enemy.armorBreakUntil > performance.now()) dmg *= 1.2;
+    enemy.hp -= dmg;
+    const pos = positionOnPath(enemy.t);
+    spawnDamageNumber(pos.x, pos.y, dmg);
+  }
+
+  function applyOnHitEffects(enemy, tower, abilities, now) {
+    if (abilities.includes("poison")) {
+      enemy.poison = { damage: Math.max(1, Math.round(tower.attack * 0.15)), ticksLeft: 4, timer: 0.6, interval: 0.6 };
+    }
+    if (abilities.includes("fire")) {
+      enemy.fire = { damage: Math.max(1, Math.round(tower.attack * 0.25)), ticksLeft: 3, timer: 0.5, interval: 0.5 };
+    }
+    if (abilities.includes("slow")) {
+      enemy.slowUntil = now + 2000;
+    }
+    if (abilities.includes("stun") && Math.random() < 0.2) {
+      enemy.stunUntil = now + 600;
+    }
+    if (abilities.includes("armor_break")) {
+      enemy.armorBreakUntil = now + 3000;
+    }
+  }
+
   function gameLoop(now) {
     if (!running) return;
     const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
@@ -264,10 +385,41 @@
       }
     }
 
-    // 敵の移動
+    // regenアビリティ: 5秒ごとにライフ回復
+    if (placedTowers.some((t) => t.abilities.includes("regen"))) {
+      regenTimer += dt;
+      if (regenTimer >= 5) {
+        regenTimer = 0;
+        if (lives < MAX_LIVES) {
+          lives = Math.min(MAX_LIVES, lives + 1);
+        }
+      }
+    }
+
+    // 敵の移動・状態異常の処理
     for (const enemy of enemies) {
       if (enemy.dead) continue;
-      enemy.t += enemy.speed * dt;
+
+      // 毒・炎のダメージオーバータイム処理
+      for (const dot of [enemy.poison, enemy.fire]) {
+        if (dot && dot.ticksLeft > 0) {
+          dot.timer -= dt;
+          if (dot.timer <= 0) {
+            enemy.hp -= dot.damage;
+            dot.ticksLeft -= 1;
+            dot.timer = dot.interval;
+            const pos = positionOnPath(enemy.t);
+            spawnDamageNumber(pos.x, pos.y, dot.damage, dot === enemy.poison ? "poison" : "fire");
+          }
+        }
+      }
+
+      // 鈍足・気絶の解除判定
+      const isSlowed = enemy.slowUntil > now;
+      const isStunned = enemy.stunUntil > now;
+      const currentSpeed = isStunned ? 0 : (isSlowed ? enemy.baseSpeed * 0.5 : enemy.baseSpeed);
+
+      enemy.t += currentSpeed * dt;
       if (enemy.t >= PATH.length - 1) {
         enemy.dead = true;
         enemy.leaked = true;
@@ -280,6 +432,8 @@
       enemy.col = pos.col;
       enemy.el.style.left = pos.x + "%";
       enemy.el.style.top = pos.y + "%";
+      enemy.el.classList.toggle("td-enemy-slowed", isSlowed && !isStunned);
+      enemy.el.classList.toggle("td-enemy-stunned", isStunned);
     }
 
     // タワーの攻撃
@@ -301,13 +455,42 @@
 
       if (target) {
         tower.cooldownLeft = tower.speed;
-        const targets = tower.splash > 0
-          ? enemies.filter((e) => !e.dead && Math.hypot(e.row - target.row, e.col - target.col) <= tower.splash)
+        const abilities = tower.abilities || [];
+        const hasAoe = tower.splash > 0 || abilities.includes("aoe") || abilities.includes("splash");
+        const splashRadius = Math.max(tower.splash, hasAoe ? 1 : 0);
+
+        let targets = splashRadius > 0
+          ? enemies.filter((e) => !e.dead && Math.hypot(e.row - target.row, e.col - target.col) <= splashRadius)
           : [target];
 
-        for (const t of targets) {
-          t.hp -= tower.attack;
+        // 貫通: 経路上でtargetより先(t値が大きい)にいる、最も近い別の敵にも追加ダメージ
+        let pierceTarget = null;
+        if (abilities.includes("pierce")) {
+          pierceTarget = enemies
+            .filter((e) => !e.dead && e !== target && !targets.includes(e) && e.t > target.t)
+            .sort((a, b) => a.t - b.t)[0] || null;
         }
+
+        const isCrit = Math.random() < (abilities.includes("crit_boost") ? 0.35 : 0.08);
+
+        for (const real of targets) {
+          if (real.dead) continue;
+          const dmg = tower.attack * (isCrit ? 1.6 : 1);
+          applyDamage(real, dmg);
+          applyOnHitEffects(real, tower, abilities, now);
+        }
+        if (pierceTarget) {
+          const dmg = tower.attack * 0.5 * (isCrit ? 1.6 : 1);
+          applyDamage(pierceTarget, dmg);
+          applyOnHitEffects(pierceTarget, tower, abilities, now);
+        }
+
+        if (abilities.includes("lifesteal") && Math.random() < 0.05 && lives < MAX_LIVES) {
+          lives += 1;
+          const pos = positionOnPath(target.t);
+          spawnDamageNumber(pos.x, pos.y, 1, "heal");
+        }
+
         const targetPos = positionOnPath(target.t);
         spawnProjectile(tower.row, tower.col, targetPos.x, targetPos.y, tower.color);
 
@@ -325,6 +508,8 @@
       if (enemy.dead) return false;
       if (enemy.hp <= 0) {
         kills += 1;
+        const pos = positionOnPath(enemy.t);
+        spawnDeathEffect(pos.x, pos.y);
         enemy.el.remove();
         return false;
       }
@@ -343,6 +528,7 @@
 
     if (spawnQueue.length === 0 && enemies.length === 0 && !battleEnded) {
       if (TOTAL_WAVES !== null && currentWave >= TOTAL_WAVES) {
+        grantWaveGold();
         endBattle(true);
         return;
       }
@@ -359,12 +545,13 @@
   async function endBattle(victory) {
     running = false;
     battleHud.style.display = "none";
+    if (upgradePanel) upgradePanel.style.display = "none";
     resultScreen.style.display = "block";
     resultTitle.textContent = victory ? "🏆 勝利!" : (MODE === "endless" ? "💥 力尽きました" : "💥 拠点が陥落しました");
     resultTitle.style.color = victory ? "var(--win)" : "var(--loss)";
 
     const wavesCleared = victory ? (TOTAL_WAVES || currentWave) : Math.max(0, currentWave - 1);
-    resultDetail.textContent = `${wavesCleared}${TOTAL_WAVES !== null ? " / " + TOTAL_WAVES : ""} ウェーブ撃破 ・ 撃破数 ${kills}`;
+    resultDetail.textContent = `${wavesCleared}${TOTAL_WAVES !== null ? " / " + TOTAL_WAVES : ""} ウェーブ撃破 ・ 撃破数 ${kills} ・ 残りゴールド ${gold}`;
 
     try {
       if (SQUAD) {
@@ -380,6 +567,9 @@
         });
         resultDetail.textContent += ` ・ +${data.reward} Embers`;
         EmberPlay.updateBalance(data.balance, victory ? "win" : null);
+        if (MODE === "endless" && data.rank_message) {
+          resultDetail.textContent += ` ・ ${data.rank_message}`;
+        }
       }
     } catch (err) {
       resultDetail.textContent += " ・ 報酬の反映に失敗しました";
