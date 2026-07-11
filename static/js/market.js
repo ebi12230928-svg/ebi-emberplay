@@ -23,6 +23,18 @@
   if (upBtn) upBtn.addEventListener("click", () => start("up"));
   if (downBtn) downBtn.addEventListener("click", () => start("down"));
 
+  const cancelBtn = document.getElementById("cancel-btn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", async () => {
+      try {
+        await EmberPlay.postJSON("/games/market/cancel", {});
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
   if (window.EMBERPLAY_MARKET_HAS_GAME) {
     const poll = async () => {
       try {

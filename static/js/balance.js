@@ -104,4 +104,19 @@ document.addEventListener("DOMContentLoaded", () => {
       valueEl.appendChild(span);
     });
   }
+
+  // 「動かなくなった場合はこちら」ボタン共通ハンドラ(data-cancel-url属性を持つ要素すべてに適用)
+  document.querySelectorAll("[data-cancel-url]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("進行中のゲームを強制的に片付け、賭け金を返金します。よろしいですか？")) return;
+      try {
+        const res = await fetch(btn.dataset.cancelUrl, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "エラーが発生しました。");
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  });
 });

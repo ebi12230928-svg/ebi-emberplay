@@ -2,6 +2,7 @@
   const messagesEl = document.getElementById("chat-messages");
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
+  const REACTIONS = window.EMBERPLAY_REACTION_EMOJIS || ["👍", "😂", "🔥", "😢", "🎉"];
 
   let lastId = 0;
   let atBottom = true;
@@ -16,19 +17,53 @@
     return div.innerHTML;
   }
 
+  function renderReactionBar(messageId, reactions) {
+    const bar = document.createElement("div");
+    bar.style.cssText = "display:flex; gap: 4px; margin-top: 2px; flex-wrap: wrap;";
+    REACTIONS.forEach((emoji) => {
+      const count = (reactions && reactions[emoji]) || 0;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = count > 0 ? `${emoji} ${count}` : emoji;
+      btn.style.cssText = "font-size: 11px; padding: 2px 8px; border-radius: 100px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text-muted); cursor: pointer;";
+      btn.addEventListener("click", async () => {
+        try {
+          const res = await fetch("/chat/react", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message_id: messageId, emoji }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            const newBar = renderReactionBar(messageId, data.reactions);
+            bar.replaceWith(newBar);
+          }
+        } catch (err) {
+          // 通信エラーは無視
+        }
+      });
+      bar.appendChild(btn);
+    });
+    return bar;
+  }
+
   function renderMessage(m) {
-    const el = document.createElement("div");
+    const wrap = document.createElement("div");
     let nameColor = "var(--text)";
     let badge = "";
     if (m.is_admin) { nameColor = "var(--ember)"; badge = " <span style='font-size:10px; color:var(--ember);'>[運営]</span>"; }
     else if (m.is_vip) { nameColor = "var(--gold)"; badge = " <span style='font-size:10px; color:var(--gold);'>[VIP]</span>"; }
 
-    el.innerHTML = `
+    const line = document.createElement("div");
+    line.innerHTML = `
       <span class="mono text-muted" style="font-size:11px;">${m.time}</span>
+      <span style="margin: 0 2px;">${m.avatar || "🔥"}</span>
       <strong style="color:${nameColor};">${escapeHtml(m.username)}</strong>${badge}
       <span>: ${escapeHtml(m.message)}</span>
     `;
-    return el;
+    wrap.appendChild(line);
+    wrap.appendChild(renderReactionBar(m.id, m.reactions));
+    return wrap;
   }
 
   async function poll() {
