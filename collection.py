@@ -28,7 +28,7 @@ def index():
             base["locked"] = True
             roster.append(base)
 
-    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), c["name"]))
+    roster.sort(key=lambda c: (ch.RARITY_ORDER.index(c["rarity"]), c["name"]))
 
     total_power = sum(c["attack"] for c in owned.values())
 

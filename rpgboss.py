@@ -158,7 +158,7 @@ def index():
         if info:
             info["count"] = row.count
             roster.append(info)
-    roster.sort(key=lambda c: (-["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), -c["attack"]))
+    roster.sort(key=lambda c: (-ch.RARITY_ORDER.index(c["rarity"]), -c["attack"]))
 
     return render_template(
         "rpgboss.html", roster=roster, tiers=TIERS, max_turns=MAX_TURNS, max_team=MAX_TEAM_SOLO

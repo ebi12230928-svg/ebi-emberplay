@@ -28,7 +28,7 @@ def _roll_one(force_min_rarity=None):
     weights = list(ch.RARITY_WEIGHTS.values())
 
     if force_min_rarity:
-        order = ["common", "rare", "epic", "legendary", "ultimate"]
+        order = ch.RARITY_ORDER
         min_idx = order.index(force_min_rarity)
         allowed = order[min_idx:]
         rarities = [r for r in rarities if r in allowed]
@@ -69,7 +69,7 @@ def index():
         info = ch.character_info(key)
         info["owned_count"] = owned.get(key, 0)
         roster.append(info)
-    roster.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), c["name"]))
+    roster.sort(key=lambda c: (ch.RARITY_ORDER.index(c["rarity"]), c["name"]))
 
     return render_template(
         "gacha.html", cost_single=settings.cost_single, cost_ten=settings.cost_ten,

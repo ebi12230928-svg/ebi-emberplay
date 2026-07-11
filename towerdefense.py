@@ -73,16 +73,26 @@ def index():
             if info:
                 info["count"] = row.count
                 roster.append(info)
-        roster.sort(key=lambda c: (-["common", "rare", "epic", "legendary", "ultimate"].index(c["rarity"]), -c["attack"]))
+        roster.sort(key=lambda c: (-ch.RARITY_ORDER.index(c["rarity"]), -c["attack"]))
 
     recent_runs = (
         TowerDefenseRun.query.filter_by(user_id=current_user.id)
         .order_by(TowerDefenseRun.created_at.desc()).limit(5).all()
     )
 
+    from config import Config
+    max_vip_tier = max(Config.VIP_TIER_NAMES.keys())
+    # VIPは2倍速、最高VIPティア(Diamond)は3倍速まで使える
+    if current_user.is_vip and current_user.vip_tier >= max_vip_tier:
+        max_speed = 3
+    elif current_user.is_vip:
+        max_speed = 2
+    else:
+        max_speed = 1
+
     return render_template(
         "towerdefense.html", roster=roster, modes=TD_MODES, current_mode=mode, max_team_size=MAX_TEAM_SIZE,
-        recent_runs=recent_runs, squad_info=squad_info
+        recent_runs=recent_runs, squad_info=squad_info, max_speed=max_speed
     )
 
 

@@ -79,7 +79,7 @@ def dashboard():
     character_choices = []
     for key, info in ch.all_characters_dict().items():
         character_choices.append((key, info[0], info[1]))  # (key, name, rarity)
-    character_choices.sort(key=lambda c: (["common", "rare", "epic", "legendary", "ultimate"].index(c[2]), c[1]))
+    character_choices.sort(key=lambda c: (ch.RARITY_ORDER.index(c[2]), c[1]))
 
     from seasons import get_current_season
     current_season = get_current_season()
