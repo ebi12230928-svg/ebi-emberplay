@@ -125,7 +125,7 @@
 {% if not squad_info %}
 <div class="panel" style="margin-bottom: 16px;">
   <h3 style="margin-bottom: 8px;">挑む難易度</h3>
-  <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+  <div class="grid-2">
     <a href="{{ url_for('towerdefense.index', mode='normal') }}" class="btn {{ 'btn-ember' if current_mode == 'normal' else 'btn-ghost' }}">👹 通常(10ウェーブ)</a>
     <a href="{{ url_for('towerdefense.index', mode='raid') }}" class="btn {{ 'btn-ember' if current_mode == 'raid' else 'btn-ghost' }}">🔥 レイド(まあまあ強い)</a>
     <a href="{{ url_for('towerdefense.index', mode='lastboss') }}" class="btn {{ 'btn-ember' if current_mode == 'lastboss' else 'btn-ghost' }}">💀 ラスボス(かなり強い)</a>
@@ -155,7 +155,7 @@
   <div class="panel" style="margin-bottom: 16px;">
     <h3 style="margin-bottom: 4px;">出撃メンバーを選ぶ(<span id="selected-count">0</span>/{{ max_team_size }})</h3>
     <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">キャラクターをタップして選択し、下の「配置へ進む」を押してください。</p>
-    <div id="roster-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+    <div id="roster-grid" class="grid-4">
       {% for c in roster %}
       <div class="panel td-roster-item" data-key="{{ c.key }}{{ '_' ~ loop.index if squad_info }}" data-realkey="{{ c.key }}" data-name="{{ c.name }}{% if squad_info %}({{ c.owner }}){% endif %}" data-icon="{{ c.icon }}"
            data-attack="{{ c.attack }}" data-range="{{ c.range }}" data-speed="{{ c.speed }}" data-splash="{{ c.splash }}"
@@ -192,7 +192,7 @@
     <span class="mono">💰 <span id="hud-gold"></span></span>
   </div>
   {% if max_speed > 1 %}
-  <div class="panel" style="display:flex; gap: 8px; padding: 10px 16px; margin-top: 8px;">
+  <div class="panel" style="display:flex; gap: 8px; padding: 10px 16px; margin-top: 8px; flex-wrap: wrap;">
     <span class="text-muted" style="font-size: 12px; align-self:center;">⚡再生速度(VIP特典):</span>
     <button type="button" class="btn btn-ember speed-btn" data-speed="1">1x</button>
     <button type="button" class="btn btn-ghost speed-btn" data-speed="2">2x</button>
@@ -215,7 +215,7 @@
 <h2 style="margin-top: 32px;">最近の挑戦</h2>
 <div class="panel" style="padding: 0;">
   {% for run in recent_runs %}
-  <div style="display:flex; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--panel-border);">
+  <div style="display:flex; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--panel-border); flex-wrap: wrap;">
     <span class="mono" style="font-size: 13px;">{{ run.waves_cleared }}ウェーブ {{ "🏆クリア" if run.victory else "" }}</span>
     <span class="mono text-win" style="font-size: 13px;">+{{ "{:,}".format(run.reward) }}</span>
   </div>

@@ -8,7 +8,7 @@
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 10px;">アバターを選ぶ</h3>
-  <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap: 8px;">
+  <div class="grid-6">
     {% for a in avatar_choices %}
     <form method="POST" action="{{ url_for('profile.set_avatar') }}">
       <input type="hidden" name="avatar" value="{{ a }}">
@@ -47,7 +47,7 @@
     {% if not user.referred_by_id %}
     <hr class="divider">
     <p style="font-size: 12px; margin-bottom: 8px;">誰かに紹介してもらった場合は、そのコードを入力すると500 Embersがもらえます。</p>
-    <form method="POST" action="{{ url_for('profile.apply_referral') }}" style="display:flex; gap: 8px;">
+    <form method="POST" action="{{ url_for('profile.apply_referral') }}" style="display:flex; gap: 8px; flex-wrap: wrap;">
       <input type="text" name="code" placeholder="紹介コード" style="flex:1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
       <button type="submit" class="btn btn-ghost">適用</button>
     </form>

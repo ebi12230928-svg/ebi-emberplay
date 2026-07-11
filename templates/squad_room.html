@@ -14,7 +14,7 @@
 {% if room.mode == "rpgboss" %}
 <div class="panel" style="margin-bottom: 16px;" id="tier-select">
   <h3 style="margin-bottom: 8px;">挑む相手(ホストが選択)</h3>
-  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+  <div class="grid-3">
     <button type="button" class="btn btn-ghost tier-btn btn-ember" data-tier="normal" {{ "disabled" if not is_host }}>👹 通常</button>
     <button type="button" class="btn btn-ghost tier-btn" data-tier="raid" {{ "disabled" if not is_host }}>🔥 レイド</button>
     <button type="button" class="btn btn-ghost tier-btn" data-tier="lastboss" {{ "disabled" if not is_host }}>💀 ラスボス</button>
@@ -23,7 +23,7 @@
 {% elif room.mode == "towerdefense" %}
 <div class="panel" style="margin-bottom: 16px;" id="tier-select">
   <h3 style="margin-bottom: 8px;">難易度(ホストが選択)</h3>
-  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+  <div class="grid-3">
     <button type="button" class="btn btn-ghost tier-btn btn-ember" data-tier="normal" {{ "disabled" if not is_host }}>👹 通常</button>
     <button type="button" class="btn btn-ghost tier-btn" data-tier="raid" {{ "disabled" if not is_host }}>🔥 レイド</button>
     <button type="button" class="btn btn-ghost tier-btn" data-tier="lastboss" {{ "disabled" if not is_host }}>💀 ラスボス</button>
@@ -33,7 +33,7 @@
 
 <div class="panel" style="margin-bottom: 16px;">
   <h3 style="margin-bottom: 8px;">あなたの編成(最大{{ max_chars }}体)</h3>
-  <div id="my-roster" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+  <div id="my-roster" class="grid-4">
     {% for c in roster %}
     <div class="panel char-select-item" data-key="{{ c.key }}" style="text-align:center; padding: 8px; border-color: {{ c.colors[0] }}; cursor:pointer;">
       <div style="font-size: 22px;">{{ c.icon }}</div>
@@ -44,7 +44,7 @@
   {% if not roster %}<p class="text-muted" style="font-size: 12px;">まだキャラクターを持っていません。<a href="{{ url_for('gacha.index') }}" style="color: var(--gold);">ガチャ</a>で入手しましょう。</p>{% endif %}
 </div>
 
-<div style="display:flex; gap: 10px;">
+<div style="display:flex; gap: 10px; flex-wrap: wrap;">
   <button class="btn btn-ember" id="ready-btn" style="flex:1;">準備完了にする</button>
   <form method="POST" action="{{ url_for('squad.leave', room_id=room.id) }}" style="flex: 0 0 auto;">
     <button type="submit" class="btn btn-ghost">退出</button>

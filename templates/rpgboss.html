@@ -23,7 +23,7 @@
 <div id="select-screen">
   <div class="panel" style="margin-bottom: 16px;">
     <h3 style="margin-bottom: 8px;">挑む相手を選ぶ</h3>
-    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+    <div class="grid-2">
       <button type="button" class="btn btn-ghost mode-btn selected" data-mode="normal">👹 通常ボス</button>
       <button type="button" class="btn btn-ghost mode-btn" data-mode="raid">🔥 レイド(まあまあ強い)</button>
       <button type="button" class="btn btn-ghost mode-btn" data-mode="lastboss">💀 ラスボス(かなり強い)</button>
@@ -34,7 +34,7 @@
 
   <div class="panel" style="margin-bottom: 16px;">
     <h3 style="margin-bottom: 4px;">出撃メンバーを選ぶ(<span id="selected-count">0</span>/{{ max_team }})</h3>
-    <div id="roster-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px;">
+    <div id="roster-grid" class="grid-4" style="margin-top: 10px;">
       {% for c in roster %}
       <div class="panel char-pick" data-key="{{ c.key }}" data-name="{{ c.name }}" data-icon="{{ c.icon }}"
            style="text-align:center; padding: 10px; border-color: {{ c.colors[0] }}; cursor:pointer;">
@@ -51,13 +51,13 @@
 <div id="battle-screen" style="display:none;">
   <div class="panel">
     <div style="margin-bottom: 12px;">
-      <div style="display:flex; justify-content: space-between; font-size: 12px;"><span id="boss-label">👹 ボス</span><span id="boss-hp-text" class="mono"></span></div>
+      <div style="display:flex; justify-content: space-between; font-size: 12px; flex-wrap: wrap;"><span id="boss-label">👹 ボス</span><span id="boss-hp-text" class="mono"></span></div>
       <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden;">
         <div id="boss-hp-bar" style="background: linear-gradient(90deg, #dc2626, #7f1d1d); height:100%; width:100%; transition: width 0.3s ease;"></div>
       </div>
     </div>
     <div style="margin-bottom: 12px;">
-      <div style="display:flex; justify-content: space-between; font-size: 12px;"><span>🛡️ チーム</span><span id="team-hp-text" class="mono"></span></div>
+      <div style="display:flex; justify-content: space-between; font-size: 12px; flex-wrap: wrap;"><span>🛡️ チーム</span><span id="team-hp-text" class="mono"></span></div>
       <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden;">
         <div id="team-hp-bar" style="background: linear-gradient(90deg, #4caf6d, #16a34a); height:100%; width:100%; transition: width 0.3s ease;"></div>
       </div>

@@ -12,11 +12,9 @@
     <div class="field" style="margin:0;">
       <label for="gen-rarity">レアリティ</label>
       <select id="gen-rarity" name="rarity" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
-        <option value="common">コモン</option>
-        <option value="rare">レア</option>
-        <option value="epic">エピック</option>
-        <option value="legendary">レジェンダリー</option>
-        <option value="ultimate">アルティメット</option>
+        {% for r in rarity_order %}
+        <option value="{{ r }}" {{ "selected" if r == "common" }}>{{ rarity_names[r] }}{{ " ★最強" if r == "ultimate" }}</option>
+        {% endfor %}
       </select>
     </div>
     <button type="submit" class="btn btn-ember">🎲 生成する</button>
@@ -33,17 +31,17 @@
     <div class="field" style="margin:0;">
       <label for="endless-rarity">1位報酬レアリティ</label>
       <select id="endless-rarity" name="endless_reward_rarity" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
-        <option value="rare" {{ "selected" if current_season.endless_reward_rarity == "rare" }}>レア</option>
-        <option value="epic" {{ "selected" if current_season.endless_reward_rarity == "epic" }}>エピック</option>
-        <option value="legendary" {{ "selected" if current_season.endless_reward_rarity == "legendary" }}>レジェンダリー</option>
+        {% for r in rarity_order %}{% if r != "ultimate" %}
+        <option value="{{ r }}" {{ "selected" if current_season.endless_reward_rarity == r }}>{{ rarity_names[r] }}</option>
+        {% endif %}{% endfor %}
       </select>
     </div>
     <div class="field" style="margin:0;">
       <label for="pass-rarity">シーズンパス最終報酬レアリティ</label>
       <select id="pass-rarity" name="pass_reward_rarity" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
-        <option value="rare" {{ "selected" if current_season.pass_reward_rarity == "rare" }}>レア</option>
-        <option value="epic" {{ "selected" if current_season.pass_reward_rarity == "epic" }}>エピック</option>
-        <option value="legendary" {{ "selected" if current_season.pass_reward_rarity == "legendary" }}>レジェンダリー</option>
+        {% for r in rarity_order %}{% if r != "ultimate" %}
+        <option value="{{ r }}" {{ "selected" if current_season.pass_reward_rarity == r }}>{{ rarity_names[r] }}</option>
+        {% endif %}{% endfor %}
       </select>
     </div>
     <button type="submit" class="btn btn-ghost">設定を保存</button>
@@ -102,11 +100,11 @@
 <div class="panel" style="margin-bottom: 24px;">
   <h3>チップ申請の承認待ち({{ pending_tips | length }}件)</h3>
   {% for tip in pending_tips %}
-  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
     <div class="mono" style="font-size: 13px;">
       {{ tip.from_user.username }} → {{ tip.to_user.username }} ・ {{ "{:,}".format(tip.amount) }} Embers
     </div>
-    <div style="display:flex; gap: 6px;">
+    <div style="display:flex; gap: 6px; flex-wrap: wrap;">
       <form method="POST" action="{{ url_for('admin.approve_tip', tip_id=tip.id) }}">
         <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">承認</button>
       </form>
@@ -150,7 +148,7 @@
   </form>
 
   {% for e in events %}
-  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
     <div>
       <strong>{{ e.title }}</strong>
       <span class="mono text-muted" style="font-size: 12px;">
@@ -180,7 +178,7 @@
       <label for="gw-description">説明(任意)</label>
       <input type="text" id="gw-description" name="description" placeholder="例: 参加するだけで抽選に応募できます">
     </div>
-    <div style="display:flex; gap: 10px;">
+    <div style="display:flex; gap: 10px; flex-wrap: wrap;">
       <div class="field" style="flex:1;">
         <label for="gw-prize">賞金額(1人あたり)</label>
         <input type="number" id="gw-prize" name="prize_amount" value="1000" min="1">
@@ -194,7 +192,7 @@
   </form>
 
   {% for g in giveaways %}
-  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
+  <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px; flex-wrap: wrap;">
     <div>
       <strong>{{ g.title }}</strong>
       <span class="mono text-muted" style="font-size: 12px;">
@@ -204,7 +202,7 @@
       </span>
     </div>
     {% if g.status == "open" %}
-    <div style="display:flex; gap: 6px; white-space: nowrap;">
+    <div style="display:flex; gap: 6px; white-space: nowrap; flex-wrap: wrap;">
       <form method="POST" action="{{ url_for('giveaway.draw', giveaway_id=g.id) }}" onsubmit="return confirm('抽選を実行します。よろしいですか？');">
         <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">抽選する</button>
       </form>
@@ -226,6 +224,7 @@
     勝率補正: 自然な抽選結果の勝敗を確率的に上書きします(0.0が通常。+0.5なら「負けの50%を勝ちに変える」、-0.5なら「勝ちの50%を負けに変える」。±1.0で常に勝ち/常に負けになるため、これが数学上の上限・下限です)。
     現時点では★印のついたシンプルな二択ゲームのみ対応しています。
   </p>
+<div class="table-scroll">
   <table>
     <thead><tr><th>ゲーム</th><th>配当倍率</th><th>勝率補正</th><th>変更</th></tr></thead>
     <tbody>
@@ -253,6 +252,7 @@
     </tbody>
   </table>
 </div>
+</div>
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3>お知らせ掲示板(全プレイヤーに公開)</h3>
@@ -267,7 +267,7 @@
   {% if announcements %}
   <div style="margin-top: 16px;">
     {% for a in announcements %}
-    <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; gap: 12px;">
+    <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
       <div>
         <p style="margin: 0 0 4px; white-space: pre-wrap;">{{ a.message }}</p>
         <span class="mono text-muted" style="font-size: 12px;">{{ a.created_by }} ・ {{ a.created_at.strftime("%Y/%m/%d %H:%M") }}</span>
@@ -370,6 +370,7 @@
   </form>
 
   {% if codes %}
+<div class="table-scroll">
   <table style="margin-top: 20px;">
     <thead><tr><th>コード</th><th>種別</th><th>金額</th><th>利用状況</th><th>状態</th><th></th></tr></thead>
     <tbody>
@@ -392,16 +393,18 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
   {% endif %}
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3>ユーザー検索</h3>
-  <form method="GET" style="display: flex; gap: 10px; margin-bottom: 16px;">
+  <form method="GET" style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
     <input type="text" name="q" value="{{ query }}" placeholder="ユーザー名で検索" style="flex:1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
     <button type="submit" class="btn btn-ghost">検索</button>
   </form>
 
+<div class="table-scroll">
   <table>
     <thead>
       <tr><th>ユーザー名</th><th>残高</th><th>借金</th><th>管理者</th><th>VIP</th><th>登録日</th><th></th></tr>
@@ -438,9 +441,11 @@
     </tbody>
   </table>
 </div>
+</div>
 
 <div class="panel">
   <h3>最近の取引</h3>
+<div class="table-scroll">
   <table>
     <thead>
       <tr><th>ユーザー</th><th>種別</th><th>金額</th><th>詳細</th><th>日時</th></tr>
@@ -457,5 +462,6 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
 </div>
 {% endblock %}

@@ -21,6 +21,7 @@
     {% if item.event.game_filter %} ・ 対象: {{ item.event.game_filter }}系ゲームのみ{% endif %}
   </p>
 
+  <div class="table-scroll">
   <table style="margin-top: 12px;">
     <thead><tr><th>順位</th><th>ユーザー</th><th>プレイ額</th><th>賞金割合</th><th>賞金</th></tr></thead>
     <tbody>
@@ -37,6 +38,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endfor %}
 
