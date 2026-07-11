@@ -315,6 +315,101 @@ p { line-height: 1.6; color: var(--text-muted); }
 html { scroll-behavior: smooth; }
 [data-carousel-section] { scroll-margin-top: 84px; }
 
+/* ── ログイン・登録画面の背景演出 ── */
+.auth-page-bg {
+  position: relative;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0 40px;
+  overflow: hidden;
+}
+
+.auth-page-bg::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(232, 89, 12, 0.28), transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(212, 162, 78, 0.22), transparent 45%),
+    radial-gradient(circle at 25% 85%, rgba(236, 72, 153, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.16), transparent 40%);
+  animation: auth-bg-drift 12s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+@keyframes auth-bg-drift {
+  from { transform: scale(1) rotate(0deg); }
+  to { transform: scale(1.12) rotate(4deg); }
+}
+
+.auth-sparkle {
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.55;
+  animation: auth-sparkle-float 5s ease-in-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes auth-sparkle-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.35; }
+  50% { transform: translateY(-16px) rotate(15deg); opacity: 0.8; }
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  max-width: 380px;
+  width: 100%;
+  margin: 0 auto;
+  backdrop-filter: blur(2px);
+}
+
+.auth-mascot {
+  display: block;
+  width: 72px;
+  height: 84px;
+  margin: 0 auto 12px;
+  animation: mascot-float 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 6px 14px rgba(232, 89, 12, 0.35));
+}
+
+/* ── ガチャのカード演出 ── */
+.gacha-card {
+  aspect-ratio: 3/4;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  text-align: center;
+  padding: 6px;
+  position: relative;
+  animation: gacha-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  border: 2px solid;
+}
+
+@keyframes gacha-card-in {
+  0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+.gacha-card.legendary { animation-name: gacha-card-in-legendary; box-shadow: 0 0 20px rgba(245, 158, 11, 0.7); }
+@keyframes gacha-card-in-legendary {
+  0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+  60% { transform: scale(1.15) rotateY(0deg); }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+.gacha-card-icon { font-size: 30px; }
+.gacha-card-new {
+  position: absolute; top: 4px; right: 4px;
+  font-size: 8px; background: var(--ember); color: #fff; padding: 1px 5px; border-radius: 100px;
+}
+
 /* ── search bar ── */
 .search-bar {
   margin: 20px 0;
@@ -535,11 +630,6 @@ html { scroll-behavior: smooth; }
 .field input:focus, .field select:focus {
   outline: none;
   border-color: var(--ember);
-}
-
-.auth-card {
-  max-width: 380px;
-  margin: 60px auto;
 }
 
 /* ── flash messages ── */
