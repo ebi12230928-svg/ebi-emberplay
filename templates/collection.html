@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}キャラクター図鑑 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📖 Collection</span>
+<h1>キャラクター図鑑</h1>
+<p>ガチャで手に入れたキャラクターの一覧です。同じキャラクターを重複取得するとレベルが上がり、攻撃力が強化されます(タワーディフェンスにも反映されます)。</p>
+
+<div class="panel" style="margin-bottom: 24px; display:flex; justify-content: space-between;">
+  <div>
+    <span class="eyebrow">コンプリート状況</span>
+    <p class="mono" style="font-size: 18px; font-weight: 800; margin: 4px 0 0;">{{ owned_count }} / {{ total_count }}</p>
+  </div>
+  <div>
+    <span class="eyebrow">合計戦闘力</span>
+    <p class="mono" style="font-size: 18px; font-weight: 800; margin: 4px 0 0; color: var(--gold);">{{ total_power }}</p>
+  </div>
+</div>
+
+<div class="reward-grid">
+  {% for c in roster %}
+  <div class="panel" style="padding: 14px; opacity: {{ '0.35' if c.locked else '1' }}; border-color: {{ '#374151' if c.locked else c.colors[0] }};">
+    <div style="text-align:center; font-size: 36px;">{{ "❔" if c.locked else c.icon }}</div>
+    <h3 style="font-size: 13px; text-align:center; margin: 6px 0 2px;">{{ "???" if c.locked else c.name }}</h3>
+    <p style="font-size: 10px; text-align:center; margin: 0; color: {{ c.colors[0] }};">{{ c.rarity_label }} ・ {{ c.element_label }}属性</p>
+    {% if not c.locked %}
+    <div class="mono" style="font-size: 11px; margin-top: 8px; display:flex; justify-content: space-between;">
+      <span>Lv.{{ c.level }}</span><span>⚔️{{ c.attack }}</span>
+    </div>
+    <div class="mono text-muted" style="font-size: 10px; display:flex; justify-content: space-between;">
+      <span>射程{{ c.range }}</span><span>速度{{ c.speed }}s</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size: 10px; text-align:center; margin-top: 8px;">未入手</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

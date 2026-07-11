@@ -73,6 +73,21 @@
   <p style="margin: 0;">実際のサッカーの試合結果に賭けよう。プレミアリーグ・ラ・リーガ・ブンデスリーガ・チャンピオンズリーグ対応。</p>
 </a>
 
+{% if big_wins %}
+<div class="panel" style="margin-bottom: 24px; overflow: hidden;">
+  <span class="eyebrow">🔥 最近の大勝ち</span>
+  <div style="display:flex; gap: 10px; overflow-x: auto; padding-top: 8px; margin: 0 -4px;">
+    {% for bet in big_wins %}
+    <div style="flex: 0 0 auto; background: var(--bg-raised); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 14px; white-space: nowrap;">
+      <div style="font-weight: 700; font-size: 13px;">{{ bet.user.username }}</div>
+      <div class="text-muted" style="font-size: 11px;">{{ bet.game | capitalize }}</div>
+      <div class="mono text-win" style="font-size: 15px; font-weight: 800;">{{ bet.multiplier }}x</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div id="no-results" style="display:none; text-align:center; padding: 40px 0; color: var(--text-muted);">
   該当するゲームが見つかりませんでした。
 </div>

@@ -3,8 +3,20 @@
 
 {% block content %}
 <span class="eyebrow">プロフィール</span>
-<h1>{{ user.username }}</h1>
+<h1>{{ user.avatar }} {{ user.username }}</h1>
 <p class="mono text-muted">{{ user.level_title }} ・ レベル {{ user.level }}</p>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 10px;">アバターを選ぶ</h3>
+  <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap: 8px;">
+    {% for a in avatar_choices %}
+    <form method="POST" action="{{ url_for('profile.set_avatar') }}">
+      <input type="hidden" name="avatar" value="{{ a }}">
+      <button type="submit" style="width:100%; aspect-ratio:1; font-size: 22px; border-radius: 10px; border: 2px solid {{ 'var(--gold)' if a == user.avatar else 'var(--panel-border)' }}; background: var(--bg-raised); cursor: pointer;">{{ a }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 8px;">レベル進捗</h3>

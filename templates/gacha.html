@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}ガチャ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎴 Gacha</span>
+<h1>キャラクターガチャ</h1>
+<p>Embersを使ってキャラクターを引こう。手に入れたキャラクターは<a href="{{ url_for('collection.index') }}" style="color: var(--gold);">図鑑</a>や<a href="{{ url_for('towerdefense.index') }}" style="color: var(--gold);">タワーディフェンス</a>で使えます。同じキャラクターを重複取得するとレベルアップします。</p>
+
+<div class="panel" style="margin-bottom: 20px;">
+  <p class="mono" style="font-size: 13px; margin-bottom: 12px;">図鑑コンプリート状況: {{ owned_count }} / {{ total_count }}</p>
+  <div style="display:flex; gap: 12px;">
+    <button class="btn btn-ember" id="pull1-btn" style="flex:1;">1回引く<br><span class="mono" style="font-size:12px;">{{ "{:,}".format(cost_single) }} Embers</span></button>
+    <button class="btn btn-ember" id="pull10-btn" style="flex:1;">10連引く<br><span class="mono" style="font-size:12px;">{{ "{:,}".format(cost_ten) }} Embers</span></button>
+  </div>
+  <p class="text-muted" style="font-size: 11px; margin-top: 8px;">10連は最後の1枠でレア以上が確定します。排出率: コモン60% / レア27% / エピック10% / レジェンダリー3%</p>
+</div>
+
+<div id="reveal-area" style="display:none; margin-bottom: 24px;">
+  <div id="reveal-grid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 8px;"></div>
+</div>
+
+<h2>図鑑</h2>
+<div class="reward-grid">
+  {% for c in roster %}
+  <div class="panel" style="text-align:center; padding: 14px; opacity: {{ '1' if c.owned_count > 0 else '0.35' }}; border-color: {{ c.colors[0] if c.owned_count > 0 else 'var(--panel-border)' }};">
+    <div style="font-size: 34px;">{{ c.icon if c.owned_count > 0 else "❔" }}</div>
+    <h3 style="font-size: 13px; margin: 6px 0 2px;">{{ c.name if c.owned_count > 0 else "???" }}</h3>
+    <p style="font-size: 10px; margin: 0; color: {{ c.colors[0] }};">{{ c.rarity_label }}</p>
+    {% if c.owned_count > 0 %}<p class="mono text-muted" style="font-size: 10px; margin: 4px 0 0;">Lv.{{ c.owned_count }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/gacha.js') }}"></script>
+{% endblock %}

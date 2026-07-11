@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}フレンド ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">👥 Friends</span>
+<h1>フレンド</h1>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 8px;">フレンド申請を送る</h3>
+  <form method="POST" action="{{ url_for('friends.send_request') }}" style="display:flex; gap: 8px;">
+    <input type="text" name="username" placeholder="ユーザー名" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+    <button type="submit" class="btn btn-ember">申請</button>
+  </form>
+</div>
+
+{% if incoming %}
+<h2>届いている申請</h2>
+<div class="panel" style="padding: 0; margin-bottom: 24px;">
+  {% for f in incoming %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 14px 20px; border-top: 1px solid var(--panel-border);">
+    <span>{{ f.requester.avatar }} {{ f.requester.username }}</span>
+    <div style="display:flex; gap: 6px;">
+      <form method="POST" action="{{ url_for('friends.accept', friendship_id=f.id) }}">
+        <button type="submit" class="btn btn-ember" style="padding: 6px 12px; font-size: 12px;">承認</button>
+      </form>
+      <form method="POST" action="{{ url_for('friends.decline', friendship_id=f.id) }}">
+        <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">拒否</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if outgoing %}
+<h2>送信中の申請</h2>
+<div class="panel" style="padding: 0; margin-bottom: 24px;">
+  {% for f in outgoing %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 14px 20px; border-top: 1px solid var(--panel-border);">
+    <span>{{ f.addressee.avatar }} {{ f.addressee.username }}</span>
+    <span class="text-muted" style="font-size: 12px;">承認待ち</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>フレンド一覧({{ friends | length }}人)</h2>
+<div class="panel" style="padding: 0;">
+  {% for u in friends %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 14px 20px; border-top: 1px solid var(--panel-border);">
+    <span>{{ u.avatar }} {{ u.username }} {% if u.is_vip %}<span style="color: var(--gold); font-size: 11px;">VIP</span>{% endif %}</span>
+    <span class="mono text-muted" style="font-size: 12px;">Lv.{{ u.level }}</span>
+  </div>
+  {% else %}
+  <div style="padding: 20px;"><p class="text-muted" style="margin:0;">まだフレンドがいません。上のフォームから申請してみましょう。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

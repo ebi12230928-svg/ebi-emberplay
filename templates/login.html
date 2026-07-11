@@ -2,22 +2,43 @@
 {% block title %}ログイン ・ EMBERPLAY{% endblock %}
 
 {% block content %}
-<div class="panel auth-card">
-  <span class="eyebrow">おかえりなさい</span>
-  <h2>ログイン</h2>
-  <form method="POST">
-    <div class="field">
-      <label for="username">ユーザー名</label>
-      <input type="text" id="username" name="username" required autofocus>
-    </div>
-    <div class="field">
-      <label for="password">パスワード</label>
-      <input type="password" id="password" name="password" required>
-    </div>
-    <button type="submit" class="btn btn-ember btn-block">ログイン</button>
-  </form>
-  <p style="margin-top: 16px; font-size: 13px;">
-    アカウントをお持ちでない方は <a href="{{ url_for('auth.register') }}" style="color: var(--gold);">新規登録</a>
-  </p>
+<div class="auth-page-bg">
+  <span class="auth-sparkle" style="top: 8%; left: 10%; animation-delay: 0s;">✨</span>
+  <span class="auth-sparkle" style="top: 18%; right: 12%; animation-delay: 1.2s;">🌟</span>
+  <span class="auth-sparkle" style="bottom: 15%; left: 15%; animation-delay: 2.1s;">💫</span>
+  <span class="auth-sparkle" style="bottom: 10%; right: 8%; animation-delay: 0.6s;">✨</span>
+
+  <div class="panel auth-card">
+    <svg viewBox="0 0 120 140" class="auth-mascot" aria-hidden="true">
+      <defs>
+        <linearGradient id="loginFlameGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffd166"/>
+          <stop offset="100%" stop-color="#e8590c"/>
+        </linearGradient>
+      </defs>
+      <path d="M60 8 C92 40 102 72 90 98 C81 122 39 122 30 98 C18 72 28 40 60 8 Z" fill="url(#loginFlameGrad)"/>
+      <circle cx="45" cy="86" r="5.5" fill="#2b1a12"/>
+      <circle cx="75" cy="86" r="5.5" fill="#2b1a12"/>
+      <circle cx="40" cy="98" r="7" fill="#ff8fa3" opacity="0.55"/>
+      <circle cx="80" cy="98" r="7" fill="#ff8fa3" opacity="0.55"/>
+      <path d="M48 101 Q60 111 72 101" stroke="#2b1a12" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <span class="eyebrow" style="display:block; text-align:center;">おかえりなさい</span>
+    <h2 style="text-align:center;">ログイン</h2>
+    <form method="POST">
+      <div class="field">
+        <label for="username">ユーザー名</label>
+        <input type="text" id="username" name="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-ember btn-block">ログイン</button>
+    </form>
+    <p style="margin-top: 16px; font-size: 13px; text-align:center;">
+      アカウントをお持ちでない方は <a href="{{ url_for('auth.register') }}" style="color: var(--gold);">新規登録</a>
+    </p>
+  </div>
 </div>
 {% endblock %}

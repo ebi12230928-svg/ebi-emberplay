@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}協力プレイ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">👥 Squad</span>
+<h1>{{ "タワーディフェンス" if mode == "towerdefense" else "RPGボス討伐" }} 協力プレイ</h1>
+<p style="font-size: 13px; color: var(--text-muted);">フレンドと部屋を作って、みんなのキャラクターを結集して挑戦できます。人数が増えるほど敵が強くなります(最大{{ max_members }}人)。</p>
+
+{% if my_room %}
+<div class="panel" style="margin-bottom: 20px; border-color: var(--gold);">
+  <h3>あなたは現在、部屋 #{{ my_room.id }} に参加中です</h3>
+  <a href="{{ url_for('squad.room', room_id=my_room.id) }}" class="btn btn-ember" style="margin-top: 8px;">部屋に戻る</a>
+</div>
+{% else %}
+<form method="POST" action="{{ url_for('squad.create', mode=mode) }}" style="margin-bottom: 24px;">
+  <button type="submit" class="btn btn-ember btn-block">新しく部屋を作る</button>
+</form>
+
+<h2>フレンドが募集中の部屋</h2>
+{% if not open_rooms %}
+<div class="panel"><p style="margin:0;">現在、フレンドが開いている部屋はありません。自分で部屋を作ってみましょう。</p></div>
+{% endif %}
+{% for room in open_rooms %}
+<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center;">
+  <div>
+    <strong>{{ room.host_username }}の部屋</strong>
+    <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">{{ room.members | length }}人参加中 ・ 難易度{{ room.difficulty_scale }}x</p>
+  </div>
+  <a href="{{ url_for('squad.room', room_id=room.id) }}" class="btn btn-ghost" style="padding: 8px 16px; font-size: 13px;">参加</a>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

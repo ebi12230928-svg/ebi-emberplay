@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}タワーディフェンス ・ EMBERPLAY{% endblock %}
+
+{% block head %}
+<style>
+  #td-grid {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 8 / 5;
+    background: #16211c;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+  }
+  .td-cell { border: 1px solid rgba(255,255,255,0.03); position: relative; }
+  .td-cell.path { background: #3d3222; }
+  .td-cell.buildable { cursor: pointer; transition: background 0.15s ease; }
+  .td-cell.buildable:hover { background: rgba(232, 89, 12, 0.18); }
+  .td-tower {
+    position: absolute; inset: 3px; border-radius: 8px; display:flex; align-items:center; justify-content:center;
+    font-size: 60%; background: rgba(0,0,0,0.35); border: 2px solid var(--gold); cursor: pointer;
+  }
+  .td-tower.attacking { animation: td-tower-pulse 0.25s ease; }
+  @keyframes td-tower-pulse { 0%{transform:scale(1);} 50%{transform:scale(1.25);} 100%{transform:scale(1);} }
+  .td-enemy {
+    position: absolute; width: 7%; height: 12%; transform: translate(-50%, -50%);
+    display:flex; align-items:center; justify-content:center; font-size: 70%; z-index: 5;
+  }
+  .td-enemy-hp { position:absolute; bottom:-4px; left:0; right:0; height:3px; background:#333; border-radius:2px; }
+  .td-enemy-hp-fill { height:100%; background:#4caf6d; border-radius:2px; }
+  .td-projectile { position:absolute; width:5px; height:5px; border-radius:50%; background: var(--ember); z-index: 6; box-shadow: 0 0 6px var(--ember); }
+  .td-roster-item { cursor:pointer; transition: transform 0.15s ease, border-color 0.15s ease; }
+  .td-roster-item.selected { border-color: var(--gold) !important; transform: translateY(-3px); }
+  .td-roster-item.placed { opacity: 0.4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🏰 Tower Defense</span>
+<h1>タワーディフェンス</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  ガチャで手に入れたキャラクターを最大{{ max_team_size }}体まで選んで配置し、敵の侵攻を防ごう。
+  ウェーブを進めるごとにEmbersが手に入ります。
+</p>
+
+{% if not squad_info %}
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 8px;">挑む難易度</h3>
+  <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+    <a href="{{ url_for('towerdefense.index', mode='normal') }}" class="btn {{ 'btn-ember' if current_mode == 'normal' else 'btn-ghost' }}">👹 通常(10ウェーブ)</a>
+    <a href="{{ url_for('towerdefense.index', mode='raid') }}" class="btn {{ 'btn-ember' if current_mode == 'raid' else 'btn-ghost' }}">🔥 レイド(まあまあ強い)</a>
+    <a href="{{ url_for('towerdefense.index', mode='lastboss') }}" class="btn {{ 'btn-ember' if current_mode == 'lastboss' else 'btn-ghost' }}">💀 ラスボス(かなり強い)</a>
+    <a href="{{ url_for('towerdefense.index', mode='endless') }}" class="btn {{ 'btn-ember' if current_mode == 'endless' else 'btn-ghost' }}">♾️ エンドレスモード</a>
+  </div>
+</div>
+
+<a href="{{ url_for('squad.lobby', mode='towerdefense') }}" class="panel" style="display:block; margin-bottom: 16px; border-color: var(--gold);">
+  <span class="eyebrow" style="color: var(--gold);">NEW</span>
+  <h3 style="margin: 4px 0;">👥 フレンドと協力プレイ</h3>
+  <p style="margin: 0; font-size: 13px;">人数が増えるほど敵が強くなる代わりに、みんなのキャラクターを結集して挑めます(エンドレスはソロ専用)。</p>
+</a>
+{% else %}
+<div class="panel" style="margin-bottom: 16px; border-color: var(--gold);">
+  <span class="eyebrow" style="color: var(--gold);">👥 協力プレイ中 ・ {{ modes[squad_info.mode].label }}</span>
+  <p style="margin: 4px 0 0; font-size: 13px;">参加人数: {{ squad_info.member_count }}人 ・ 難易度倍率: {{ squad_info.difficulty }}x</p>
+</div>
+{% endif %}
+
+{% if not roster %}
+<div class="panel">
+  <p>まだキャラクターを1体も持っていません。まずは<a href="{{ url_for('gacha.index') }}" style="color: var(--gold);">ガチャ</a>でキャラクターを手に入れましょう。</p>
+</div>
+{% else %}
+
+<div id="setup-screen" {% if squad_info %}style="display:none;"{% endif %}>
+  <div class="panel" style="margin-bottom: 16px;">
+    <h3 style="margin-bottom: 4px;">出撃メンバーを選ぶ(<span id="selected-count">0</span>/{{ max_team_size }})</h3>
+    <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">キャラクターをタップして選択し、下の「配置へ進む」を押してください。</p>
+    <div id="roster-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+      {% for c in roster %}
+      <div class="panel td-roster-item" data-key="{{ c.key }}{{ '_' ~ loop.index if squad_info }}" data-realkey="{{ c.key }}" data-name="{{ c.name }}{% if squad_info %}({{ c.owner }}){% endif %}" data-icon="{{ c.icon }}"
+           data-attack="{{ c.attack }}" data-range="{{ c.range }}" data-speed="{{ c.speed }}" data-splash="{{ c.splash }}"
+           data-color="{{ c.colors[0] }}" data-rarity="{{ c.rarity_label }}"
+           style="text-align:center; padding: 10px; border-color: {{ c.colors[0] }};">
+        <div style="font-size: 26px;">{{ c.icon }}</div>
+        <div style="font-size: 11px; font-weight:700; margin-top:4px;">{{ c.name }}</div>
+        <div class="mono text-muted" style="font-size: 10px;">{% if squad_info %}{{ c.owner }}{% else %}Lv.{{ c.level }} ・ ⚔️{{ c.attack }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <button class="btn btn-ember btn-block" id="to-placement-btn" disabled>配置へ進む</button>
+</div>
+
+<div id="placement-screen" style="display:none;">
+  <div class="panel" style="margin-bottom: 12px;">
+    <p style="font-size: 12px; margin: 0;">下のキャラクターをタップしてから、盤面の道以外のマスをタップして配置してください。</p>
+    <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
+  </div>
+  <div id="td-grid"></div>
+  <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-top: 12px;" disabled>ウェーブ開始!</button>
+</div>
+
+<div id="battle-hud" style="display:none; margin-top: 12px;">
+  <div class="panel" style="display:flex; justify-content: space-between; padding: 12px 16px;">
+    <span class="mono">❤️ <span id="hud-lives"></span></span>
+    <span class="mono">🌊 Wave <span id="hud-wave"></span><span id="hud-wave-total"></span></span>
+    <span class="mono">💀 <span id="hud-kills"></span></span>
+  </div>
+</div>
+
+<div id="result-screen" style="display:none; margin-top: 16px;">
+  <div class="panel" style="text-align:center;">
+    <h2 id="result-title"></h2>
+    <p id="result-detail" class="mono text-muted"></p>
+    <button class="btn btn-ember" id="restart-btn" style="margin-top: 12px;">もう一度挑戦</button>
+  </div>
+</div>
+
+{% if recent_runs %}
+<h2 style="margin-top: 32px;">最近の挑戦</h2>
+<div class="panel" style="padding: 0;">
+  {% for run in recent_runs %}
+  <div style="display:flex; justify-content: space-between; padding: 12px 20px; border-top: 1px solid var(--panel-border);">
+    <span class="mono" style="font-size: 13px;">{{ run.waves_cleared }}ウェーブ {{ "🏆クリア" if run.victory else "" }}</span>
+    <span class="mono text-win" style="font-size: 13px;">+{{ "{:,}".format(run.reward) }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.TD_MODE = "{{ squad_info.mode if squad_info else current_mode }}";
+  window.TD_MODES = {{ modes | tojson }};
+  window.TD_MAX_TEAM = {{ max_team_size }};
+  window.TD_SQUAD = {{ squad_info | tojson if squad_info else "null" }};
+</script>
+<script src="{{ url_for('static', filename='js/towerdefense.js') }}"></script>
+{% endblock %}

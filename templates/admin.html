@@ -6,6 +6,21 @@
 <h1>管理パネル</h1>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>🎴 ガチャの必要ポイント</h3>
+  <form method="POST" action="{{ url_for('admin.set_gacha_cost') }}" style="display:flex; gap: 12px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0;">
+      <label for="gacha-single">1回あたり</label>
+      <input type="number" id="gacha-single" name="cost_single" value="{{ gacha_settings.cost_single }}" min="1" style="width: 120px;">
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="gacha-ten">10連あたり</label>
+      <input type="number" id="gacha-ten" name="cost_ten" value="{{ gacha_settings.cost_ten }}" min="1" style="width: 120px;">
+    </div>
+    <button type="submit" class="btn btn-ember">設定</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>チップ申請の承認待ち({{ pending_tips | length }}件)</h3>
   {% for tip in pending_tips %}
   <div style="padding: 12px 0; border-top: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; gap: 12px;">
@@ -126,25 +141,28 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
-  <h3>ゲームごとの配当倍率調整</h3>
+  <h3>ゲームごとの配当倍率・勝率補正</h3>
   <p style="font-size: 13px;">
-    各ゲームの最終的な配当に掛ける倍率スケールです(1.0が通常。0.8にすると配当が20%下がり、1.2にすると20%上がります)。
-    範囲: {{ min_scalar }}x 〜 {{ max_scalar }}x。ゲーム内部の当選確率自体は変わりません。
+    配当倍率: 最終的な配当に掛ける倍率スケールです(1.0が通常。範囲: {{ min_scalar }}x 〜 {{ max_scalar }}x)。<br>
+    勝率補正: 自然な抽選結果の勝敗を確率的に上書きします(0.0が通常。+0.5なら「負けの50%を勝ちに変える」、-0.5なら「勝ちの50%を負けに変える」。±1.0で常に勝ち/常に負けになるため、これが数学上の上限・下限です)。
+    現時点では★印のついたシンプルな二択ゲームのみ対応しています。
   </p>
   <table>
-    <thead><tr><th>ゲーム</th><th>現在の倍率</th><th>変更</th></tr></thead>
+    <thead><tr><th>ゲーム</th><th>配当倍率</th><th>勝率補正</th><th>変更</th></tr></thead>
     <tbody>
-      {% for key, name, scalar in game_scalars %}
+      {% for key, name, scalar, boost, supports_boost in game_scalars %}
       <tr>
-        <td>{{ name }}</td>
+        <td>{{ name }}{% if supports_boost %} ★{% endif %}</td>
         <td class="mono {{ 'text-loss' if scalar < 1.0 else ('text-win' if scalar > 1.0 else 'text-muted') }}">{{ scalar }}x</td>
+        <td class="mono {{ 'text-win' if boost > 0 else ('text-loss' if boost < 0 else 'text-muted') }}">{{ "%+.2f"|format(boost) }}</td>
         <td>
-          <form method="POST" action="{{ url_for('admin.set_game_scalar') }}" style="display:flex; gap: 6px; align-items:center;">
+          <form method="POST" action="{{ url_for('admin.set_game_scalar') }}" style="display:flex; gap: 6px; align-items:center; flex-wrap: wrap;">
             <input type="hidden" name="game_key" value="{{ key }}">
-            <input type="number" name="payout_scalar" value="{{ scalar }}" step="0.05" min="{{ min_scalar }}" max="{{ max_scalar }}" style="width: 90px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+            <input type="number" name="payout_scalar" value="{{ scalar }}" step="0.05" min="{{ min_scalar }}" max="{{ max_scalar }}" style="width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);" title="配当倍率">
+            <input type="number" name="win_boost" value="{{ boost }}" step="0.05" min="-1" max="1" {{ 'disabled' if not supports_boost }} style="width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);" title="勝率補正">
             <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">設定</button>
           </form>
-          {% if scalar != 1.0 %}
+          {% if scalar != 1.0 or boost != 0.0 %}
           <form method="POST" action="{{ url_for('admin.reset_game_scalar') }}" style="display:inline;">
             <input type="hidden" name="game_key" value="{{ key }}">
             <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px; margin-top: 4px;">通常に戻す</button>

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}部屋 #{{ room.id }} ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">👥 Squad Room #{{ room.id }}</span>
+<h1>{{ "タワーディフェンス" if room.mode == "towerdefense" else "RPGボス討伐" }}</h1>
+<p class="mono text-muted" style="font-size: 13px;">難易度倍率: <span id="difficulty-display">{{ room.difficulty_scale }}</span>x(参加人数で変動)</p>
+
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 10px;">参加者(<span id="member-count">{{ room.members | length }}</span>/{{ max_members }})</h3>
+  <div id="member-list"></div>
+</div>
+
+{% if room.mode == "rpgboss" %}
+<div class="panel" style="margin-bottom: 16px;" id="tier-select">
+  <h3 style="margin-bottom: 8px;">挑む相手(ホストが選択)</h3>
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+    <button type="button" class="btn btn-ghost tier-btn btn-ember" data-tier="normal" {{ "disabled" if not is_host }}>👹 通常</button>
+    <button type="button" class="btn btn-ghost tier-btn" data-tier="raid" {{ "disabled" if not is_host }}>🔥 レイド</button>
+    <button type="button" class="btn btn-ghost tier-btn" data-tier="lastboss" {{ "disabled" if not is_host }}>💀 ラスボス</button>
+  </div>
+</div>
+{% elif room.mode == "towerdefense" %}
+<div class="panel" style="margin-bottom: 16px;" id="tier-select">
+  <h3 style="margin-bottom: 8px;">難易度(ホストが選択)</h3>
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+    <button type="button" class="btn btn-ghost tier-btn btn-ember" data-tier="normal" {{ "disabled" if not is_host }}>👹 通常</button>
+    <button type="button" class="btn btn-ghost tier-btn" data-tier="raid" {{ "disabled" if not is_host }}>🔥 レイド</button>
+    <button type="button" class="btn btn-ghost tier-btn" data-tier="lastboss" {{ "disabled" if not is_host }}>💀 ラスボス</button>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 8px;">あなたの編成(最大{{ max_chars }}体)</h3>
+  <div id="my-roster" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+    {% for c in roster %}
+    <div class="panel char-select-item" data-key="{{ c.key }}" style="text-align:center; padding: 8px; border-color: {{ c.colors[0] }}; cursor:pointer;">
+      <div style="font-size: 22px;">{{ c.icon }}</div>
+      <div style="font-size: 10px;">{{ c.name }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not roster %}<p class="text-muted" style="font-size: 12px;">まだキャラクターを持っていません。<a href="{{ url_for('gacha.index') }}" style="color: var(--gold);">ガチャ</a>で入手しましょう。</p>{% endif %}
+</div>
+
+<div style="display:flex; gap: 10px;">
+  <button class="btn btn-ember" id="ready-btn" style="flex:1;">準備完了にする</button>
+  <form method="POST" action="{{ url_for('squad.leave', room_id=room.id) }}" style="flex: 0 0 auto;">
+    <button type="submit" class="btn btn-ghost">退出</button>
+  </form>
+</div>
+
+{% if is_host %}
+<button class="btn btn-ember btn-block" id="start-btn" style="margin-top: 12px;" disabled>全員準備完了 → バトル開始</button>
+{% else %}
+<p class="text-muted" style="font-size: 12px; margin-top: 12px;">ホストが開始するとバトルが始まります。</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.SQUAD_ROOM_ID = {{ room.id }};
+  window.SQUAD_MODE = "{{ room.mode }}";
+  window.SQUAD_IS_HOST = {{ "true" if is_host else "false" }};
+  window.SQUAD_MAX_CHARS = {{ max_chars }};
+</script>
+<script src="{{ url_for('static', filename='js/squad_room.js') }}"></script>
+{% endblock %}

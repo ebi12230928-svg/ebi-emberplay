@@ -15,5 +15,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script>window.EMBERPLAY_REACTION_EMOJIS = {{ reaction_emojis | tojson }};</script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

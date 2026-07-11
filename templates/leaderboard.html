@@ -5,6 +5,12 @@
 <span class="eyebrow">ランキング</span>
 <h1>プレイヤーランキング</h1>
 
+<div class="category-pills">
+  {% for key, label in periods.items() %}
+  <a href="{{ url_for('leaderboard.index', period=key) }}" class="category-pill" style="{{ 'background: var(--ember); border-color: var(--ember);' if period == key else '' }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
 <div class="reward-grid" style="margin-bottom: 32px;">
   <div class="panel">
     <h3 style="margin-bottom: 16px;">残高ランキング</h3>
@@ -19,7 +25,19 @@
   </div>
 
   <div class="panel">
-    <h3 style="margin-bottom: 16px;">最大獲得ランキング</h3>
+    <h3 style="margin-bottom: 16px;">{{ periods[period] }}の合計損益</h3>
+    {% for r in top_profit %}
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+      <span>{{ loop.index }}. {{ r.username }}</span>
+      <span class="mono {{ 'text-win' if r.net >= 0 else 'text-loss' }}">{{ "{:+,}".format(r.net) }}</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="margin:0;">この期間のデータがありません。</p>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-bottom: 16px;">最大獲得ランキング(全期間)</h3>
     {% for net, bet in top_gains %}
     <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
       <span>{{ loop.index }}. {{ bet.user.username }} <span class="text-muted" style="font-size:12px;">({{ bet.game }})</span></span>

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}RPGボス討伐 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">⚔️ RPG Boss Battle</span>
+<h1>RPGボス討伐</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  キャラクターを選んでボスに挑む、ターン制の自動バトルです。最大{{ max_turns }}ターン以内にボスのHPを0にすれば勝利。
+</p>
+
+<a href="{{ url_for('squad.lobby', mode='rpgboss') }}" class="panel" style="display:block; margin-bottom: 16px; border-color: var(--gold);">
+  <span class="eyebrow" style="color: var(--gold);">NEW</span>
+  <h3 style="margin: 4px 0;">👥 フレンドと協力プレイ</h3>
+  <p style="margin: 0; font-size: 13px;">通常ボス・レイド・ラスボスに、フレンドと一緒に挑めます(エンドレスモードはソロ専用)。</p>
+</a>
+
+{% if not roster %}
+<div class="panel">
+  <p>まだキャラクターを1体も持っていません。まずは<a href="{{ url_for('gacha.index') }}" style="color: var(--gold);">ガチャ</a>でキャラクターを手に入れましょう。</p>
+</div>
+{% else %}
+
+<div id="select-screen">
+  <div class="panel" style="margin-bottom: 16px;">
+    <h3 style="margin-bottom: 8px;">挑む相手を選ぶ</h3>
+    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+      <button type="button" class="btn btn-ghost mode-btn selected" data-mode="normal">👹 通常ボス</button>
+      <button type="button" class="btn btn-ghost mode-btn" data-mode="raid">🔥 レイド(まあまあ強い)</button>
+      <button type="button" class="btn btn-ghost mode-btn" data-mode="lastboss">💀 ラスボス(かなり強い)</button>
+      <button type="button" class="btn btn-ghost mode-btn" data-mode="endless">♾️ エンドレスモード</button>
+    </div>
+    <p class="text-muted" style="font-size: 11px; margin-top: 8px;">レイド・ラスボスは報酬も大きくなります。エンドレスは倒すたびに次のボスが強くなり、倒した数だけ報酬がもらえます。</p>
+  </div>
+
+  <div class="panel" style="margin-bottom: 16px;">
+    <h3 style="margin-bottom: 4px;">出撃メンバーを選ぶ(<span id="selected-count">0</span>/{{ max_team }})</h3>
+    <div id="roster-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px;">
+      {% for c in roster %}
+      <div class="panel char-pick" data-key="{{ c.key }}" data-name="{{ c.name }}" data-icon="{{ c.icon }}"
+           style="text-align:center; padding: 10px; border-color: {{ c.colors[0] }}; cursor:pointer;">
+        <div style="font-size: 26px;">{{ c.icon }}</div>
+        <div style="font-size: 11px; font-weight:700; margin-top:4px;">{{ c.name }}</div>
+        <div class="mono text-muted" style="font-size: 10px;">Lv.{{ c.level }} ・ ⚔️{{ c.attack }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <button class="btn btn-ember btn-block" id="battle-btn" disabled>挑む</button>
+</div>
+
+<div id="battle-screen" style="display:none;">
+  <div class="panel">
+    <div style="margin-bottom: 12px;">
+      <div style="display:flex; justify-content: space-between; font-size: 12px;"><span id="boss-label">👹 ボス</span><span id="boss-hp-text" class="mono"></span></div>
+      <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden;">
+        <div id="boss-hp-bar" style="background: linear-gradient(90deg, #dc2626, #7f1d1d); height:100%; width:100%; transition: width 0.3s ease;"></div>
+      </div>
+    </div>
+    <div style="margin-bottom: 12px;">
+      <div style="display:flex; justify-content: space-between; font-size: 12px;"><span>🛡️ チーム</span><span id="team-hp-text" class="mono"></span></div>
+      <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden;">
+        <div id="team-hp-bar" style="background: linear-gradient(90deg, #4caf6d, #16a34a); height:100%; width:100%; transition: width 0.3s ease;"></div>
+      </div>
+    </div>
+    <div id="turn-log" class="mono text-muted" style="font-size: 12px; min-height: 20px; text-align:center;"></div>
+  </div>
+  <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>window.RPG_MAX_TEAM = {{ max_team }};</script>
+<script src="{{ url_for('static', filename='js/rpgboss.js') }}"></script>
+{% endblock %}

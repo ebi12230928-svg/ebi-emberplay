@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}デイリーチャレンジ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📋 Daily Challenges</span>
+<h1>デイリーチャレンジ</h1>
+<p>毎日(UTC基準・日本時間では朝9時に切り替わります)リセットされる、その日限りの簡単な目標です。達成すると即座にEmbersを受け取れます。</p>
+
+<div class="reward-grid">
+  {% for item in items %}
+  <div class="panel" style="{{ 'border-color: var(--win);' if item.completed and not item.claimed else '' }}">
+    <h3 style="margin-bottom: 4px;">{{ item.name }}{% if item.claimed %} ✅{% elif item.completed %} 🎉{% endif %}</h3>
+    <p style="font-size: 13px;">{{ item.description }}</p>
+    <p class="mono text-win" style="font-size: 18px; font-weight: 800; margin: 8px 0;">+{{ "{:,}".format(item.reward) }}</p>
+    {% if item.claimed %}
+    <button class="btn btn-ghost" disabled>受け取り済み</button>
+    {% elif item.completed %}
+    <button class="btn btn-ember claim-btn" data-key="{{ item.key }}">受け取る</button>
+    {% else %}
+    <button class="btn btn-ghost" disabled>未達成</button>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/challenges.js') }}"></script>
+{% endblock %}
