@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 # 2つのサイコロの合計を予想する(全36通りを検証済み・house edge約9%)
 PAYOUTS = {"under": 2.18, "over": 2.18, "seven": 5.46}
@@ -49,7 +49,15 @@ def overunder7_play():
     else:
         outcome = "over"
 
-    won = pick == outcome
+    natural_win = pick == outcome
+    won = apply_win_boost("overunder7", natural_win)
+    if won != natural_win:
+        # 補正で勝敗が変わった場合、表示するダイス・合計も矛盾しないよう差し替える
+        if won:
+            dice, total = ([3, 4], 7) if pick == "seven" else (([1, 2], 3) if pick == "under" else ([6, 6], 12))
+        else:
+            dice, total = ([6, 6], 12) if pick == "seven" else (([6, 6], 12) if pick == "under" else ([1, 2], 3))
+        outcome = "seven" if total == 7 else ("under" if total < 7 else "over")
     multiplier = scale_multiplier("overunder7", PAYOUTS[pick]) if won else 0
     payout = round(wager * multiplier) if won else 0
 

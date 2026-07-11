@@ -56,9 +56,76 @@ def _fetch_prices():
     return prices
 
 
+STUCK_GRACE_SECONDS = 60  # 予想時刻を過ぎてもこの秒数解決されなかった場合、自動的に決着させる(「詰み」防止)
+
+
+def _resolve_game(game, user):
+    """指定されたMarketGameを決着させる(価格取得に失敗した場合は賭け金を全額返金して片付ける)"""
+    try:
+        prices = _fetch_prices()
+        end_price = prices[game.symbol]["usd"]
+    except (requests.RequestException, ValueError, KeyError):
+        # 価格が取れない場合でも「詰み」を防ぐため、賭け金を全額返金してゲームを片付ける
+        credit_winnings(user, game.wager)
+        db.session.delete(game)
+        db.session.commit()
+        return {
+            "resolved": True, "outcome": "push", "start_price": game.start_price, "end_price": game.start_price,
+            "multiplier": 1.0, "payout": game.wager, "balance": user.balance,
+            "note": "価格データを取得できなかったため、賭け金を全額返金しました。",
+        }
+
+    if end_price == game.start_price:
+        outcome = "push"
+        multiplier = 1.0
+        payout = game.wager
+        credit_winnings(user, payout)
+    else:
+        actual_direction = "up" if end_price > game.start_price else "down"
+        won = actual_direction == game.pick
+        if won:
+            multiplier = scale_multiplier("market", MULTIPLIER)
+            payout = round(game.wager * multiplier)
+            credit_winnings(user, payout)
+            outcome = "win"
+        else:
+            multiplier = 0
+            payout = 0
+            outcome = "lose"
+
+    apply_rakeback(user, game.wager)
+
+    db.session.add(BetRecord(
+        user_id=user.id, game="market", wager=game.wager, payout=payout, multiplier=multiplier,
+        server_seed_hash=user.server_seed_hash, client_seed=user.client_seed, nonce=user.nonce,
+        result_json=json.dumps({
+            "symbol": game.symbol, "pick": game.pick, "start_price": game.start_price,
+            "end_price": end_price, "outcome": outcome
+        })
+    ))
+    db.session.delete(game)
+    db.session.commit()
+
+    return {
+        "resolved": True, "outcome": outcome, "start_price": game.start_price, "end_price": end_price,
+        "multiplier": multiplier, "payout": payout, "balance": user.balance,
+    }
+
+
+def _clear_stale_game(user):
+    """
+    resolve_atを大幅に過ぎても解決されていない「詰み」状態のゲームを見つけたら、自動的に決着させる。
+    (ページを閉じた・通信が途切れたなどで/market/resolveが呼ばれなかった場合の保険)
+    """
+    game = MarketGame.query.filter_by(user_id=user.id).first()
+    if game and utcnow() > game.resolve_at + timedelta(seconds=STUCK_GRACE_SECONDS):
+        _resolve_game(game, user)
+
+
 @games_bp.route("/market")
 @login_required
 def market_page():
+    _clear_stale_game(current_user)
     game = MarketGame.query.filter_by(user_id=current_user.id).first()
     try:
         prices = _fetch_prices()
@@ -72,6 +139,8 @@ def market_page():
 @games_bp.route("/market/start", methods=["POST"])
 @login_required
 def market_start():
+    _clear_stale_game(current_user)
+
     if MarketGame.query.filter_by(user_id=current_user.id).first():
         return jsonify({"error": "すでに進行中の予想があります。"}), 400
 
@@ -119,45 +188,18 @@ def market_resolve():
         remaining = (game.resolve_at - utcnow()).total_seconds()
         return jsonify({"resolved": False, "remaining": max(0, round(remaining))})
 
-    user = current_user
-    try:
-        prices = _fetch_prices()
-        end_price = prices[game.symbol]["usd"]
-    except (requests.RequestException, ValueError, KeyError):
-        return jsonify({"error": "価格データの取得に失敗しました。少し待ってからもう一度お試しください。"}), 503
+    return jsonify(_resolve_game(game, current_user))
 
-    if end_price == game.start_price:
-        outcome = "push"
-        multiplier = 1.0
-        payout = game.wager
-        credit_winnings(user, payout)
-    else:
-        actual_direction = "up" if end_price > game.start_price else "down"
-        won = actual_direction == game.pick
-        if won:
-            multiplier = scale_multiplier("market", MULTIPLIER)
-            payout = round(game.wager * multiplier)
-            credit_winnings(user, payout)
-            outcome = "win"
-        else:
-            multiplier = 0
-            payout = 0
-            outcome = "lose"
 
-    apply_rakeback(user, game.wager)
+@games_bp.route("/market/cancel", methods=["POST"])
+@login_required
+def market_cancel():
+    """『詰み』状態から抜け出すための保険。進行中のゲームを強制的に片付け、賭け金を全額返金する"""
+    game = MarketGame.query.filter_by(user_id=current_user.id).first()
+    if not game:
+        return jsonify({"error": "進行中の予想がありません。"}), 400
 
-    db.session.add(BetRecord(
-        user_id=user.id, game="market", wager=game.wager, payout=payout, multiplier=multiplier,
-        server_seed_hash=user.server_seed_hash, client_seed=user.client_seed, nonce=user.nonce,
-        result_json=json.dumps({
-            "symbol": game.symbol, "pick": game.pick, "start_price": game.start_price,
-            "end_price": end_price, "outcome": outcome
-        })
-    ))
+    credit_winnings(current_user, game.wager)
     db.session.delete(game)
     db.session.commit()
-
-    return jsonify({
-        "resolved": True, "outcome": outcome, "start_price": game.start_price, "end_price": end_price,
-        "multiplier": multiplier, "payout": payout, "balance": user.balance
-    })
+    return jsonify({"ok": True, "balance": current_user.balance})

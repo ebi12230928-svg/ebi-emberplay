@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier, apply_win_boost
 
 # 0〜12の13ポケット(シングルゼロ)の小型ルーレット。全て検証済み(house edge約9%)
 RED_NUMBERS = {1, 3, 5, 7, 9, 12}
@@ -31,6 +31,12 @@ def _is_win(bet_type, value, pocket):
     if bet_type == "high":
         return 7 <= pocket <= 12
     return False
+
+
+def _pick_pocket_for(bet_type, value, want_win):
+    """補正で勝敗を変える際、条件に合う(または合わない)ポケットを選び直す"""
+    candidates = [p for p in range(13) if _is_win(bet_type, value, p) == want_win]
+    return candidates[0] if candidates else (value if value is not None else 0)
 
 
 @games_bp.route("/miniroulette")
@@ -69,6 +75,10 @@ def miniroulette_spin():
     pocket = min(int(f * 13), 12)
 
     win = _is_win(bet_type, value, pocket)
+    boosted_win = apply_win_boost("miniroulette", win)
+    if boosted_win != win:
+        pocket = _pick_pocket_for(bet_type, value, boosted_win)
+    win = boosted_win
     multiplier = scale_multiplier("miniroulette", BET_ODDS[bet_type]) if win else 0
     payout = round(wager * multiplier) if win else 0
 

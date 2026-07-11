@@ -39,3 +39,12 @@ from . import dragontiger             # noqa: E402,F401
 from . import lottery                 # noqa: E402,F401
 from . import treasurehunt            # noqa: E402,F401
 from . import numbermatch             # noqa: E402,F401
+from . import memorymatch             # noqa: E402,F401
+from . import field                   # noqa: E402,F401
+from . import dragonbonus             # noqa: E402,F401
+from . import casinoholdem            # noqa: E402,F401
+from . import letitride               # noqa: E402,F401
+from . import tictactoe               # noqa: E402,F401
+from . import trivia                  # noqa: E402,F401
+from . import reaction                # noqa: E402,F401
+from . import typingtest              # noqa: E402,F401

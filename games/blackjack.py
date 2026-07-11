@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, BlackjackGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 BJ_HOUSE_EDGE_NOTE = "標準ルール(ディーラーは17以上でスタンド、ブラックジャックは3:2配当)"
 
@@ -104,12 +104,24 @@ def _settle(user, game, player, dealer, base_wager):
 @games_bp.route("/blackjack")
 @login_required
 def blackjack_page():
+    clear_stale_game(BlackjackGame, current_user)
     return render_template("games/blackjack.html")
+
+
+@games_bp.route("/blackjack/cancel", methods=["POST"])
+@login_required
+def blackjack_cancel():
+    refund = cancel_stuck_game(BlackjackGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/blackjack/start", methods=["POST"])
 @login_required
 def blackjack_start():
+    clear_stale_game(BlackjackGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
 

@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, CrapsGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 
 def _roll_dice(user):
@@ -21,7 +21,17 @@ def _roll_dice(user):
 @games_bp.route("/craps")
 @login_required
 def craps_page():
+    clear_stale_game(CrapsGame, current_user)
     return render_template("games/craps.html")
+
+
+@games_bp.route("/craps/cancel", methods=["POST"])
+@login_required
+def craps_cancel():
+    refund = cancel_stuck_game(CrapsGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 def _settle(user, bet_type, wager, won, is_push, dice, used_nonce):
@@ -49,6 +59,8 @@ def _settle(user, bet_type, wager, won, is_push, dice, used_nonce):
 @games_bp.route("/craps/start", methods=["POST"])
 @login_required
 def craps_start():
+    clear_stale_game(CrapsGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
     bet_type = data.get("bet_type")

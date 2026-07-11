@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 # 1〜10の数字を1つ選んで的中させるシンプルなゲーム(house edge 10%)
 PAYOUT = 9.0
@@ -44,7 +44,11 @@ def numbermatch_play():
     user.nonce += 1
     result = min(int(f * 10), 9) + 1
 
-    won = pick == result
+    won = apply_win_boost("numbermatch", pick == result)
+    if won and result != pick:
+        result = pick
+    elif not won and result == pick:
+        result = (pick % 10) + 1
     multiplier = scale_multiplier("numbermatch", PAYOUT) if won else 0
     payout = round(wager * multiplier) if won else 0
 

@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, TowerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 TOWER_HOUSE_EDGE = 0.07
 TOTAL_ROWS = 9
@@ -30,12 +30,24 @@ def _tower_multiplier(tiles_per_row, bad_per_row, rows_climbed, house_edge=TOWER
 @games_bp.route("/tower")
 @login_required
 def tower_page():
+    clear_stale_game(TowerGame, current_user)
     return render_template("games/tower.html", total_rows=TOTAL_ROWS, difficulties=list(DIFFICULTIES.keys()))
+
+
+@games_bp.route("/tower/cancel", methods=["POST"])
+@login_required
+def tower_cancel():
+    refund = cancel_stuck_game(TowerGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/tower/start", methods=["POST"])
 @login_required
 def tower_start():
+    clear_stale_game(TowerGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
     difficulty = data.get("difficulty", "medium")

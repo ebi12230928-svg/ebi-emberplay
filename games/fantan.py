@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 # ボタンの山を4つずつ取り除き、最後に残る数(0〜3)を当てる中国の伝統ゲーム
 FAN_TAN_PAYOUT = 3.68  # house edge 8%で正規化済み(的中確率1/4)
@@ -44,7 +44,11 @@ def fantan_play():
     user.nonce += 1
     result = int(f * 4)
 
-    won = pick == result
+    won = apply_win_boost("fantan", pick == result)
+    if won and result != pick:
+        result = pick
+    elif not won and result == pick:
+        result = (pick + 1) % 4
     multiplier = scale_multiplier("fantan", FAN_TAN_PAYOUT) if won else 0
     payout = round(wager * multiplier) if won else 0
 

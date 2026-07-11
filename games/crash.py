@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, CrashGame, utcnow
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 CRASH_HOUSE_EDGE = 0.08
 GROWTH_RATE = math.log(2) / 18  # 18秒ごとに倍率が2倍になるペース(以前より緩やかに)
@@ -22,12 +22,24 @@ def _current_multiplier(started_at):
 @games_bp.route("/crash")
 @login_required
 def crash_page():
+    clear_stale_game(CrashGame, current_user, timestamp_field="started_at", timeout_minutes=10)
     return render_template("games/crash.html", growth_rate=GROWTH_RATE)
+
+
+@games_bp.route("/crash/cancel", methods=["POST"])
+@login_required
+def crash_cancel():
+    refund = cancel_stuck_game(CrashGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のラウンドがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/crash/start", methods=["POST"])
 @login_required
 def crash_start():
+    clear_stale_game(CrashGame, current_user, timestamp_field="started_at", timeout_minutes=10)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
 

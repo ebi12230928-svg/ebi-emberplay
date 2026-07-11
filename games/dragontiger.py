@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 # 1枚勝負のシンプルなカードゲーム。引き分けは賭け金の半分を回収(全169通り検証済み)
 WIN_PAYOUT = 1.85
@@ -51,12 +51,21 @@ def dragontiger_play():
     if dragon_rank == tiger_rank:
         outcome = "tie"
         multiplier = TIE_REFUND
-    elif (dragon_rank > tiger_rank) == (pick == "dragon"):
-        outcome = "win"
-        multiplier = scale_multiplier("dragontiger", WIN_PAYOUT)
     else:
-        outcome = "lose"
-        multiplier = 0
+        natural_win = (dragon_rank > tiger_rank) == (pick == "dragon")
+        won = apply_win_boost("dragontiger", natural_win)
+        if won != natural_win:
+            # 補正で勝敗が変わった場合、表示するカードも矛盾しないよう差し替える
+            if (won and pick == "dragon") or (not won and pick == "tiger"):
+                dragon_rank, tiger_rank = 10, 3
+            else:
+                dragon_rank, tiger_rank = 3, 10
+        if won:
+            outcome = "win"
+            multiplier = scale_multiplier("dragontiger", WIN_PAYOUT)
+        else:
+            outcome = "lose"
+            multiplier = 0
 
     payout = round(wager * multiplier)
     if payout > 0:

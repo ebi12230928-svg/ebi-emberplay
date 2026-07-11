@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, VideoPokerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 # Jacks or Better 配当表を通常より引き下げた高難易度版(トータルリターン倍率)
 PAYTABLE = [
@@ -89,12 +89,24 @@ PAYOUT_MAP = dict(PAYTABLE)
 @games_bp.route("/videopoker")
 @login_required
 def videopoker_page():
+    clear_stale_game(VideoPokerGame, current_user)
     return render_template("games/videopoker.html", paytable=[(HAND_LABELS[k], v) for k, v in PAYTABLE])
+
+
+@games_bp.route("/videopoker/cancel", methods=["POST"])
+@login_required
+def videopoker_cancel():
+    refund = cancel_stuck_game(VideoPokerGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/videopoker/deal", methods=["POST"])
 @login_required
 def videopoker_deal():
+    clear_stale_game(VideoPokerGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
 

@@ -7,12 +7,13 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 RPS_HOUSE_EDGE = 0.05
 MULTIPLIER = round((1 - RPS_HOUSE_EDGE) * 2, 4)
 CHOICES = ["rock", "paper", "scissors"]
 BEATS = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+BEATEN_BY = {v: k for k, v in BEATS.items()}  # BEATEN_BY[X] = Xに勝つ手
 
 
 @games_bp.route("/rps")
@@ -46,14 +47,20 @@ def rps_play():
         outcome = "push"
         multiplier = 1.0
         payout = wager
-    elif BEATS[pick] == house_pick:
-        outcome = "win"
-        multiplier = scale_multiplier("rps", MULTIPLIER)
-        payout = round(wager * multiplier)
     else:
-        outcome = "lose"
-        multiplier = 0
-        payout = 0
+        natural_win = BEATS[pick] == house_pick
+        won = apply_win_boost("rps", natural_win)
+        if won != natural_win:
+            # 補正で勝敗が変わった場合、表示するhouse_pickも矛盾しないよう調整する
+            house_pick = BEATS[pick] if won else BEATEN_BY[pick]
+        if won:
+            outcome = "win"
+            multiplier = scale_multiplier("rps", MULTIPLIER)
+            payout = round(wager * multiplier)
+        else:
+            outcome = "lose"
+            multiplier = 0
+            payout = 0
 
     if payout > 0:
         credit_winnings(user, payout)

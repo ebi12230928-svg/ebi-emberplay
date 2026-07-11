@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import BetRecord
 from . import games_bp
-from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, next_float, credit_winnings, scale_multiplier, apply_win_boost
 
 COINFLIP_HOUSE_EDGE = 0.05
 MULTIPLIER = round((1 - COINFLIP_HOUSE_EDGE) * 2, 4)
@@ -36,7 +36,11 @@ def coinflip_play():
 
     f, used_nonce = next_float(user)
     result = "heads" if f < 0.5 else "tails"
-    win = result == side
+    win = apply_win_boost("coinflip", result == side)
+    if win and result != side:
+        result = side  # 補正で勝ちに変わった場合、表示結果も矛盾しないよう合わせる
+    elif not win and result == side:
+        result = "tails" if side == "heads" else "heads"  # 補正で負けに変わった場合も同様
     multiplier = scale_multiplier("coinflip", MULTIPLIER) if win else 0
     payout = round(wager * multiplier) if win else 0
 

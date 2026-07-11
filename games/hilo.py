@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, HiLoGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 HILO_HOUSE_EDGE = 0.07
 MAX_PASSES = 2
@@ -29,12 +29,24 @@ def _draw_rank(user):
 @games_bp.route("/hilo")
 @login_required
 def hilo_page():
+    clear_stale_game(HiLoGame, current_user)
     return render_template("games/hilo.html", max_passes=MAX_PASSES)
+
+
+@games_bp.route("/hilo/cancel", methods=["POST"])
+@login_required
+def hilo_cancel():
+    refund = cancel_stuck_game(HiLoGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/hilo/start", methods=["POST"])
 @login_required
 def hilo_start():
+    clear_stale_game(HiLoGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
 

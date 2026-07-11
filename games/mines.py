@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord, MinesGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 MINES_HOUSE_EDGE = 0.07
 MINES_GRID_SIZE = 25
@@ -16,6 +16,7 @@ MINES_GRID_SIZE = 25
 @games_bp.route("/mines")
 @login_required
 def mines_page():
+    clear_stale_game(MinesGame, current_user)
     return render_template("games/mines.html", grid_size=MINES_GRID_SIZE)
 
 
@@ -30,9 +31,20 @@ def _mines_multiplier(grid_size, mine_count, revealed_count):
     return round(mult * (1 - MINES_HOUSE_EDGE), 4)
 
 
+@games_bp.route("/mines/cancel", methods=["POST"])
+@login_required
+def mines_cancel():
+    refund = cancel_stuck_game(MinesGame, current_user)
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
+
+
 @games_bp.route("/mines/start", methods=["POST"])
 @login_required
 def mines_start():
+    clear_stale_game(MinesGame, current_user)
+
     data = request.get_json(force=True)
     wager = int(data.get("wager", 0))
     mine_count = int(data.get("mine_count", 3))

@@ -7,7 +7,7 @@ from extensions import db
 from models import BetRecord
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, apply_win_boost
 
 # 中国の伝統的なサイコロゲーム。4-5-6の目、またはゾロ目が出れば勝ち(全216通り検証済み・house edge約8%)
 PAYOUT = 16.56
@@ -46,7 +46,11 @@ def ceelo_play():
     user.nonce += 1
     dice = [min(int(f * 6) + 1, 6) for f in floats]
 
-    won = _is_win(dice)
+    natural_win = _is_win(dice)
+    won = apply_win_boost("ceelo", natural_win)
+    if won != natural_win:
+        # 補正で勝敗が変わった場合、表示するダイスの目も矛盾しないよう差し替える
+        dice = [4, 5, 6] if won else [1, 1, 2]
     multiplier = scale_multiplier("ceelo", PAYOUT) if won else 0
     payout = round(wager * multiplier) if won else 0
 

@@ -8,7 +8,7 @@ from extensions import db
 from models import BetRecord, ThreeCardPokerGame
 import fairness
 from . import games_bp
-from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier
+from .common import validate_wager, apply_rakeback, credit_winnings, scale_multiplier, clear_stale_game, cancel_stuck_game
 
 ANTE_BONUS = {6: 5.0, 5: 4.0, 4: 1.0}  # カテゴリ番号 -> Anteに追加で払うボーナス倍率
 CATEGORY_NAMES = {
@@ -83,12 +83,24 @@ def _new_deck(user):
 @games_bp.route("/threecardpoker")
 @login_required
 def threecardpoker_page():
+    clear_stale_game(ThreeCardPokerGame, current_user, wager_field="ante")
     return render_template("games/threecardpoker.html")
+
+
+@games_bp.route("/threecardpoker/cancel", methods=["POST"])
+@login_required
+def threecardpoker_cancel():
+    refund = cancel_stuck_game(ThreeCardPokerGame, current_user, wager_field="ante")
+    if refund is None:
+        return jsonify({"error": "進行中のゲームがありません。"}), 400
+    return jsonify({"ok": True, "refund": refund, "balance": current_user.balance})
 
 
 @games_bp.route("/threecardpoker/deal", methods=["POST"])
 @login_required
 def threecardpoker_deal():
+    clear_stale_game(ThreeCardPokerGame, current_user, wager_field="ante")
+
     data = request.get_json(force=True)
     ante = int(data.get("ante", 0))
 

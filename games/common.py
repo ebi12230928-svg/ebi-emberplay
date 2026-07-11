@@ -2,8 +2,8 @@ import fairness
 
 DEBT_REPAY_RATE = 0.01  # 借金完済の瞬間に余った勝利分をこの倍率で残高に反映する
 
-MIN_PAYOUT_SCALAR = 0.1   # 管理者が設定できる下限(配当を90%カットまで)
-MAX_PAYOUT_SCALAR = 3.0   # 管理者が設定できる上限(配当を3倍まで)
+MIN_PAYOUT_SCALAR = 0.0     # 管理者が設定できる下限(0=そのゲームの配当を完全にゼロにする)
+MAX_PAYOUT_SCALAR = 1000.0  # 管理者が設定できる上限(実質無制限。極端な値を入れる際は自己責任で)
 
 
 def get_payout_scalar(game_key: str) -> float:
@@ -11,6 +11,72 @@ def get_payout_scalar(game_key: str) -> float:
     from models import GameSetting
     row = GameSetting.query.get(game_key)
     return row.payout_scalar if row else 1.0
+
+
+def clear_stale_game(model, user, wager_field="wager", timestamp_field="created_at", timeout_minutes=30):
+    """
+    放置されて「詰み」状態になった進行中ゲーム(Mines・HiLo・Blackjackなど)を自動的に片付け、
+    賭け金を全額返金する(ページを閉じた・通信が途切れたなどで途中終了した場合の保険)。
+    ゲームのページを開いた時・新しいゲームを始めようとした時に呼び出す。
+    """
+    from datetime import timedelta
+    from extensions import db
+    from models import utcnow
+
+    game = model.query.filter_by(user_id=user.id).first()
+    if not game:
+        return False
+    ts = getattr(game, timestamp_field, None)
+    if not ts or utcnow() - ts <= timedelta(minutes=timeout_minutes):
+        return False
+
+    wager = (getattr(game, wager_field, 0) or 0) if wager_field else 0
+    if wager > 0:
+        credit_winnings(user, wager)
+    db.session.delete(game)
+    db.session.commit()
+    return True
+
+
+def cancel_stuck_game(model, user, wager_field="wager"):
+    """『動かなくなった場合』のための手動リセット。進行中のゲームを強制的に片付け、賭け金を全額返金する"""
+    from extensions import db
+
+    game = model.query.filter_by(user_id=user.id).first()
+    if not game:
+        return None
+    wager = (getattr(game, wager_field, 0) or 0) if wager_field else 0
+    if wager > 0:
+        credit_winnings(user, wager)
+    db.session.delete(game)
+    db.session.commit()
+    return wager
+
+
+def get_win_boost(game_key: str) -> float:
+    """管理者が設定した、そのゲームの勝率補正(未設定なら0.0=補正なし)"""
+    from models import GameSetting
+    row = GameSetting.query.get(game_key)
+    return row.win_boost if row else 0.0
+
+
+def apply_win_boost(game_key: str, won: bool) -> bool:
+    """
+    管理者が設定した勝率補正(win_boost)に基づき、自然な抽選結果の勝敗を確率的に上書きする。
+    boost > 0: 負けを勝ちに反転させる確率(1.0で常に勝ちになる)
+    boost < 0: 勝ちを負けに反転させる確率(-1.0で常に負けになる)
+    ※ このロジック自体はProvably Fairの検証対象外(管理者専用の調整機能)
+    """
+    import random
+    boost = get_win_boost(game_key)
+    if boost == 0:
+        return won
+    roll = random.random()
+    if boost > 0 and not won and roll < min(1.0, boost):
+        return True
+    if boost < 0 and won and roll < min(1.0, abs(boost)):
+        return False
+    return won
 
 
 def scale_multiplier(game_key: str, multiplier: float) -> float:
