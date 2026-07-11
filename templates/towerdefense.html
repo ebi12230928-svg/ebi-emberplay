@@ -35,6 +35,36 @@
   .td-roster-item { cursor:pointer; transition: transform 0.15s ease, border-color 0.15s ease; }
   .td-roster-item.selected { border-color: var(--gold) !important; transform: translateY(-3px); }
   .td-roster-item.placed { opacity: 0.4; }
+
+  .td-dmg-number {
+    position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8); pointer-events: none; z-index: 8;
+    animation: td-dmg-float 0.7s ease-out forwards;
+  }
+  .td-dmg-number.td-dmg-poison { color: #86efac; }
+  .td-dmg-number.td-dmg-fire { color: #fb923c; }
+  .td-dmg-number.td-dmg-heal { color: #4ade80; }
+  @keyframes td-dmg-float {
+    0% { opacity: 1; transform: translate(-50%, -100%); }
+    100% { opacity: 0; transform: translate(-50%, -180%); }
+  }
+  .td-death-fx {
+    position: absolute; transform: translate(-50%, -50%); font-size: 18px; pointer-events: none; z-index: 7;
+    animation: td-death-pop 0.4s ease-out forwards;
+  }
+  @keyframes td-death-pop {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+  }
+  .td-enemy-slowed .td-enemy-sprite { filter: hue-rotate(140deg) saturate(1.6); }
+  .td-enemy-stunned .td-enemy-sprite { animation: td-stun-shake 0.15s infinite; }
+  @keyframes td-stun-shake {
+    0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px); }
+  }
+  #upgrade-panel {
+    position: sticky; bottom: 10px; background: var(--bg-raised); border: 1px solid var(--gold);
+    border-radius: 10px; padding: 10px 14px; margin-top: 10px; z-index: 20;
+  }
 </style>
 {% endblock %}
 
@@ -83,7 +113,7 @@
       {% for c in roster %}
       <div class="panel td-roster-item" data-key="{{ c.key }}{{ '_' ~ loop.index if squad_info }}" data-realkey="{{ c.key }}" data-name="{{ c.name }}{% if squad_info %}({{ c.owner }}){% endif %}" data-icon="{{ c.icon }}"
            data-attack="{{ c.attack }}" data-range="{{ c.range }}" data-speed="{{ c.speed }}" data-splash="{{ c.splash }}"
-           data-color="{{ c.colors[0] }}" data-rarity="{{ c.rarity_label }}"
+           data-color="{{ c.colors[0] }}" data-rarity="{{ c.rarity_label }}" data-abilities='{{ (c.abilities or []) | tojson }}'
            style="text-align:center; padding: 10px; border-color: {{ c.colors[0] }};">
         <div style="font-size: 26px;">{{ c.icon }}</div>
         <div style="font-size: 11px; font-weight:700; margin-top:4px;">{{ c.name }}</div>
@@ -97,10 +127,11 @@
 
 <div id="placement-screen" style="display:none;">
   <div class="panel" style="margin-bottom: 12px;">
-    <p style="font-size: 12px; margin: 0;">下のキャラクターをタップしてから、盤面の道以外のマスをタップして配置してください。</p>
+    <p style="font-size: 12px; margin: 0;">下のキャラクターをタップしてから、盤面の道以外のマスをタップして配置してください。配置後、タワーをタップすると💰でアップグレードできます。</p>
     <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
   </div>
   <div id="td-grid"></div>
+  <div id="upgrade-panel" style="display:none;"></div>
   <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-top: 12px;" disabled>ウェーブ開始!</button>
 </div>
 
@@ -109,6 +140,7 @@
     <span class="mono">❤️ <span id="hud-lives"></span></span>
     <span class="mono">🌊 Wave <span id="hud-wave"></span><span id="hud-wave-total"></span></span>
     <span class="mono">💀 <span id="hud-kills"></span></span>
+    <span class="mono">💰 <span id="hud-gold"></span></span>
   </div>
 </div>
 

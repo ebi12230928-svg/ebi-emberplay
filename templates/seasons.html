@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}シーズン ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🏆 Season {{ season.number }}</span>
+<h1>エンドレスランキング・シーズンパス</h1>
+<p style="font-size: 13px; color: var(--text-muted);">
+  シーズンが終了すると、エンドレスモードのランキング1位に管理者が指定したレアリティのキャラクターが贈られます。
+</p>
+
+<h2>🌊 タワーディフェンス・エンドレス TOP10</h2>
+<div class="panel" style="padding: 0; margin-bottom: 20px;">
+  {% for row in td_board %}
+  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border);">
+    <span>{{ loop.index }}. {{ row.username }}</span>
+    <span class="mono text-win">{{ row.score }} ウェーブ</span>
+  </div>
+  {% else %}
+  <div style="padding: 16px;"><p class="text-muted" style="margin:0;">まだ記録がありません。</p></div>
+  {% endfor %}
+</div>
+
+<h2>⚔️ RPGボス討伐・エンドレス TOP10</h2>
+<div class="panel" style="padding: 0; margin-bottom: 24px;">
+  {% for row in rpg_board %}
+  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border);">
+    <span>{{ loop.index }}. {{ row.username }}</span>
+    <span class="mono text-win">{{ row.score }} 体撃破</span>
+  </div>
+  {% else %}
+  <div style="padding: 16px;"><p class="text-muted" style="margin:0;">まだ記録がありません。</p></div>
+  {% endfor %}
+</div>
+
+<h2>🎫 シーズンパス</h2>
+<p style="font-size: 13px;">現在のポイント: <strong class="mono text-win">{{ progress.points }}</strong>(ゲームで獲得したEmbers 10につき1ポイント)</p>
+<div style="display:flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+  {% for tier in tiers %}
+  <div class="panel" style="display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; {{ 'border-color: var(--gold);' if tier.unlocked and not tier.claimed }}">
+    <div>
+      <span class="mono" style="font-size: 12px;">Tier {{ tier.index + 1 }} ・ {{ tier.points }}pt</span>
+      <div style="font-size: 13px; margin-top: 2px;">
+        {% if tier.reward_type == "embers" %}
+          💰 {{ "{:,}".format(tier.amount) }} Embers
+        {% else %}
+          🎴 {{ tier.rarity_label }}キャラクター{% if tier.vip_only %} <span style="color: var(--gold);">(VIP限定)</span>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% if tier.claimed %}
+      <span class="text-muted" style="font-size: 12px;">受取済み</span>
+    {% elif tier.unlocked %}
+      {% if tier.vip_only and not is_vip %}
+        <span class="text-muted" style="font-size: 11px;">VIP限定</span>
+      {% else %}
+        <button type="button" class="btn btn-ember claim-tier-btn" data-tier="{{ tier.index }}" style="padding: 6px 14px; font-size: 12px;">受け取る</button>
+      {% endif %}
+    {% else %}
+      <span class="text-muted" style="font-size: 12px;">未解放</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/seasons.js') }}"></script>
+{% endblock %}
