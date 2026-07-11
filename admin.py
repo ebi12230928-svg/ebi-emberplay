@@ -91,6 +91,7 @@ def dashboard():
         game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR,
         giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips,
         gacha_settings=gacha_settings, character_choices=character_choices, rarity_names=ch.RARITY_NAMES,
+        rarity_order=ch.RARITY_ORDER,
         current_season=current_season
     )
 
@@ -525,22 +526,39 @@ def generate_character():
         return redirect(url_for("admin.dashboard"))
 
     STAT_RANGES = {
-        "common":    {"atk": (6, 16), "def": (5, 12), "range": (1, 2), "speed": (0.6, 1.6), "cost": (16, 26)},
-        "rare":      {"atk": (15, 25), "def": (10, 20), "range": (1, 3), "speed": (0.7, 1.4), "cost": (38, 48)},
-        "epic":      {"atk": (28, 40), "def": (18, 32), "range": (2, 3), "speed": (0.8, 1.5), "cost": (68, 82)},
-        "legendary": {"atk": (48, 62), "def": (30, 48), "range": (3, 4), "speed": (0.9, 1.5), "cost": (125, 145)},
-        "ultimate":  {"atk": (78, 95), "def": (50, 70), "range": (4, 5), "speed": (0.7, 0.9), "cost": (220, 260)},
+        "common":       {"atk": (8, 16), "def": (5, 10), "range": (1, 2), "speed": (0.6, 1.6), "cost": (16, 26)},
+        "uncommon":     {"atk": (12, 20), "def": (8, 14), "range": (1, 2), "speed": (0.6, 1.5), "cost": (18, 28)},
+        "rare":         {"atk": (16, 26), "def": (10, 20), "range": (1, 3), "speed": (0.7, 1.4), "cost": (38, 48)},
+        "super_rare":   {"atk": (20, 32), "def": (14, 22), "range": (1, 3), "speed": (0.7, 1.4), "cost": (40, 52)},
+        "epic":         {"atk": (26, 40), "def": (18, 32), "range": (2, 3), "speed": (0.8, 1.5), "cost": (68, 82)},
+        "elite":        {"atk": (32, 48), "def": (22, 34), "range": (2, 3), "speed": (0.8, 1.5), "cost": (72, 88)},
+        "heroic":       {"atk": (38, 56), "def": (26, 40), "range": (2, 3), "speed": (0.8, 1.4), "cost": (95, 115)},
+        "mythic":       {"atk": (44, 64), "def": (30, 46), "range": (3, 4), "speed": (0.8, 1.4), "cost": (120, 145)},
+        "legendary":    {"atk": (50, 72), "def": (32, 48), "range": (3, 4), "speed": (0.9, 1.5), "cost": (125, 150)},
+        "ancient":      {"atk": (56, 80), "def": (38, 56), "range": (3, 4), "speed": (0.9, 1.5), "cost": (150, 175)},
+        "divine":       {"atk": (62, 88), "def": (42, 62), "range": (3, 4), "speed": (0.8, 1.4), "cost": (180, 210)},
+        "celestial":    {"atk": (68, 96), "def": (46, 68), "range": (3, 5), "speed": (0.8, 1.3), "cost": (215, 245)},
+        "astral":       {"atk": (74, 104), "def": (50, 74), "range": (3, 5), "speed": (0.7, 1.3), "cost": (250, 285)},
+        "ethereal":     {"atk": (80, 112), "def": (54, 80), "range": (4, 5), "speed": (0.7, 1.2), "cost": (290, 325)},
+        "transcendent": {"atk": (86, 120), "def": (58, 86), "range": (4, 5), "speed": (0.7, 1.2), "cost": (330, 365)},
+        "cosmic":       {"atk": (92, 128), "def": (62, 92), "range": (4, 5), "speed": (0.6, 1.1), "cost": (370, 410)},
+        "primordial":   {"atk": (98, 136), "def": (66, 98), "range": (4, 6), "speed": (0.6, 1.1), "cost": (420, 460)},
+        "absolute":     {"atk": (104, 144), "def": (70, 104), "range": (4, 6), "speed": (0.6, 1.0), "cost": (470, 510)},
+        "supreme":      {"atk": (110, 152), "def": (74, 110), "range": (5, 6), "speed": (0.5, 1.0), "cost": (520, 570)},
+        "ultimate":     {"atk": (160, 195), "def": (110, 150), "range": (4, 6), "speed": (0.6, 0.85), "cost": (220, 260)},
     }
     PREFIXES = [
         "紅蓮の", "蒼き", "翠玉の", "漆黒の", "黄金の", "銀白の", "深緑の", "灼熱の", "氷結の", "疾風の",
         "聖なる", "呪われし", "古の", "幼き", "猛き", "気高き", "闇纏う", "光帯びる", "嵐呼ぶ", "大地の",
         "深淵の", "天空の", "煌めく", "朽ちた", "不滅の", "血染めの", "月影の", "陽炎の", "雷鳴の", "白銀の",
+        "夜叉の", "朧げな", "獄炎の", "凍てつく", "常闇の", "薄明の", "剛力の", "俊足の", "堅牢な", "狡猾な",
     ]
     SPECIES = [
         ("ドラゴン", "🐉"), ("ウルフ", "🐺"), ("フェニックス", "🦅"), ("ゴーレム", "🗿"), ("ウィッチ", "🧙"),
         ("ナイト", "🛡️"), ("デーモン", "👹"), ("エンジェル", "😇"), ("グリフォン", "🦁"), ("ユニコーン", "🦄"),
         ("リッチ", "💀"), ("パラディン", "⚔️"), ("アサシン", "🗡️"), ("レンジャー", "🏹"), ("シャーマン", "🪄"),
         ("ヴァンパイア", "🧛"), ("ミノタウロス", "🐂"), ("ハーピー", "🦉"), ("ペガサス", "🐴"), ("キマイラ", "🐐"),
+        ("スフィンクス", "🐈"), ("ケルベロス", "🐕"), ("トロール", "🧌"), ("バジリスク", "🦎"), ("ジャイアント", "🧌"),
     ]
     ELEMENTS = list(ch.ELEMENT_NAMES.keys())
     ABILITY_KEYS = list(ch.ABILITIES.keys())
@@ -563,7 +581,18 @@ def generate_character():
     element = random.choice(ELEMENTS)
     description = random.choice(DESCRIPTIONS)
 
-    ability_count = {"common": 0, "rare": 1, "epic": 2, "legendary": 2, "ultimate": 3}[rarity]
+    # レアリティが上がるほど、アビリティ(特殊能力)の数も多くなる
+    rarity_idx = ch.RARITY_ORDER.index(rarity)
+    if rarity_idx <= 1:
+        ability_count = 0
+    elif rarity_idx <= 3:
+        ability_count = 1
+    elif rarity_idx <= 8:
+        ability_count = 2
+    elif rarity_idx <= 14:
+        ability_count = 3
+    else:
+        ability_count = 4
     abilities = random.sample(ABILITY_KEYS, min(ability_count, len(ABILITY_KEYS))) if ability_count > 0 else []
     splash = 1 if ("aoe" in abilities or "splash" in abilities) else 0
 
