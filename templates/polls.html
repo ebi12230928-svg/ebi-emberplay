@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}アンケート ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📊 Polls</span>
+<h1>アンケート</h1>
+<p>運営からの質問に投票できます。謝礼(Embers)が設定されているアンケートは、回答すると自動的に受け取れます。</p>
+
+<h2>実施中</h2>
+{% if not active_polls %}
+<div class="panel"><p style="margin:0;">現在実施中のアンケートはありません。</p></div>
+{% endif %}
+{% for poll in active_polls %}
+<div class="panel poll-card" data-poll-id="{{ poll.id }}" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 4px;">{{ poll.question }}</h3>
+  {% if poll.reward > 0 %}<p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">回答で {{ poll.reward }} Embersがもらえます</p>{% endif %}
+
+  {% if poll.voted %}
+    {% for opt in poll.options %}
+    <div style="margin-bottom: 8px;">
+      <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;">
+        <span>{{ opt }}{% if loop.index0 == poll.my_vote %} ✅{% endif %}</span>
+        <span class="mono text-muted">{{ poll.percentages[loop.index0] }}%({{ poll.counts[loop.index0] }}票)</span>
+      </div>
+      <div style="background: var(--bg-raised); border-radius: 100px; height: 10px; overflow: hidden;">
+        <div style="background: {{ 'var(--gold)' if loop.index0 == poll.my_vote else 'var(--ember)' }}; height:100%; width: {{ poll.percentages[loop.index0] }}%;"></div>
+      </div>
+    </div>
+    {% endfor %}
+    <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">合計{{ poll.total }}票</p>
+  {% else %}
+    <div style="display:flex; flex-direction: column; gap: 8px;">
+      {% for opt in poll.options %}
+      <button type="button" class="btn btn-ghost vote-btn" data-option="{{ loop.index0 }}">{{ opt }}</button>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if closed_polls %}
+<h2 style="margin-top: 24px;">終了したアンケート</h2>
+{% for poll in closed_polls %}
+<div class="panel" style="margin-bottom: 16px; opacity: 0.75;">
+  <h3 style="margin-bottom: 8px;">{{ poll.question }}</h3>
+  {% for opt in poll.options %}
+  <div style="margin-bottom: 8px;">
+    <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;">
+      <span>{{ opt }}</span>
+      <span class="mono text-muted">{{ poll.percentages[loop.index0] }}%({{ poll.counts[loop.index0] }}票)</span>
+    </div>
+    <div style="background: var(--bg-raised); border-radius: 100px; height: 10px; overflow: hidden;">
+      <div style="background: var(--text-muted); height:100%; width: {{ poll.percentages[loop.index0] }}%;"></div>
+    </div>
+  </div>
+  {% endfor %}
+  <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">合計{{ poll.total }}票 ・ 終了済み</p>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/polls.js') }}"></script>
+{% endblock %}

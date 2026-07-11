@@ -6,6 +6,38 @@
 <h1>管理パネル</h1>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>📊 アンケート作成</h3>
+  <form method="POST" action="{{ url_for('admin.poll_create') }}">
+    <div class="field">
+      <label for="poll-question">質問</label>
+      <input type="text" id="poll-question" name="question" placeholder="例: 次に追加してほしい機能は?" required>
+    </div>
+    <div class="field">
+      <label for="poll-options">選択肢(1行に1つ、2〜8個)</label>
+      <textarea id="poll-options" name="options" rows="4" placeholder="選択肢A&#10;選択肢B&#10;選択肢C" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text); font-family: inherit;" required></textarea>
+    </div>
+    <div class="field">
+      <label for="poll-reward">回答謝礼(Embers・任意・0で謝礼なし)</label>
+      <input type="number" id="poll-reward" name="reward" value="0" min="0">
+    </div>
+    <button type="submit" class="btn btn-ember">アンケートを開始</button>
+  </form>
+
+  {% if active_polls %}
+  <hr class="divider">
+  <h3 style="margin-bottom: 10px;">実施中のアンケート</h3>
+  {% for poll in active_polls %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 10px 0; border-top: 1px solid var(--panel-border);">
+    <span style="font-size: 13px;">{{ poll.question }}</span>
+    <form method="POST" action="{{ url_for('admin.poll_close', poll_id=poll.id) }}">
+      <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">終了する</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>🎲 ランダムキャラクター生成</h3>
   <p style="font-size: 13px;">レアリティを選んでボタン1つで、名前・属性・攻撃力・防御力・アビリティ(能力)がランダムなキャラクターを新規生成します。生成されたキャラクターはガチャ・タワーディフェンス・RPGすべてに登場するようになります。</p>
   <form method="POST" action="{{ url_for('admin.generate_character') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
