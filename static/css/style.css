@@ -28,7 +28,15 @@ html, body {
   color: var(--text);
   font-family: var(--font-body);
   min-height: 100%;
+  overflow-x: hidden; /* 個々の要素がはみ出しても、ページ全体が横スクロールしないようにする安全策 */
+  width: 100%;
 }
+
+/* スマホで固定px幅の要素が画面からはみ出さないようにする安全策 */
+input, select, textarea, button { max-width: 100%; }
+img, svg { max-width: 100%; }
+table { max-width: 100%; }
+pre, code { white-space: pre-wrap; word-break: break-word; }
 
 body {
   background-image:
@@ -46,6 +54,27 @@ a { color: inherit; text-decoration: none; }
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px 64px;
+}
+
+@media (max-width: 480px) {
+  .wrap { padding: 0 14px 48px; }
+}
+
+/* ── レスポンシブグリッド(狭い画面では自動的に列数を減らす) ── */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+
+@media (max-width: 480px) {
+  .grid-5, .grid-6 { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 400px) {
+  .grid-4, .grid-5, .grid-6 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 340px) {
+  .grid-3, .grid-4, .grid-5, .grid-6 { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── navbar ── */
@@ -882,11 +911,17 @@ html { scroll-behavior: smooth; }
 }
 
 /* ── admin table ── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -2px;
+}
 table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
 }
+.table-scroll table { width: max-content; min-width: 100%; max-width: none; }
 th, td {
   text-align: left;
   padding: 10px 12px;
