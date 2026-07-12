@@ -7,7 +7,7 @@
   const MAX_TEAM = window.TD_MAX_TEAM || 6;
   const START_LIVES = 20;
   const MAX_LIVES = 30; // regenアビリティでの回復上限
-  const START_GOLD = 150;
+  const START_GOLD = 200;
   const SQUAD = window.TD_SQUAD || null;
   const DIFFICULTY = (SQUAD ? SQUAD.difficulty : 1.0) * MODE_CFG.hp_mult;
 
@@ -53,6 +53,15 @@
   const resultDetail = document.getElementById("result-detail");
   const battleLogPanel = document.getElementById("battle-log-panel");
   const battleLogEl = document.getElementById("battle-log");
+  const placementGoldEl = document.getElementById("placement-gold");
+
+  let gold = START_GOLD; // 配置フェーズから使うため、ここで早めに宣言する
+
+  function updateGoldDisplay() {
+    if (hudGold) hudGold.textContent = String(gold);
+    if (placementGoldEl) placementGoldEl.textContent = String(gold);
+  }
+  updateGoldDisplay();
 
   function pushLog(text, colorClass) {
     if (!battleLogEl) return;
@@ -83,6 +92,7 @@
       attack: parseFloat(item.dataset.attack), range: parseFloat(item.dataset.range),
       speed: parseFloat(item.dataset.speed), splash: parseFloat(item.dataset.splash),
       color: item.dataset.color, rarity: item.dataset.rarity, abilities: parseAbilities(item.dataset.abilities),
+      cost: Math.max(1, Math.min(500, Math.round(parseFloat(item.dataset.cost) || 20))),
     };
   }
 
@@ -152,11 +162,13 @@
     placementRoster.innerHTML = "";
     selectedCharacters.forEach((c) => {
       const isPlaced = placedTowers.some((t) => t.uid === c.uid);
+      const canAfford = gold >= c.cost;
       const el = document.createElement("div");
-      el.className = "panel td-roster-item" + (isPlaced ? " placed" : "");
+      el.className = "panel td-roster-item" + (isPlaced ? " placed" : "") + (!isPlaced && !canAfford ? " unaffordable" : "");
       el.style.cssText = "flex: 0 0 68px; text-align:center; padding: 8px; border-color:" + c.color;
-      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div>`;
-      if (!isPlaced) {
+      const costColor = canAfford ? "var(--gold)" : "var(--loss)";
+      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div><div class="mono" style="font-size:10px; color:${costColor};">💰${c.cost}</div>`;
+      if (!isPlaced && canAfford) {
         el.addEventListener("click", () => {
           activePlacementChar = c;
           Array.from(placementRoster.children).forEach((child) => child.style.outline = "none");
@@ -171,6 +183,14 @@
   function placeOnCell(row, col, cellEl) {
     if (!activePlacementChar) return;
     if (placedTowers.some((t) => t.row === row && t.col === col)) return;
+    if (gold < activePlacementChar.cost) {
+      alert("ゴールドが足りません。");
+      return;
+    }
+
+    gold -= activePlacementChar.cost;
+    updateGoldDisplay();
+    pushLog(`🧩 ${activePlacementChar.icon}${activePlacementChar.name} を配置(💰${activePlacementChar.cost}消費、残り${gold})`, "var(--gold)");
 
     activePlacementChar.uid = activePlacementChar.uid || `u${uidCounter++}`;
     placedTowers.push({
@@ -179,7 +199,7 @@
 
     const towerEl = document.createElement("div");
     towerEl.className = "td-tower";
-    towerEl.innerHTML = `<span class="td-tower-icon">${activePlacementChar.icon}</span>`;
+    towerEl.innerHTML = `<span class="td-tower-icon">${activePlacementChar.icon}</span><span class="td-tower-lv">Lv1</span>`;
     towerEl.style.borderColor = activePlacementChar.color;
     towerEl.dataset.uid = activePlacementChar.uid;
     cellEl.appendChild(towerEl);
@@ -187,7 +207,7 @@
     const placedUid = activePlacementChar.uid;
     towerEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (running) openUpgradePanel(placedUid);
+      openUpgradePanel(placedUid);
     });
 
     activePlacementChar = null;
@@ -204,31 +224,37 @@
     const tower = placedTowers.find((t) => t.uid === uid);
     if (!tower || !upgradePanel) return;
     const cost = upgradeCost(tower);
+    const canAfford = gold >= cost;
     upgradePanel.style.display = "block";
     upgradePanel.innerHTML = `
       <div style="display:flex; justify-content: space-between; align-items:center;">
-        <div><strong>${tower.icon} ${tower.name}</strong> ・ Lv.${tower.level + 1}</div>
+        <div><span class="eyebrow">⬆️ アップグレード</span><br><strong>${tower.icon} ${tower.name}</strong> ・ 現在Lv.${tower.level + 1}</div>
         <button type="button" id="upgrade-close" class="btn btn-ghost" style="padding:2px 8px; font-size:11px;">✕</button>
       </div>
-      <p class="mono text-muted" style="font-size:12px; margin:4px 0;">現在の攻撃力: ${tower.attack.toFixed(1)}</p>
-      <button type="button" id="upgrade-buy" class="btn btn-ember" style="font-size:12px; padding:6px 12px;">
-        ${cost}💰 でアップグレード(攻撃力+20%)
+      <p class="mono text-muted" style="font-size:12px; margin:4px 0;">現在の攻撃力: ${tower.attack.toFixed(1)} → アップグレード後: ${(tower.attack * 1.2).toFixed(1)}</p>
+      <button type="button" id="upgrade-buy" class="btn ${canAfford ? "btn-ember" : "btn-ghost"}" style="font-size:13px; padding:8px 14px; width:100%;" ${canAfford ? "" : "disabled"}>
+        💰${cost} でレベルアップ(攻撃力+20%)
       </button>
     `;
     document.getElementById("upgrade-close").addEventListener("click", () => { upgradePanel.style.display = "none"; });
-    document.getElementById("upgrade-buy").addEventListener("click", () => {
-      if (gold < cost) { alert("ゴールドが足りません。"); return; }
-      gold -= cost;
-      tower.attack = Math.round(tower.attack * 1.2 * 10) / 10;
-      tower.level += 1;
-      updateGoldDisplay();
-      openUpgradePanel(uid);
-    });
+    const buyBtn = document.getElementById("upgrade-buy");
+    if (canAfford) {
+      buyBtn.addEventListener("click", () => {
+        if (gold < cost) { alert("ゴールドが足りません。"); return; }
+        gold -= cost;
+        tower.attack = Math.round(tower.attack * 1.2 * 10) / 10;
+        tower.level += 1;
+        updateGoldDisplay();
+        pushLog(`⬆️ ${tower.icon}${tower.name} がLv.${tower.level + 1}にレベルアップ!(攻撃力${tower.attack.toFixed(1)})`, "var(--win)");
+        const towerEl = tdGrid.querySelector(`.td-tower[data-uid="${uid}"] .td-tower-lv`);
+        if (towerEl) towerEl.textContent = `Lv${tower.level + 1}`;
+        openUpgradePanel(uid);
+      });
+    }
   }
 
   // ───────── バトル本体 ─────────
   let lives = START_LIVES;
-  let gold = START_GOLD;
   let currentWave = 0;
   let kills = 0;
   let enemies = [];
@@ -240,10 +266,6 @@
   let battleEnded = false;
   let regenTimer = 0;
   let lastAttackLogTime = 0;
-
-  function updateGoldDisplay() {
-    if (hudGold) hudGold.textContent = String(gold);
-  }
 
   let speedMultiplier = 1;
   document.querySelectorAll(".speed-btn").forEach((btn) => {
