@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}対局中 ・ EMBERPLAY{% endblock %}
+
+{% block head %}
+<style>
+  .card-chip {
+    display: inline-flex; align-items:center; justify-content:center;
+    min-width: 40px; height: 56px; border-radius: 6px; background: #fff; color: #111;
+    font-weight: 800; font-size: 13px; margin: 2px; cursor: pointer; border: 2px solid transparent;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3); user-select: none;
+  }
+  .card-chip.red { color: #dc2626; }
+  .card-chip.selected { border-color: var(--gold); transform: translateY(-6px); }
+  .card-chip.back { background: linear-gradient(135deg, #1e293b, #334155); color: transparent; }
+  .card-chip.disabled { opacity: 0.4; cursor: not-allowed; }
+  #card-hand, #pile-display, #center-display { display:flex; flex-wrap: wrap; justify-content:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🃏 {{ game_labels[room.game_type] }}</span>
+<h1>対局中</h1>
+
+<div id="player-turn-banner" class="panel" style="margin-bottom: 12px; text-align:center; font-weight:700;"></div>
+
+<div class="panel" style="margin-bottom: 12px;">
+  <h3 style="font-size: 13px; margin-bottom: 6px;">場</h3>
+  <div id="pile-display"></div>
+  <div id="center-display"></div>
+</div>
+
+<div class="panel" style="margin-bottom: 12px;">
+  <h3 style="font-size: 13px; margin-bottom: 6px;">あなたの手札</h3>
+  <div id="card-hand"></div>
+</div>
+
+<div style="display:flex; gap: 10px; margin-bottom: 12px;">
+  <button type="button" class="btn btn-ember" id="play-btn" style="flex:1;">出す</button>
+  <button type="button" class="btn btn-ghost" id="pass-btn" style="flex:1; display:none;">パス</button>
+  <button type="button" class="btn btn-ghost" id="draw-btn" style="flex:1; display:none;">引く</button>
+</div>
+
+<div id="players-status" class="panel" style="margin-bottom: 12px;"></div>
+
+<div id="game-log" class="panel mono text-muted" style="font-size: 12px; height: 100px; overflow-y:auto;"></div>
+
+<div id="result-banner" class="panel" style="display:none; margin-top: 12px; text-align:center;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.CARD_ROOM_CODE = "{{ room.code }}";
+  window.CARD_GAME_TYPE = "{{ room.game_type }}";
+</script>
+<script src="{{ url_for('static', filename='js/cardroom_play.js') }}"></script>
+{% endblock %}

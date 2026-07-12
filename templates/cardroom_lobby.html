@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}トランプ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🃏 Card Room</span>
+<h1>トランプ</h1>
+<p>フレンドと部屋を作って、大富豪・ババ抜き・スピードで遊べます。参加コードを教え合えば誰でも入室できます。</p>
+
+{% if my_rooms %}
+<h2>参加中の部屋</h2>
+{% for r in my_rooms %}
+<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center;">
+  <div>
+    <strong>{{ game_labels[r.game_type] }}</strong>
+    <p class="mono text-muted" style="font-size: 12px; margin: 2px 0 0;">コード: {{ r.code }} ・ {{ "待機中" if r.status == "waiting" else "対局中" }}</p>
+  </div>
+  <a href="{{ url_for('cardroom.room', code=r.code) }}" class="btn btn-ember" style="padding: 8px 16px; font-size: 13px;">入る</a>
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="panel" style="margin-bottom: 16px;">
+  <h3>新しく部屋を作る</h3>
+  <form method="POST" action="{{ url_for('cardroom.create') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0;">
+      <label for="game-type">遊ぶゲーム</label>
+      <select id="game-type" name="game_type" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+        {% for key, label in game_labels.items() %}
+        <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-ember">部屋を作る</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h3>コードで参加する</h3>
+  <form method="POST" action="{{ url_for('cardroom.join') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0;">
+      <label for="join-code">参加コード(6文字)</label>
+      <input type="text" id="join-code" name="code" maxlength="6" placeholder="例: A1B2C3" style="text-transform: uppercase;" required>
+    </div>
+    <button type="submit" class="btn btn-ghost">参加する</button>
+  </form>
+</div>
+{% endblock %}
