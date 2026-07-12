@@ -32,8 +32,7 @@
   }
   #td-vignette {
     position: absolute; inset: 0; border-radius: 12px; pointer-events: none; z-index: 40;
-    box-shadow: inset 0 0 60px 14px rgba(0,0,0,0.55);
-    background: linear-gradient(180deg, rgba(0,0,0,0.18), transparent 18%, transparent 82%, rgba(0,0,0,0.25));
+    background: linear-gradient(180deg, rgba(0,0,0,0.12), transparent 20%, transparent 80%, rgba(0,0,0,0.18));
   }
   #td-ambient-particles {
     position: absolute; inset: 0; border-radius: 12px; pointer-events: none; overflow: hidden; z-index: 2;
@@ -261,16 +260,18 @@
     <p style="font-size: 12px; margin: 0;">キャラクターをタップして選び、盤面の道以外のマスをタップすると、そのキャラクターの配置コスト分の💰を消費して配置されます。ゴールドが足りないキャラクターは配置できません。配置後、タワーをタップすると🔧アップグレードできます。</p>
     <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
   </div>
-  <div id="td-battlefield">
-    <div id="td-scene-bg"></div>
-    <div id="td-grid"></div>
-    <div id="td-ambient-particles"></div>
-    <div id="td-fx-layer"></div>
-    <div id="td-vignette"></div>
-  </div>
-  <div id="upgrade-panel" style="display:none;"></div>
-  <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-top: 12px;" disabled>ウェーブ開始!</button>
+  <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-bottom: 12px;" disabled>ウェーブ開始!</button>
 </div>
+
+<!-- 盤面(td-battlefield)は配置フェーズ・戦闘フェーズの両方で常に表示され続ける(placement-screenの外に置く) -->
+<div id="td-battlefield" style="display:none;">
+  <div id="td-scene-bg"></div>
+  <div id="td-grid"></div>
+  <div id="td-ambient-particles"></div>
+  <div id="td-fx-layer"></div>
+  <div id="td-vignette"></div>
+</div>
+<div id="upgrade-panel" style="display:none;"></div>
 
 <div id="battle-hud" style="display:none; margin-top: 12px;">
   <div class="panel" style="display:flex; justify-content: space-between; padding: 12px 16px; flex-wrap: wrap; gap: 8px;">
