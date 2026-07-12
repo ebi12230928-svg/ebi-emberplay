@@ -47,7 +47,8 @@
 
   // 常時、灰の粒子がゆっくり立ち上る環境演出(戦闘の有無に関わらず、盤面が「その場に存在している」感を出す)
   function spawnAmbientParticle() {
-    if (!ambientLayer) return;
+    if (!ambientLayer || document.hidden) return; // タブが非表示の間は生成しない(無駄なCPU消費を防ぐ)
+    if (ambientLayer.children.length >= 8) return; // 同時に存在できる数の上限(DOM肥大化防止)
     const el = document.createElement("div");
     el.className = "td-ember-particle";
     el.style.left = Math.random() * 100 + "%";
@@ -57,10 +58,16 @@
     ambientLayer.appendChild(el);
     setTimeout(() => el.remove(), duration * 1000);
   }
+  let ambientIntervalId = null;
   if (ambientLayer) {
-    for (let i = 0; i < 6; i++) setTimeout(spawnAmbientParticle, i * 400);
-    setInterval(spawnAmbientParticle, 600);
+    for (let i = 0; i < 4; i++) setTimeout(spawnAmbientParticle, i * 500);
+    ambientIntervalId = setInterval(spawnAmbientParticle, 1100); // 頻度を抑えてCPU負荷を軽減
   }
+  // ページを離れる際に、確実にタイマーを止めてリソースを解放する
+  window.addEventListener("pagehide", () => {
+    if (ambientIntervalId) clearInterval(ambientIntervalId);
+    running = false;
+  });
 
   function screenShake() {
     if (!tdBattlefield) return;
@@ -69,6 +76,10 @@
     tdBattlefield.classList.add("td-shake");
   }
   const fxLayer = document.getElementById("td-fx-layer") || tdGrid;
+  const FX_MAX_ELEMENTS = 60; // 演出エフェクトが同時に存在できる上限(戦闘が激しくてもDOMが肥大化しないようにする)
+  function fxRoomAvailable() {
+    return fxLayer.children.length < FX_MAX_ELEMENTS;
+  }
   const startWaveBtn = document.getElementById("start-wave-btn");
   const battleHud = document.getElementById("battle-hud");
   const hudLives = document.getElementById("hud-lives");
@@ -396,6 +407,7 @@
   }
 
   function spawnBeam(fromRow, fromCol, toX, toY, color) {
+    if (!fxRoomAvailable()) return;
     const from = cellCenter(fromRow, fromCol);
     const rect = tdGrid.getBoundingClientRect();
     const dx = (toX - from.x) / 100 * rect.width;
@@ -415,6 +427,7 @@
   }
 
   function spawnProjectile(fromRow, fromCol, toX, toY, color) {
+    if (!fxRoomAvailable()) return;
     const from = cellCenter(fromRow, fromCol);
     const c = color || "var(--ember)";
     const el = document.createElement("div");
@@ -433,6 +446,7 @@
     const steps = 4;
     for (let i = 1; i <= steps; i++) {
       setTimeout(() => {
+        if (!fxRoomAvailable()) return;
         const trail = document.createElement("div");
         trail.className = "td-projectile-trail";
         trail.style.left = (from.x + (toX - from.x) * (i / steps)) + "%";
@@ -452,6 +466,7 @@
   }
 
   function spawnDamageNumber(x, y, amount, kind) {
+    if (!fxRoomAvailable()) return;
     const el = document.createElement("div");
     el.className = "td-dmg-number" + (kind ? ` td-dmg-${kind}` : "");
     el.textContent = kind === "heal" ? `+${amount}` : `-${Math.round(amount)}`;
@@ -464,6 +479,7 @@
   }
 
   function spawnDeathEffect(x, y) {
+    if (!fxRoomAvailable()) return;
     const el = document.createElement("div");
     el.className = "td-death-fx";
     el.style.left = x + "%";
@@ -480,6 +496,7 @@
   }
 
   function spawnImpact(x, y, color) {
+    if (!fxRoomAvailable()) return;
     const el = document.createElement("div");
     el.className = "td-impact-fx";
     el.style.left = x + "%";
@@ -496,6 +513,7 @@
   }
 
   function spawnHitSpark(x, y) {
+    if (!fxRoomAvailable()) return;
     const el = document.createElement("div");
     el.className = "td-spark-fx";
     el.style.left = x + "%";
