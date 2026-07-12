@@ -33,6 +33,12 @@
     font-size: 60%; background: rgba(0,0,0,0.45); border: 2px solid var(--gold); cursor: pointer;
     transition: transform 0.1s ease;
   }
+  .td-tower-lv {
+    position: absolute; bottom: -2px; right: -2px; background: var(--gold); color: #1a1006;
+    font-size: 8px; font-weight: 800; padding: 1px 3px; border-radius: 4px; line-height: 1.3;
+    pointer-events: none;
+  }
+  .td-roster-item.unaffordable { opacity: 0.4; filter: grayscale(0.6); }
   .td-tower.attacking { animation: td-tower-pulse 0.3s ease; border-color: #fff; }
   @keyframes td-tower-pulse {
     0% { transform: scale(1); }
@@ -192,10 +198,12 @@
       <div class="panel td-roster-item" data-key="{{ c.key }}{{ '_' ~ loop.index if squad_info }}" data-realkey="{{ c.key }}" data-name="{{ c.name }}{% if squad_info %}({{ c.owner }}){% endif %}" data-icon="{{ c.icon }}"
            data-attack="{{ c.attack }}" data-range="{{ c.range }}" data-speed="{{ c.speed }}" data-splash="{{ c.splash }}"
            data-color="{{ c.colors[0] }}" data-rarity="{{ c.rarity_label }}" data-abilities='{{ (c.abilities or []) | tojson }}'
+           data-cost="{{ c.cost }}"
            style="text-align:center; padding: 10px; border-color: {{ c.colors[0] }};">
         <div style="font-size: 26px;">{{ c.icon }}</div>
         <div style="font-size: 11px; font-weight:700; margin-top:4px;">{{ c.name }}</div>
         <div class="mono text-muted" style="font-size: 10px;">{% if squad_info %}{{ c.owner }}{% else %}Lv.{{ c.level }} ・ ⚔️{{ c.attack }}{% endif %}</div>
+        <div class="mono" style="font-size: 11px; margin-top: 2px; color: var(--gold);">💰{{ c.cost }}</div>
       </div>
       {% endfor %}
     </div>
@@ -205,7 +213,11 @@
 
 <div id="placement-screen" style="display:none;">
   <div class="panel" style="margin-bottom: 12px;">
-    <p style="font-size: 12px; margin: 0;">下のキャラクターをタップしてから、盤面の道以外のマスをタップして配置してください。配置後、タワーをタップすると💰でアップグレードできます。</p>
+    <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px;">
+      <span class="eyebrow">配置フェーズ</span>
+      <span class="mono" style="font-weight:800; color: var(--gold);">💰 <span id="placement-gold"></span></span>
+    </div>
+    <p style="font-size: 12px; margin: 0;">キャラクターをタップして選び、盤面の道以外のマスをタップすると、そのキャラクターの配置コスト分の💰を消費して配置されます。ゴールドが足りないキャラクターは配置できません。配置後、タワーをタップすると🔧アップグレードできます。</p>
     <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
   </div>
   <div id="td-battlefield">
