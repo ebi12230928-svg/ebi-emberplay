@@ -40,6 +40,32 @@
   const placementScreen = document.getElementById("placement-screen");
   const placementRoster = document.getElementById("placement-roster");
   const tdGrid = document.getElementById("td-grid");
+  const tdBattlefield = document.getElementById("td-battlefield");
+  const ambientLayer = document.getElementById("td-ambient-particles");
+
+  // 常時、灰の粒子がゆっくり立ち上る環境演出(戦闘の有無に関わらず、盤面が「その場に存在している」感を出す)
+  function spawnAmbientParticle() {
+    if (!ambientLayer) return;
+    const el = document.createElement("div");
+    el.className = "td-ember-particle";
+    el.style.left = Math.random() * 100 + "%";
+    el.style.setProperty("--drift", (Math.random() * 40 - 20) + "px");
+    const duration = 3 + Math.random() * 3;
+    el.style.animationDuration = duration + "s";
+    ambientLayer.appendChild(el);
+    setTimeout(() => el.remove(), duration * 1000);
+  }
+  if (ambientLayer) {
+    for (let i = 0; i < 6; i++) setTimeout(spawnAmbientParticle, i * 400);
+    setInterval(spawnAmbientParticle, 600);
+  }
+
+  function screenShake() {
+    if (!tdBattlefield) return;
+    tdBattlefield.classList.remove("td-shake");
+    void tdBattlefield.offsetWidth;
+    tdBattlefield.classList.add("td-shake");
+  }
   const fxLayer = document.getElementById("td-fx-layer") || tdGrid;
   const startWaveBtn = document.getElementById("start-wave-btn");
   const battleHud = document.getElementById("battle-hud");
@@ -266,6 +292,7 @@
   let battleEnded = false;
   let regenTimer = 0;
   let lastAttackLogTime = 0;
+  let lastShakeTime = 0;
 
   let speedMultiplier = 1;
   document.querySelectorAll(".speed-btn").forEach((btn) => {
@@ -352,6 +379,7 @@
     if (cfg.isBoss) el.style.fontSize = "160%";
     el.innerHTML = `<div class="td-enemy-shadow"></div><span class="td-enemy-sprite">${emoji}</span><div class="td-enemy-hp"><div class="td-enemy-hp-fill" style="width:100%;"></div></div>`;
     tdGrid.appendChild(el);
+    if (cfg.isBoss) screenShake();
     enemies.push({
       uid, el, t: 0, hp: cfg.hp, maxHp: cfg.hp, baseSpeed: cfg.speed, speed: cfg.speed,
       livesCost: cfg.livesCost, dead: false,
@@ -615,6 +643,10 @@
 
         const isCrit = Math.random() < (abilities.includes("crit_boost") ? 0.35 : 0.08);
         const primaryDmg = Math.round(tower.attack * (isCrit ? 1.6 : 1));
+        if (isCrit && now - lastShakeTime > 400) {
+          lastShakeTime = now;
+          screenShake();
+        }
 
         if (now - lastAttackLogTime > 350) {
           lastAttackLogTime = now;
@@ -711,6 +743,7 @@
 
   async function endBattle(victory) {
     running = false;
+    screenShake();
     battleHud.style.display = "none";
     if (upgradePanel) upgradePanel.style.display = "none";
     resultScreen.style.display = "block";
