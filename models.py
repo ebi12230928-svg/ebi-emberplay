@@ -642,6 +642,19 @@ class CustomCharacter(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
 
+class CharacterOverride(db.Model):
+    """
+    管理者が既存キャラクター(静的カタログ・「えび」含む)の攻撃力・防御力・必要な配置コストを
+    上書きするための調整値。設定した項目だけが元の値より優先される(NULLの項目は元の値のまま)。
+    """
+    key = db.Column(db.String(64), primary_key=True)
+    attack = db.Column(db.Float, nullable=True)
+    defense = db.Column(db.Float, nullable=True)
+    cost = db.Column(db.Integer, nullable=True)
+    updated_by = db.Column(db.String(32), nullable=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
 class TowerDefenseRun(db.Model):
     """タワーディフェンスのプレイ記録(結果とクリアしたウェーブ数を保存)"""
     id = db.Column(db.Integer, primary_key=True)

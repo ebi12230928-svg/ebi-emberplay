@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -658,6 +658,84 @@ def poll_close(poll_id):
         poll.is_active = False
         db.session.commit()
         flash("アンケートを終了しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/character-stats/<key>")
+@login_required
+@admin_required
+def character_stats(key):
+    """AJAX用: 指定キャラクターの現在の攻撃力・防御力・コストを返す(編集フォームの自動入力に使う)"""
+    import characters as ch
+    info = ch.character_info(key)
+    if not info:
+        return jsonify({"error": "キャラクターが見つかりません。"}), 404
+    return jsonify({
+        "name": info["name"], "icon": info["icon"], "attack": info["attack"],
+        "defense": info["defense"], "cost": info["cost"], "rarity_label": info["rarity_label"],
+    })
+
+
+@admin_bp.route("/admin/edit-character", methods=["POST"])
+@login_required
+@admin_required
+def edit_character():
+    import characters as ch
+
+    key = request.form.get("character_key", "").strip()
+    info = ch.character_info(key)
+    if not info:
+        flash("指定されたキャラクターが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    def parse_optional_number(field_name, cast):
+        raw = request.form.get(field_name, "").strip()
+        if raw == "":
+            return None
+        try:
+            return cast(raw)
+        except ValueError:
+            return None
+
+    attack = parse_optional_number("attack", float)
+    defense = parse_optional_number("defense", float)
+    cost = parse_optional_number("cost", int)
+
+    if attack is None and defense is None and cost is None:
+        flash("変更する項目(攻撃力・防御力・必要なお金のいずれか)を入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if (attack is not None and attack < 0) or (defense is not None and defense < 0) or (cost is not None and cost < 0):
+        flash("マイナスの値は設定できません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if key in ch.CHARACTERS:
+        # 静的カタログのキャラクター(えびなど)は、上書き専用テーブルに調整値を保存する
+        row = CharacterOverride.query.get(key)
+        if not row:
+            row = CharacterOverride(key=key)
+            db.session.add(row)
+        if attack is not None:
+            row.attack = attack
+        if defense is not None:
+            row.defense = defense
+        if cost is not None:
+            row.cost = cost
+        row.updated_by = current_user.username
+    else:
+        # 管理者作成キャラクターは、CustomCharacterの行を直接更新する
+        row = CustomCharacter.query.get(key)
+        if not row:
+            flash("指定されたキャラクターが見つかりません。", "error")
+            return redirect(url_for("admin.dashboard"))
+        if attack is not None:
+            row.attack = attack
+        if defense is not None:
+            row.defense = defense
+        if cost is not None:
+            row.cost = cost
+
+    db.session.commit()
+    flash(f"「{info['name']}」のステータスを更新しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

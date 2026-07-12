@@ -2193,7 +2193,7 @@ CHARACTERS = {
     "legendary_047": ("薄明のウィザード", "legendary", "earth", "🧙‍♂️", 71.4, 4, 1.44, 150, 0, "戦場に舞い降りる度、勝利を約束する。"),
     "legendary_048": ("夜叉のマンティス", "legendary", "wind", "🦗", 72.0, 4, 1.15, 142, 0, "一撃に全てを込める破壊者。"),
 
-    "ebi": ("えび", "ultimate", "water", "🦐", 9999, 8, 0.3, 999999, 5, "何者かが目撃した、あまりにも規格外な存在。その全貌は誰も知らない。排出率は限りなく0に近く、通常入手はほぼ不可能とされる。"),
+    "ebi": ("えび", "ultimate", "water", "🦐", 9999, 8, 0.3, 350, 5, "何者かが目撃した、あまりにも規格外な存在。その全貌は誰も知らない。排出率は限りなく0に近く、通常入手はほぼ不可能とされる。"),
 }
 
 
@@ -2205,6 +2205,18 @@ def rarity_of(key):
 def all_keys_by_rarity(rarity):
     all_chars = all_characters_dict()
     return [k for k, v in all_chars.items() if v[1] == rarity]
+
+
+def _get_override(key):
+    """管理者が設定した攻撃力・防御力・コストの上書き値を取得する(未設定ならNone)"""
+    try:
+        from models import CharacterOverride
+        row = CharacterOverride.query.get(key)
+        if not row:
+            return None
+        return {"attack": row.attack, "defense": row.defense, "cost": row.cost}
+    except Exception:
+        return None  # DBが未初期化の場合などは上書きなしとして扱う
 
 
 def character_info(key):
@@ -2223,6 +2235,16 @@ def character_info(key):
         if extra:
             defense = extra["defense"]
             abilities = extra["abilities"]
+
+    # 管理者パネルからの調整値があれば、該当する項目だけ上書きする
+    override = _get_override(key)
+    if override:
+        if override["attack"] is not None:
+            atk = override["attack"]
+        if override["defense"] is not None:
+            defense = override["defense"]
+        if override["cost"] is not None:
+            cost = override["cost"]
 
     return {
         "key": key, "name": name, "rarity": rarity, "rarity_label": RARITY_NAMES[rarity],
