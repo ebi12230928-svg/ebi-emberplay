@@ -130,6 +130,7 @@
     });
     setupScreen.style.display = "none";
     placementScreen.style.display = "block";
+    if (tdBattlefield) tdBattlefield.style.display = "block";
     buildGrid();
     renderPlacementRoster();
   } else {
@@ -153,6 +154,7 @@
     toPlacementBtn.addEventListener("click", () => {
       setupScreen.style.display = "none";
       placementScreen.style.display = "block";
+      if (tdBattlefield) tdBattlefield.style.display = "block";
       buildGrid();
       renderPlacementRoster();
     });
