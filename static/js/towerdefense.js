@@ -86,6 +86,7 @@
   let gold = START_GOLD; // 配置フェーズから使うため、ここで早めに宣言する
 
   function updateGoldDisplay() {
+    gold = Math.max(0, gold); // 念のため、表示上も所持金が0未満にならないようにする
     if (hudGold) hudGold.textContent = String(gold);
     if (placementGoldEl) placementGoldEl.textContent = String(gold);
   }
@@ -198,8 +199,9 @@
       const el = document.createElement("div");
       el.className = "panel td-roster-item" + (isPlaced ? " placed" : "") + (!isPlaced && !canAfford ? " unaffordable" : "");
       el.style.cssText = "flex: 0 0 68px; text-align:center; padding: 8px; border-color:" + c.color;
-      const costColor = canAfford ? "var(--gold)" : "var(--loss)";
-      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div><div class="mono" style="font-size:10px; color:${costColor};">💰${c.cost}</div>`;
+      const costColor = canAfford ? "var(--gold)" : "var(--text-muted)";
+      const shortfall = !isPlaced && !canAfford ? `<div style="font-size:9px; color: var(--loss);">あと💰${c.cost - gold}足りません</div>` : "";
+      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div><div class="mono" style="font-size:10px; color:${costColor};">💰${c.cost}</div>${shortfall}`;
       if (!isPlaced && canAfford) {
         el.addEventListener("click", () => {
           activePlacementChar = c;
@@ -220,7 +222,7 @@
       return;
     }
 
-    gold -= activePlacementChar.cost;
+    gold = Math.max(0, gold - activePlacementChar.cost);
     updateGoldDisplay();
     pushLog(`🧩 ${activePlacementChar.icon}${activePlacementChar.name} を配置(💰${activePlacementChar.cost}消費、残り${gold})`, "var(--gold)");
 
@@ -273,7 +275,7 @@
     if (canAfford) {
       buyBtn.addEventListener("click", () => {
         if (gold < cost) { alert("ゴールドが足りません。"); return; }
-        gold -= cost;
+        gold = Math.max(0, gold - cost);
         tower.attack = Math.round(tower.attack * 1.2 * 10) / 10;
         tower.level += 1;
         updateGoldDisplay();
