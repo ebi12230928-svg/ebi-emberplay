@@ -1,6 +1,37 @@
 {% extends "base.html" %}
 {% block title %}RPGボス討伐 ・ EMBERPLAY{% endblock %}
 
+{% block head %}
+<style>
+  #rpg-arena {
+    position: relative; width: 100%; height: 180px; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, #2a3d52 0%, #3d2f42 100%); margin-bottom: 12px;
+  }
+  #rpg-boss-sprite {
+    position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); font-size: 64px;
+    animation: rpg-boss-idle 1s ease-in-out infinite; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+  }
+  @keyframes rpg-boss-idle { 0%,100% { transform: translate(-50%,-50%) translateY(0); } 50% { transform: translate(-50%,-50%) translateY(-8px); } }
+  #rpg-boss-sprite.rpg-hit { animation: rpg-hit-flash 0.2s ease; }
+  @keyframes rpg-hit-flash { 0% { filter: brightness(3) drop-shadow(0 0 10px #fff); } 100% { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); } }
+  #rpg-team-sprites { position: absolute; bottom: 8px; left: 0; right: 0; display:flex; justify-content:center; gap: 6px; flex-wrap: wrap; padding: 0 8px; }
+  .rpg-team-icon { font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5)); animation: rpg-team-bob 0.6s ease-in-out infinite; }
+  @keyframes rpg-team-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  #rpg-fx-layer { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .rpg-dmg-number {
+    position: absolute; font-size: 20px; font-weight: 900; color: #fff; transform: translate(-50%, -50%);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9); animation: rpg-dmg-float 0.8s ease-out forwards; pointer-events: none;
+  }
+  .rpg-dmg-number.heal { color: #4ade80; }
+  @keyframes rpg-dmg-float {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    100% { opacity: 0; transform: translate(-50%, -180%) scale(1); }
+  }
+  .spell-btn { position: relative; }
+  .spell-btn.on-cooldown { opacity: 0.4; pointer-events: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <span class="eyebrow">⚔️ RPG Boss Battle</span>
 <h1>RPGボス討伐</h1>
@@ -46,10 +77,16 @@
     </div>
   </div>
   <button class="btn btn-ember btn-block" id="battle-btn" disabled>挑む</button>
+  <p class="text-muted" style="font-size: 11px; margin-top: 8px; text-align:center;">通常ボス・レイド・ラスボスに勝つと、確率で炎・毒・氷などの魔法を入手できます。入手した魔法は次のバトルからボタンで使えるようになります。</p>
 </div>
 
 <div id="battle-screen" style="display:none;">
   <div class="panel">
+    <div id="rpg-arena">
+      <div id="rpg-boss-sprite">👹</div>
+      <div id="rpg-team-sprites"></div>
+      <div id="rpg-fx-layer"></div>
+    </div>
     <div style="margin-bottom: 12px;">
       <div style="display:flex; justify-content: space-between; font-size: 12px; flex-wrap: wrap;"><span id="boss-label">👹 ボス</span><span id="boss-hp-text" class="mono"></span></div>
       <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden;">
@@ -62,7 +99,13 @@
         <div id="team-hp-bar" style="background: linear-gradient(90deg, #4caf6d, #16a34a); height:100%; width:100%; transition: width 0.3s ease;"></div>
       </div>
     </div>
-    <div id="turn-log" class="mono text-muted" style="font-size: 12px; min-height: 20px; text-align:center;"></div>
+    <div id="turn-log" class="mono text-muted" style="font-size: 12px; min-height: 20px; text-align:center; margin-bottom: 10px;"></div>
+
+    <!-- ボタン式バトル(通常/レイド/ラスボス用)。エンドレスは自動バトルのまま -->
+    <div id="manual-controls" style="display:none;">
+      <button type="button" class="btn btn-ember btn-block" id="attack-btn" style="margin-bottom: 8px;">⚔️ 攻撃</button>
+      <div id="spell-buttons" class="grid-3"></div>
+    </div>
   </div>
   <div class="result-readout" id="result-readout" style="margin-top: 16px;"></div>
 </div>
