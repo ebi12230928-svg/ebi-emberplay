@@ -251,19 +251,23 @@
   <button class="btn btn-ember btn-block" id="to-placement-btn" disabled>配置へ進む</button>
 </div>
 
-<div id="placement-screen" style="display:none;">
+<!-- キャラクター配置パネルは、配置フェーズ・戦闘フェーズの両方で常に表示され続ける(途中でも配置できるように) -->
+<div id="roster-panel" style="display:none;">
   <div class="panel" style="margin-bottom: 12px;">
     <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px;">
-      <span class="eyebrow">配置フェーズ</span>
+      <span class="eyebrow">キャラクター配置</span>
       <span class="mono" style="font-weight:800; color: var(--gold);">💰 <span id="placement-gold"></span></span>
     </div>
-    <p style="font-size: 12px; margin: 0;">キャラクターをタップして選び、盤面の道以外のマスをタップすると、そのキャラクターの配置コスト分の💰を消費して配置されます。ゴールドが足りないキャラクターは配置できません。配置後、タワーをタップすると🔧アップグレードできます。</p>
+    <p style="font-size: 12px; margin: 0;">キャラクターをタップして選び、盤面の道以外のマスをタップすると、そのキャラクターの配置コスト分の💰を消費して配置されます。ゴールドが足りないキャラクターは配置できません。<strong>ゴールドが貯まれば、戦闘中でも追加でキャラクターを配置できます。</strong>配置後、タワーをタップすると🔧アップグレードできます。</p>
     <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
   </div>
+</div>
+
+<div id="placement-screen" style="display:none;">
   <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-bottom: 12px;" disabled>ウェーブ開始!</button>
 </div>
 
-<!-- 盤面(td-battlefield)は配置フェーズ・戦闘フェーズの両方で常に表示され続ける(placement-screenの外に置く) -->
+<!-- 盤面(td-battlefield)は配置フェーズ・戦闘フェーズの両方で常に表示され続ける -->
 <div id="td-battlefield" style="display:none;">
   <div id="td-scene-bg"></div>
   <div id="td-grid"></div>
@@ -329,6 +333,7 @@
   window.TD_MAX_TEAM = {{ max_team_size }};
   window.TD_SQUAD = {{ squad_info | tojson if squad_info else "null" }};
   window.TD_MAX_SPEED = {{ max_speed }};
+  window.TD_ENEMY_TIER_MULT = {{ enemy_tier_mult }};
 </script>
 <script src="{{ url_for('static', filename='js/towerdefense.js') }}"></script>
 {% endblock %}
