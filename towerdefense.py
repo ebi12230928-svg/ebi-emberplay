@@ -1,5 +1,7 @@
 """
-タワーディフェンス。ガチャで入手したキャラクターを配置して、波状に迫る敵から拠点を守る。
+タワーディフェンス。ガチャで入手したキャラクターを、お金(ゴールド)を使って1体ずつ配置し、
+波状に迫る敵から拠点を守る。初期資金は少なく、ウェーブをクリアするごとに増えていくゴールドを使って
+少しずつ戦力を増やしていく経済シミュレーション要素のあるゲーム。
 実際のゲームロジック(敵の移動・タワーの攻撃・当たり判定)はブラウザ側(JS)でリアルタイムに動作し、
 サーバーはキャラクターの所持確認と、結果に応じた報酬付与だけを担当する。
 「通常」「レイド」「ラスボス」「エンドレスモード」の4種類がある。
@@ -10,12 +12,13 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import UserCharacter, TowerDefenseRun, Transaction
+from models import UserCharacter, TowerDefenseRun, Transaction, TDDifficultySetting
 import characters as ch
 
 towerdefense_bp = Blueprint("towerdefense", __name__)
 
-MAX_TEAM_SIZE = 6
+START_GOLD = 200  # 初期資金。ここから、キャラクターごとに決まった金額を払って配置していく
+MAX_PLACEMENTS_SAFETY_CAP = 40  # 不正防止用の安全な上限(通常のプレイでは到達しない想定)
 
 # waves=Noneはエンドレス(上限なし)を意味する。lastbossは1ウェーブだけ、非常に頑丈な敵1体と戦う特別な形式
 TD_MODES = {
@@ -25,6 +28,26 @@ TD_MODES = {
     "endless":  {"label": "エンドレス", "waves": None, "hp_mult": 1.0, "reward_per_wave": 30, "victory_bonus": 0},
 }
 ENDLESS_REWARD_CAP_WAVES = 60  # 経済保護のため、報酬計算上はこのウェーブ数で頭打ちにする
+
+# 管理者が設定する「敵の強さ」10段階。1段階目=現在のバランス(1.0倍)、10段階目=約5倍の強さ
+ENEMY_TIER_LABELS = {
+    1: "1(現在のバランス)", 2: "2", 3: "3", 4: "4", 5: "5",
+    6: "6", 7: "7", 8: "8", 9: "9", 10: "10(かなり強い)",
+}
+
+
+def enemy_tier_multiplier(tier):
+    tier = max(1, min(10, tier))
+    return round(1 + (tier - 1) * 0.45, 3)
+
+
+def get_enemy_tier():
+    row = TDDifficultySetting.query.get("default")
+    if not row:
+        row = TDDifficultySetting(key="default", enemy_tier=1)
+        db.session.add(row)
+        db.session.commit()
+    return row.enemy_tier
 
 
 @towerdefense_bp.route("/towerdefense")
@@ -61,10 +84,12 @@ def index():
                 "room_id": squad_room_id, "is_host": room_obj.host_id == current_user.id,
                 "difficulty": difficulty_scale(len(members)), "member_count": len(members),
                 "roster": combined_roster, "mode": mode,
+                "start_gold": START_GOLD * max(1, len(members)),  # 人数分だけ初期資金も増やす
             }
 
     if squad_info:
         roster = squad_info["roster"]
+        start_gold = squad_info["start_gold"]
     else:
         owned_rows = UserCharacter.query.filter_by(user_id=current_user.id).all()
         roster = []
@@ -73,7 +98,8 @@ def index():
             if info:
                 info["count"] = row.count
                 roster.append(info)
-        roster.sort(key=lambda c: (-ch.RARITY_ORDER.index(c["rarity"]), -c["attack"]))
+        roster.sort(key=lambda c: c["cost"])  # 安いキャラクターから順に並べ、序盤から選びやすくする
+        start_gold = START_GOLD
 
     recent_runs = (
         TowerDefenseRun.query.filter_by(user_id=current_user.id)
@@ -90,9 +116,11 @@ def index():
     else:
         max_speed = 1
 
+    enemy_tier_mult = enemy_tier_multiplier(get_enemy_tier())
+
     return render_template(
-        "towerdefense.html", roster=roster, modes=TD_MODES, current_mode=mode, max_team_size=MAX_TEAM_SIZE,
-        recent_runs=recent_runs, squad_info=squad_info, max_speed=max_speed
+        "towerdefense.html", roster=roster, modes=TD_MODES, current_mode=mode, start_gold=start_gold,
+        recent_runs=recent_runs, squad_info=squad_info, max_speed=max_speed, enemy_tier_mult=enemy_tier_mult
     )
 
 
@@ -116,7 +144,7 @@ def complete():
 
     # 実際に所持しているキャラクターだけが使われたかを検証する(不正防止)
     owned_keys = {c.character_key for c in UserCharacter.query.filter_by(user_id=current_user.id).all()}
-    if not all(k in owned_keys for k in used_keys) or len(used_keys) > MAX_TEAM_SIZE:
+    if not all(k in owned_keys for k in used_keys) or len(used_keys) > MAX_PLACEMENTS_SAFETY_CAP:
         return jsonify({"error": "使用キャラクターの検証に失敗しました。"}), 400
 
     waves_cleared = max(0, waves_cleared)

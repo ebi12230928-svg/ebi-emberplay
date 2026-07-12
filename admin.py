@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -86,6 +86,9 @@ def dashboard():
 
     active_polls = Poll.query.filter_by(is_active=True).order_by(Poll.created_at.desc()).all()
 
+    from towerdefense import get_enemy_tier, enemy_tier_multiplier, ENEMY_TIER_LABELS
+    current_enemy_tier = get_enemy_tier()
+
     from config import Config
 
     return render_template(
@@ -94,7 +97,9 @@ def dashboard():
         giveaways=giveaways, events=events, vip_tier_names=Config.VIP_TIER_NAMES, pending_tips=pending_tips,
         gacha_settings=gacha_settings, character_choices=character_choices, rarity_names=ch.RARITY_NAMES,
         rarity_order=ch.RARITY_ORDER,
-        current_season=current_season, active_polls=active_polls
+        current_season=current_season, active_polls=active_polls,
+        current_enemy_tier=current_enemy_tier, enemy_tier_multiplier=enemy_tier_multiplier,
+        enemy_tier_labels=ENEMY_TIER_LABELS
     )
 
 
@@ -781,6 +786,33 @@ def grant_character():
         pass
 
     flash(f"{user.username} に「{info['name']}」を{count}体付与しました(所持数: {row.count})。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/set-enemy-tier", methods=["POST"])
+@login_required
+@admin_required
+def set_enemy_tier():
+    try:
+        tier = int(request.form.get("enemy_tier", "1"))
+    except ValueError:
+        flash("強さの段階は数値で指定してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if not (1 <= tier <= 10):
+        flash("強さの段階は1〜10の範囲で指定してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    row = TDDifficultySetting.query.get("default")
+    if not row:
+        row = TDDifficultySetting(key="default")
+        db.session.add(row)
+    row.enemy_tier = tier
+    db.session.commit()
+
+    from towerdefense import enemy_tier_multiplier
+    mult = enemy_tier_multiplier(tier)
+    flash(f"タワーディフェンスの敵の強さを 段階{tier}(敵のHP・攻撃力・数が約{mult}倍)に設定しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

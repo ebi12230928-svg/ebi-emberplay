@@ -607,6 +607,15 @@ class GachaSetting(db.Model):
     cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
 
 
+class TDDifficultySetting(db.Model):
+    """
+    管理者が設定するタワーディフェンスの敵の強さ(1〜10段階、KVストア形式)。
+    1段階目が現在のバランス、10段階目に近づくほど敵のHP・攻撃力・数が強化される。
+    """
+    key = db.Column(db.String(32), primary_key=True)
+    enemy_tier = db.Column(db.Integer, default=1, nullable=False)
+
+
 class UserCharacter(db.Model):
     """ガチャで入手したキャラクターの所持状況。重複取得でcountが増え、レベルアップに使われる"""
     id = db.Column(db.Integer, primary_key=True)
