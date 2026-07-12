@@ -608,6 +608,42 @@ class GachaSetting(db.Model):
     cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
 
 
+class CardRoom(db.Model):
+    """
+    トランプ(大富豪・ババ抜き・スピード)をフレンドと遊ぶための部屋。
+    参加コードで誰でも入室でき、オーナーがゲーム種類・ルールを決める。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(8), unique=True, nullable=False, index=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    game_type = db.Column(db.String(16), default="daifugo", nullable=False)  # daifugo / babanuki / speed
+    status = db.Column(db.String(16), default="waiting", nullable=False)  # waiting / playing / finished
+    rules_json = db.Column(db.Text, default="{}", nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    owner = db.relationship("User")
+
+
+class CardRoomPlayer(db.Model):
+    """トランプルームの参加者(着席順を管理)"""
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    seat_index = db.Column(db.Integer, nullable=False)
+    joined_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("room_id", "user_id", name="uq_card_room_player"),)
+
+
+class CardGameState(db.Model):
+    """トランプの対局状態(手札・場札・手番など)をJSONで保持する"""
+    room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), primary_key=True)
+    state_json = db.Column(db.Text, default="{}", nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
 class PlayerSpell(db.Model):
     """RPGボス討伐で入手した魔法(スペル)の所持数。戦闘中にボタンで使用できる"""
     id = db.Column(db.Integer, primary_key=True)
