@@ -205,15 +205,24 @@
   function renderPlacementRoster() {
     placementRoster.innerHTML = "";
     selectedCharacters.forEach((c) => {
-      const isPlaced = placedTowers.some((t) => t.uid === c.uid);
+      // ゴールドさえあれば、同じキャラクターを何度でも(盤面の空きがある限り)配置できるようにする
+      const placedCount = placedTowers.filter((t) => t.realKey === c.realKey).length;
       const canAfford = gold >= c.cost;
+      const boardFull = tdGrid.querySelectorAll(".td-cell.buildable").length === 0;
+      const canPlace = canAfford && !boardFull;
       const el = document.createElement("div");
-      el.className = "panel td-roster-item" + (isPlaced ? " placed" : "") + (!isPlaced && !canAfford ? " unaffordable" : "");
+      el.className = "panel td-roster-item" + (!canPlace ? " unaffordable" : "");
       el.style.cssText = "flex: 0 0 68px; text-align:center; padding: 8px; border-color:" + c.color;
-      const costColor = canAfford ? "var(--gold)" : "var(--text-muted)";
-      const shortfall = !isPlaced && !canAfford ? `<div style="font-size:9px; color: var(--loss);">あと💰${c.cost - gold}足りません</div>` : "";
-      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div><div class="mono" style="font-size:10px; color:${costColor};">💰${c.cost}</div>${shortfall}`;
-      if (!isPlaced && canAfford) {
+      const costColor = canPlace ? "var(--gold)" : "var(--text-muted)";
+      let shortfall = "";
+      if (!canAfford) {
+        shortfall = `<div style="font-size:9px; color: var(--loss);">あと💰${c.cost - gold}足りません</div>`;
+      } else if (boardFull) {
+        shortfall = `<div style="font-size:9px; color: var(--loss);">盤面が満杯です</div>`;
+      }
+      const placedBadge = placedCount > 0 ? `<div class="mono text-muted" style="font-size:9px;">設置数: ${placedCount}</div>` : "";
+      el.innerHTML = `<div style="font-size:22px;">${c.icon}</div><div style="font-size:9px;">${c.name}</div><div style="font-size:10px;">${abilityIcons(c.abilities)}</div><div class="mono" style="font-size:10px; color:${costColor};">💰${c.cost}</div>${placedBadge}${shortfall}`;
+      if (canPlace) {
         el.addEventListener("click", () => {
           activePlacementChar = c;
           Array.from(placementRoster.children).forEach((child) => child.style.outline = "none");
@@ -237,22 +246,20 @@
     updateGoldDisplay();
     pushLog(`🧩 ${activePlacementChar.icon}${activePlacementChar.name} を配置(💰${activePlacementChar.cost}消費、残り${gold})`, "var(--gold)");
 
-    activePlacementChar.uid = activePlacementChar.uid || `u${uidCounter++}`;
-    placedTowers.push({
-      ...activePlacementChar, row, col, cooldownLeft: 0, level: 0,
-    });
+    const newUid = `u${uidCounter++}`; // 配置するたびに新しいIDを発行する(同じキャラを何度でも置けるように)
+    const placedChar = { ...activePlacementChar, uid: newUid, row, col, cooldownLeft: 0, level: 0 };
+    placedTowers.push(placedChar);
 
     const towerEl = document.createElement("div");
     towerEl.className = "td-tower";
     towerEl.innerHTML = `<span class="td-tower-icon">${activePlacementChar.icon}</span><span class="td-tower-lv">Lv1</span>`;
     towerEl.style.borderColor = activePlacementChar.color;
-    towerEl.dataset.uid = activePlacementChar.uid;
+    towerEl.dataset.uid = newUid;
     cellEl.appendChild(towerEl);
     cellEl.classList.remove("buildable");
-    const placedUid = activePlacementChar.uid;
     towerEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      openUpgradePanel(placedUid);
+      openUpgradePanel(newUid);
     });
 
     activePlacementChar = null;
