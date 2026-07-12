@@ -9,7 +9,8 @@
   const MAX_LIVES = 30; // regenアビリティでの回復上限
   const START_GOLD = 200;
   const SQUAD = window.TD_SQUAD || null;
-  const DIFFICULTY = (SQUAD ? SQUAD.difficulty : 1.0) * MODE_CFG.hp_mult;
+  const ENEMY_TIER_MULT = window.TD_ENEMY_TIER_MULT || 1.0;
+  const DIFFICULTY = (SQUAD ? SQUAD.difficulty : 1.0) * MODE_CFG.hp_mult * ENEMY_TIER_MULT;
 
   const hudWaveTotal = document.getElementById("hud-wave-total");
   if (hudWaveTotal) hudWaveTotal.textContent = TOTAL_WAVES !== null ? ` / ${TOTAL_WAVES}` : "(エンドレス)";
@@ -38,6 +39,7 @@
   const selectedCountEl = document.getElementById("selected-count");
   const toPlacementBtn = document.getElementById("to-placement-btn");
   const placementScreen = document.getElementById("placement-screen");
+  const rosterPanel = document.getElementById("roster-panel");
   const placementRoster = document.getElementById("placement-roster");
   const tdGrid = document.getElementById("td-grid");
   const tdBattlefield = document.getElementById("td-battlefield");
@@ -130,6 +132,7 @@
     });
     setupScreen.style.display = "none";
     placementScreen.style.display = "block";
+    if (rosterPanel) rosterPanel.style.display = "block";
     if (tdBattlefield) tdBattlefield.style.display = "block";
     buildGrid();
     renderPlacementRoster();
@@ -154,6 +157,7 @@
     toPlacementBtn.addEventListener("click", () => {
       setupScreen.style.display = "none";
       placementScreen.style.display = "block";
+      if (rosterPanel) rosterPanel.style.display = "block";
       if (tdBattlefield) tdBattlefield.style.display = "block";
       buildGrid();
       renderPlacementRoster();
