@@ -8,15 +8,56 @@
     width: 100%;
     aspect-ratio: 8 / 5;
   }
+  #td-battlefield.td-shake { animation: td-screen-shake 0.3s ease; }
+  @keyframes td-screen-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-4px, 3px); }
+    40% { transform: translate(4px, -3px); }
+    60% { transform: translate(-3px, -2px); }
+    80% { transform: translate(3px, 2px); }
+  }
+  #td-scene-bg {
+    position: absolute; inset: 0; border-radius: 12px; overflow: hidden; z-index: 0;
+    background: linear-gradient(180deg, #2a3d52 0%, #3d5a3f 55%, #26361f 100%);
+  }
+  #td-scene-bg::before, #td-scene-bg::after {
+    content: ""; position: absolute; border-radius: 50%; background: rgba(255,255,255,0.12);
+    filter: blur(2px); animation: td-cloud-drift 26s linear infinite;
+  }
+  #td-scene-bg::before { width: 90px; height: 22px; top: 8%; left: -20%; animation-duration: 22s; }
+  #td-scene-bg::after { width: 130px; height: 28px; top: 18%; left: -30%; animation-duration: 32s; animation-delay: -10s; }
+  @keyframes td-cloud-drift {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(700px); }
+  }
+  #td-vignette {
+    position: absolute; inset: 0; border-radius: 12px; pointer-events: none; z-index: 40;
+    box-shadow: inset 0 0 60px 14px rgba(0,0,0,0.55);
+    background: linear-gradient(180deg, rgba(0,0,0,0.18), transparent 18%, transparent 82%, rgba(0,0,0,0.25));
+  }
+  #td-ambient-particles {
+    position: absolute; inset: 0; border-radius: 12px; pointer-events: none; overflow: hidden; z-index: 2;
+  }
+  .td-ember-particle {
+    position: absolute; bottom: -5%; width: 4px; height: 4px; border-radius: 50%;
+    background: radial-gradient(circle, #ffd7a1, var(--ember)); opacity: 0.8;
+    animation: td-ember-rise linear infinite;
+  }
+  @keyframes td-ember-rise {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.85; }
+    100% { transform: translateY(-115%) translateX(var(--drift, 10px)); opacity: 0; }
+  }
   #td-grid {
     position: absolute; inset: 0;
-    background: #16211c;
+    background: transparent;
     border-radius: 12px;
     border: 1px solid var(--panel-border);
     overflow: hidden; /* マス目・タワー・敵の見た目はここで綺麗に切り抜く */
     display: grid;
     grid-template-columns: repeat(8, 1fr);
     grid-template-rows: repeat(5, 1fr);
+    z-index: 1;
   }
   #td-fx-layer {
     position: absolute; inset: 0;
@@ -221,8 +262,11 @@
     <div id="placement-roster" style="display:flex; gap: 8px; margin-top: 10px; overflow-x:auto;"></div>
   </div>
   <div id="td-battlefield">
+    <div id="td-scene-bg"></div>
     <div id="td-grid"></div>
+    <div id="td-ambient-particles"></div>
     <div id="td-fx-layer"></div>
+    <div id="td-vignette"></div>
   </div>
   <div id="upgrade-panel" style="display:none;"></div>
   <button class="btn btn-ember btn-block" id="start-wave-btn" style="margin-top: 12px;" disabled>ウェーブ開始!</button>
