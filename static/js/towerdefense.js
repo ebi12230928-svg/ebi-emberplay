@@ -338,10 +338,13 @@
         count: 1, hp: Math.round(9000 * DIFFICULTY), speed: 0.65, spawnInterval: 0, livesCost: 8, isBoss: true,
       };
     }
-    const count = Math.round((5 + wave) * (1 + (DIFFICULTY - 1) * 0.5));
+    // 敵の「数」は、強さ倍率が非常に大きくなっても際限なく増えないよう上限を設ける
+    // (強さ倍率をそのまま数に反映すると、高倍率設定時に大量の敵が同時発生してブラウザが固まってしまうため)
+    const countDifficulty = Math.min(DIFFICULTY, 3); // 数への影響は最大3倍相当までで頭打ち
+    const count = Math.round((5 + wave) * (1 + (countDifficulty - 1) * 0.5));
     const hp = Math.round((18 + wave * 7) * DIFFICULTY);
     const speed = 0.9 + wave * 0.035; // セル/秒
-    const spawnInterval = Math.max(0.2, (0.75 - wave * 0.025) / Math.max(1, DIFFICULTY * 0.7));
+    const spawnInterval = Math.max(0.2, 0.75 - wave * 0.025); // 強さ倍率の影響を受けないようにする
     const livesCost = wave % 4 === 0 ? 2 : 1; // 4の倍数のウェーブは強敵で被害2倍
     return { count, hp, speed, spawnInterval, livesCost };
   }
