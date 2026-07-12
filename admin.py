@@ -86,8 +86,9 @@ def dashboard():
 
     active_polls = Poll.query.filter_by(is_active=True).order_by(Poll.created_at.desc()).all()
 
-    from towerdefense import get_enemy_tier, enemy_tier_multiplier, ENEMY_TIER_LABELS
+    from towerdefense import get_enemy_tier, enemy_tier_multiplier, ENEMY_TIER_LABELS, get_reward_multiplier
     current_enemy_tier = get_enemy_tier()
+    current_reward_multiplier = get_reward_multiplier()
 
     from config import Config
 
@@ -99,6 +100,7 @@ def dashboard():
         rarity_order=ch.RARITY_ORDER,
         current_season=current_season, active_polls=active_polls,
         current_enemy_tier=current_enemy_tier, enemy_tier_multiplier=enemy_tier_multiplier,
+        current_reward_multiplier=current_reward_multiplier,
         enemy_tier_labels=ENEMY_TIER_LABELS
     )
 
@@ -252,6 +254,30 @@ def toggle_admin():
     user.is_admin = not user.is_admin
     db.session.commit()
     flash(f"{user.username} の管理者権限を{'付与' if user.is_admin else '解除'}しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/toggle-blacklist", methods=["POST"])
+@login_required
+@admin_required
+def toggle_blacklist():
+    username = request.form.get("username", "").strip()
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if user.id == current_user.id:
+        flash("自分自身をブラックリストに登録することはできません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    user.is_blacklisted = not user.is_blacklisted
+    db.session.commit()
+
+    if user.is_blacklisted:
+        flash(f"{user.username} をブラックリストに登録しました。以降、何をしても残高が増えなくなります。", "success")
+    else:
+        flash(f"{user.username} のブラックリスト登録を解除しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 
@@ -795,12 +821,16 @@ def grant_character():
 def set_enemy_tier():
     try:
         tier = int(request.form.get("enemy_tier", "1"))
+        reward_mult = float(request.form.get("reward_multiplier", "1.0"))
     except ValueError:
-        flash("強さの段階は数値で指定してください。", "error")
+        flash("数値の指定が不正です。", "error")
         return redirect(url_for("admin.dashboard"))
 
     if not (1 <= tier <= 10):
         flash("強さの段階は1〜10の範囲で指定してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if reward_mult < 0:
+        flash("報酬倍率は0以上で指定してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
     row = TDDifficultySetting.query.get("default")
@@ -808,11 +838,12 @@ def set_enemy_tier():
         row = TDDifficultySetting(key="default")
         db.session.add(row)
     row.enemy_tier = tier
+    row.reward_multiplier = reward_mult
     db.session.commit()
 
     from towerdefense import enemy_tier_multiplier
     mult = enemy_tier_multiplier(tier)
-    flash(f"タワーディフェンスの敵の強さを 段階{tier}(敵のHP・攻撃力・数が約{mult}倍)に設定しました。", "success")
+    flash(f"敵の強さを段階{tier}(約{mult}倍)、勝利報酬を{reward_mult}倍に設定しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

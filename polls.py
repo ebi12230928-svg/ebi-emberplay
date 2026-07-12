@@ -67,7 +67,8 @@ def vote(poll_id):
     db.session.add(PollVote(poll_id=poll_id, user_id=current_user.id, option_index=option_index))
 
     if poll.reward > 0:
-        current_user.balance += poll.reward
+        from games.common import credit_reward
+        credit_reward(current_user, poll.reward)
         db.session.add(Transaction(
             user_id=current_user.id, amount=poll.reward, kind="poll_reward",
             description=f"アンケート回答謝礼: {poll.question[:30]}"

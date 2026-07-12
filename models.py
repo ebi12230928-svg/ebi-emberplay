@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_vip = db.Column(db.Boolean, default=False, nullable=False)
     vip_tier = db.Column(db.Integer, default=1, nullable=False)  # 1=Bronze 2=Silver 3=Gold 4=Diamond(is_vip=Trueの時だけ意味を持つ)
+    is_blacklisted = db.Column(db.Boolean, default=False, nullable=False)  # Trueの間、何をしても残高が増えなくなる
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -607,13 +608,25 @@ class GachaSetting(db.Model):
     cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
 
 
+class PlayerSpell(db.Model):
+    """RPGボス討伐で入手した魔法(スペル)の所持数。戦闘中にボタンで使用できる"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    spell_key = db.Column(db.String(32), nullable=False)
+    count = db.Column(db.Integer, default=1, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "spell_key", name="uq_player_spell"),)
+
+
 class TDDifficultySetting(db.Model):
     """
-    管理者が設定するタワーディフェンスの敵の強さ(1〜10段階、KVストア形式)。
+    管理者が設定するタワーディフェンスの敵の強さ(1〜10段階)と、報酬倍率(KVストア形式)。
     1段階目が現在のバランス、10段階目に近づくほど敵のHP・攻撃力・数が強化される。
+    reward_multiplierは、勝利時に得られるゴールド・Embersの量を調整する倍率。
     """
     key = db.Column(db.String(32), primary_key=True)
     enemy_tier = db.Column(db.Integer, default=1, nullable=False)
+    reward_multiplier = db.Column(db.Float, default=1.0, nullable=False)
 
 
 class UserCharacter(db.Model):

@@ -18,6 +18,7 @@ import characters as ch
 towerdefense_bp = Blueprint("towerdefense", __name__)
 
 START_GOLD = 200  # 初期資金。ここから、キャラクターごとに決まった金額を払って配置していく
+MAX_TEAM_SIZE = 10  # 出撃メンバーとして選べる「種類」の上限(1種類につき、ゴールドがあれば何体でも配置可能)
 MAX_PLACEMENTS_SAFETY_CAP = 40  # 不正防止用の安全な上限(通常のプレイでは到達しない想定)
 
 # waves=Noneはエンドレス(上限なし)を意味する。lastbossは1ウェーブだけ、非常に頑丈な敵1体と戦う特別な形式
@@ -29,16 +30,18 @@ TD_MODES = {
 }
 ENDLESS_REWARD_CAP_WAVES = 60  # 経済保護のため、報酬計算上はこのウェーブ数で頭打ちにする
 
-# 管理者が設定する「敵の強さ」10段階。1段階目=現在のバランス(1.0倍)、10段階目=約5倍の強さ
+# 管理者が設定する「敵の強さ」10段階。1段階目=現在のバランス(1.0倍)、10段階目=最大10000倍の強さ(指数関数的に増加)
 ENEMY_TIER_LABELS = {
-    1: "1(現在のバランス)", 2: "2", 3: "3", 4: "4", 5: "5",
-    6: "6", 7: "7", 8: "8", 9: "9", 10: "10(かなり強い)",
+    1: "1(現在のバランス)", 2: "2(約2.8倍)", 3: "3(約7.7倍)", 4: "4(約22倍)", 5: "5(約60倍)",
+    6: "6(約167倍)", 7: "7(約464倍)", 8: "8(約1292倍)", 9: "9(約3594倍)", 10: "10(最大10000倍)",
 }
 
 
 def enemy_tier_multiplier(tier):
     tier = max(1, min(10, tier))
-    return round(1 + (tier - 1) * 0.45, 3)
+    if tier == 1:
+        return 1.0
+    return round(10000 ** ((tier - 1) / 9), 2)
 
 
 def get_enemy_tier():
@@ -48,6 +51,15 @@ def get_enemy_tier():
         db.session.add(row)
         db.session.commit()
     return row.enemy_tier
+
+
+def get_reward_multiplier():
+    row = TDDifficultySetting.query.get("default")
+    if not row:
+        row = TDDifficultySetting(key="default", enemy_tier=1, reward_multiplier=1.0)
+        db.session.add(row)
+        db.session.commit()
+    return row.reward_multiplier
 
 
 @towerdefense_bp.route("/towerdefense")
@@ -120,7 +132,8 @@ def index():
 
     return render_template(
         "towerdefense.html", roster=roster, modes=TD_MODES, current_mode=mode, start_gold=start_gold,
-        recent_runs=recent_runs, squad_info=squad_info, max_speed=max_speed, enemy_tier_mult=enemy_tier_mult
+        recent_runs=recent_runs, squad_info=squad_info, max_speed=max_speed, enemy_tier_mult=enemy_tier_mult,
+        max_team_size=MAX_TEAM_SIZE
     )
 
 
@@ -156,8 +169,10 @@ def complete():
     reward = reward_waves * cfg["reward_per_wave"]
     if victory:
         reward += cfg["victory_bonus"]
+    reward = round(reward * get_reward_multiplier())  # 管理者が設定した報酬倍率を反映
 
-    current_user.balance += reward
+    from games.common import credit_reward
+    credit_reward(current_user, reward)
     total_label = f"/{cfg['waves']}" if cfg["waves"] is not None else ""
     db.session.add(Transaction(
         user_id=current_user.id, amount=reward, kind="towerdefense",

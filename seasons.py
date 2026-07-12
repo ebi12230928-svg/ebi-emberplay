@@ -148,7 +148,8 @@ def claim_tier(tier_index):
         return jsonify({"error": "この報酬はVIP限定です。"}), 403
 
     if tier["reward_type"] == "embers":
-        current_user.balance += tier["amount"]
+        from games.common import credit_reward
+        credit_reward(current_user, tier["amount"])
         db.session.add(Transaction(
             user_id=current_user.id, amount=tier["amount"], kind="season_pass",
             description=f"シーズンパス ティア{tier_index + 1} 報酬"

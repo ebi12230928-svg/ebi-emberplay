@@ -256,7 +256,8 @@ def complete(room_id):
     members = SquadMember.query.filter_by(room_id=room_id).all()
     from models import Transaction
     for m in members:
-        m.user.balance += base_reward
+        from games.common import credit_reward
+        credit_reward(m.user, base_reward)
         db.session.add(Transaction(
             user_id=m.user_id, amount=base_reward, kind="squad_towerdefense",
             description=f"協力タワーディフェンス({cfg['label']}・{len(members)}人)の報酬"
