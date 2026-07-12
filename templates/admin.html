@@ -38,6 +38,42 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>🛠️ キャラクターのステータスを編集</h3>
+  <p style="font-size: 13px;">既存のキャラクター(「えび」など)の攻撃力・防御力・必要なお金(配置コスト)を個別に調整できます。変更したい項目だけ入力してください(空欄の項目は変更されません)。</p>
+  <form method="POST" action="{{ url_for('admin.edit_character') }}" id="edit-char-form" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0; flex: 2; min-width: 200px;">
+      <label for="edit-char-key">キャラクター</label>
+      <select id="edit-char-key" name="character_key" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+        {% set ns2 = namespace(current_rarity="") %}
+        {% for key, name, rarity in character_choices %}
+          {% if rarity != ns2.current_rarity %}
+            {% if ns2.current_rarity != "" %}</optgroup>{% endif %}
+            <optgroup label="{{ rarity_names[rarity] }}">
+            {% set ns2.current_rarity = rarity %}
+          {% endif %}
+          <option value="{{ key }}">{{ name }}</option>
+        {% endfor %}
+        </optgroup>
+      </select>
+    </div>
+    <div class="field" style="margin:0; width: 100px;">
+      <label for="edit-char-attack">攻撃力</label>
+      <input type="number" id="edit-char-attack" name="attack" step="0.1" placeholder="現在: -">
+    </div>
+    <div class="field" style="margin:0; width: 100px;">
+      <label for="edit-char-defense">防御力</label>
+      <input type="number" id="edit-char-defense" name="defense" step="0.1" placeholder="現在: -">
+    </div>
+    <div class="field" style="margin:0; width: 110px;">
+      <label for="edit-char-cost">必要なお金</label>
+      <input type="number" id="edit-char-cost" name="cost" placeholder="現在: -">
+    </div>
+    <button type="submit" class="btn btn-ember">保存</button>
+  </form>
+  <p id="edit-char-current" class="text-muted mono" style="font-size: 12px; margin-top: 8px;"></p>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>🎲 ランダムキャラクター生成</h3>
   <p style="font-size: 13px;">レアリティを選んでボタン1つで、名前・属性・攻撃力・防御力・アビリティ(能力)がランダムなキャラクターを新規生成します。生成されたキャラクターはガチャ・タワーディフェンス・RPGすべてに登場するようになります。</p>
   <form method="POST" action="{{ url_for('admin.generate_character') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
@@ -496,4 +532,39 @@
   </table>
 </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const select = document.getElementById("edit-char-key");
+    const attackInput = document.getElementById("edit-char-attack");
+    const defenseInput = document.getElementById("edit-char-defense");
+    const costInput = document.getElementById("edit-char-cost");
+    const currentEl = document.getElementById("edit-char-current");
+    if (!select) return;
+
+    async function loadCurrent() {
+      const key = select.value;
+      if (!key) return;
+      try {
+        const res = await fetch(`/admin/character-stats/${encodeURIComponent(key)}`);
+        const data = await res.json();
+        if (data.error) return;
+        attackInput.placeholder = `現在: ${data.attack}`;
+        defenseInput.placeholder = `現在: ${data.defense}`;
+        costInput.placeholder = `現在: ${data.cost}`;
+        attackInput.value = "";
+        defenseInput.value = "";
+        costInput.value = "";
+        currentEl.textContent = `${data.icon} ${data.name}(${data.rarity_label}) の現在値: 攻撃力${data.attack} / 防御力${data.defense} / 必要なお金${data.cost}`;
+      } catch (e) {
+        // 取得失敗時は何もしない(プレースホルダーは前回のまま)
+      }
+    }
+
+    select.addEventListener("change", loadCurrent);
+    loadCurrent();
+  })();
+</script>
 {% endblock %}
