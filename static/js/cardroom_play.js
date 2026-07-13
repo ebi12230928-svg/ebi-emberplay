@@ -1,7 +1,7 @@
 (function () {
   const CODE = window.CARD_ROOM_CODE;
   const GAME_TYPE = window.CARD_GAME_TYPE;
-  const CARD_GAMES = ["daifugo", "babanuki", "speed", "uno"];
+  const CARD_GAMES = ["daifugo", "babanuki", "speed", "uno", "sevens", "concentration"];
   const IS_CARD_GAME = CARD_GAMES.includes(GAME_TYPE);
 
   const turnBanner = document.getElementById("player-turn-banner");
@@ -94,6 +94,8 @@
     else if (GAME_TYPE === "babanuki") renderBabanuki(data, uidKey, myHand);
     else if (GAME_TYPE === "speed") renderSpeed(data, uidKey, myHand);
     else if (GAME_TYPE === "uno") renderUno(data, uidKey, myHand);
+    else if (GAME_TYPE === "sevens") renderSevens(data, uidKey, myHand);
+    else if (GAME_TYPE === "concentration") renderConcentration(data, uidKey);
     else renderBoardGame(data, uidKey);
   }
 
@@ -104,6 +106,9 @@
       resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>${order}`;
     } else if (GAME_TYPE === "babanuki") {
       resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>😱 ${data.names[data.loser]} の負け!`;
+    } else if (GAME_TYPE === "concentration") {
+      const scoreText = Object.keys(data.scores || {}).map((uid) => `${data.names[uid]}: ${data.scores[uid]}ペア`).join(" / ");
+      resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>${scoreText}${data.winner ? `<br>🏆 ${data.names[data.winner]} の勝ち!` : "<br>引き分けです。"}`;
     } else if (data.winner) {
       resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>🏆 ${data.names[data.winner]} の勝ち!`;
     } else if (data.is_draw) {
@@ -305,12 +310,118 @@
     }).join("");
   }
 
-  // ───────── ボードゲーム共通(五目並べ・オセロ・チェッカー・モリス・将棋) ─────────
+  // ───────── 七並べ ─────────
+  function renderSevens(data, uidKey, myHand) {
+    playBtn.style.display = "inline-block";
+    passBtn.style.display = "inline-block";
+    drawBtn.style.display = "none";
+    resignBtn.style.display = "none";
+    boardDisplay.style.display = "none";
+    cardHand.style.display = "flex";
+
+    pileDisplay.innerHTML = "";
+    const suitSymbols = ["♠", "♥", "♦", "♣"];
+    suitSymbols.forEach((sym, i) => {
+      const entry = data.table[i] || data.table[String(i)];
+      const box = document.createElement("div");
+      box.style.cssText = "text-align:center; margin: 0 6px; font-size:12px;";
+      const red = i === 1 || i === 2;
+      box.innerHTML = `<span style="color:${red ? '#dc2626' : '#fff'};">${sym}</span><br>${entry && entry.min !== null ? entry.min + "〜" + entry.max : "(7待ち)"}`;
+      pileDisplay.appendChild(box);
+    });
+
+    const isMyTurn = String(data.current_turn) === uidKey;
+    turnBanner.textContent = isMyTurn ? "🎯 あなたの番です!" : `${data.names[data.current_turn] || "?"} の番です…`;
+    turnBanner.style.color = isMyTurn ? "var(--gold)" : "";
+
+    cardHand.innerHTML = "";
+    myHand.forEach((c) => {
+      const chip = renderCardChip(c, { selected: selectedCards.includes(c) });
+      chip.addEventListener("click", () => {
+        selectedCards = selectedCards.includes(c) ? [] : [c];
+        renderSevens(data, uidKey, myHand);
+      });
+      cardHand.appendChild(chip);
+    });
+
+    playBtn.disabled = !isMyTurn || selectedCards.length !== 1;
+    passBtn.disabled = !isMyTurn;
+    playBtn.onclick = async () => {
+      try {
+        await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "play", card: selectedCards[0] });
+        selectedCards = []; fetchState();
+      } catch (err) { alert(err.message); }
+    };
+    passBtn.onclick = async () => {
+      try { await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "pass" }); fetchState(); }
+      catch (err) { alert(err.message); }
+    };
+
+    playersStatus.innerHTML = data.turn_order.map((uid) => {
+      const status = String(uid) === String(data.current_turn) ? "🎯手番" : "";
+      const cnt = data.hands[uid] ? data.hands[uid].length : 0;
+      return `<div style="display:flex; justify-content:space-between; padding:4px 0;"><span>${data.names[uid]}</span><span class="mono text-muted">${status} ${cnt}枚</span></div>`;
+    }).join("");
+  }
+
+  // ───────── 神経衰弱 ─────────
+  function renderConcentration(data, uidKey) {
+    playBtn.style.display = "none";
+    passBtn.style.display = "none";
+    drawBtn.style.display = "none";
+    resignBtn.style.display = "none";
+    boardDisplay.style.display = "block";
+    cardHand.style.display = "none";
+    pileDisplay.innerHTML = "";
+    centerDisplay.innerHTML = "";
+
+    const isMyTurn = String(data.current_turn) === uidKey;
+    turnBanner.textContent = isMyTurn ? "🎯 あなたの番です!2枚めくろう" : `${data.names[data.current_turn] || "?"} の番です…`;
+    turnBanner.style.color = isMyTurn ? "var(--gold)" : "";
+
+    boardDisplay.innerHTML = "";
+    const grid = document.createElement("div");
+    grid.className = "board-grid";
+    grid.style.gridTemplateColumns = "repeat(8, 1fr)";
+    grid.style.maxWidth = "420px";
+
+    for (let i = 0; i < 52; i++) {
+      const cell = document.createElement("div");
+      cell.className = "board-cell";
+      cell.style.fontSize = "16px";
+      if (data.matched[i]) {
+        cell.innerHTML = "✅";
+        cell.style.opacity = "0.35";
+      } else if (data.revealed_positions.includes(i)) {
+        const card = data.revealed_cards[String(i)];
+        const chip = renderCardChip(card);
+        chip.style.margin = "0";
+        cell.appendChild(chip);
+      } else {
+        cell.innerHTML = '<span style="opacity:0.6;">🂠</span>';
+        cell.addEventListener("click", async () => {
+          if (!isMyTurn) return;
+          try { await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "flip", position: i }); fetchState(); }
+          catch (err) { alert(err.message); }
+        });
+      }
+      grid.appendChild(cell);
+    }
+    boardDisplay.appendChild(grid);
+
+    playersStatus.innerHTML = data.turn_order.map((uid) => {
+      const status = String(uid) === String(data.current_turn) ? "🎯手番" : "";
+      const score = (data.scores && data.scores[uid]) || 0;
+      return `<div style="display:flex; justify-content:space-between; padding:4px 0;"><span>${data.names[uid]}</span><span class="mono text-muted">${status} ${score}ペア</span></div>`;
+    }).join("");
+  }
+
+  // ───────── ボードゲーム共通(五目並べ・オセロ・チェッカー・モリス・将棋・三目並べ・コネクトフォー・チェス) ─────────
   function renderBoardGame(data, uidKey) {
     playBtn.style.display = "none";
     passBtn.style.display = GAME_TYPE === "othello" ? "inline-block" : "none";
     drawBtn.style.display = "none";
-    resignBtn.style.display = GAME_TYPE === "shogi" ? "inline-block" : "none";
+    resignBtn.style.display = (GAME_TYPE === "shogi" || GAME_TYPE === "chess") ? "inline-block" : "none";
     boardDisplay.style.display = "block";
     cardHand.style.display = "none";
     pileDisplay.innerHTML = "";
@@ -322,6 +433,8 @@
 
     if (GAME_TYPE === "morris") renderMorris(data, uidKey, isMyTurn);
     else if (GAME_TYPE === "shogi") renderShogi(data, uidKey, isMyTurn);
+    else if (GAME_TYPE === "chess") renderChess(data, uidKey, isMyTurn);
+    else if (GAME_TYPE === "connect4") renderConnect4(data, uidKey, isMyTurn);
     else renderGridBoard(data, uidKey, isMyTurn);
 
     passBtn.onclick = async () => {
@@ -339,7 +452,7 @@
     ).join("");
   }
 
-  const GRID_SYMBOLS = { gomoku: ["⚫", "⚪"], othello: ["⚫", "⚪"], checkers: ["🔴", "🔵"] };
+  const GRID_SYMBOLS = { gomoku: ["⚫", "⚪"], othello: ["⚫", "⚪"], checkers: ["🔴", "🔵"], tictactoe: ["❌", "⭕"] };
 
   function renderGridBoard(data, uidKey, isMyTurn) {
     const board = data.board;
@@ -451,6 +564,76 @@
       await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "move", from_point: from, to_point: point });
       fetchState();
     } catch (err) { alert(err.message); selectedBoardCell = null; render(data); }
+  }
+
+  // コネクトフォー: 列をタップして落とす
+  function renderConnect4(data, uidKey, isMyTurn) {
+    boardDisplay.innerHTML = "";
+    const board = data.board;
+    const grid = document.createElement("div");
+    grid.className = "board-grid";
+    grid.style.gridTemplateColumns = "repeat(7, 1fr)";
+    const symbols = ["🔴", "🟡"];
+
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 7; c++) {
+        const cell = document.createElement("div");
+        cell.className = "board-cell";
+        const val = board[r][c];
+        if (val !== null && val !== undefined) cell.innerHTML = `<span class="piece-token">${symbols[val]}</span>`;
+        cell.addEventListener("click", async () => {
+          if (!isMyTurn) return;
+          try { await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "place", col: c }); fetchState(); }
+          catch (err) { alert(err.message); }
+        });
+        grid.appendChild(cell);
+      }
+    }
+    boardDisplay.appendChild(grid);
+  }
+
+  // チェス
+  const CHESS_LABELS = { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚" };
+
+  function renderChess(data, uidKey, isMyTurn) {
+    boardDisplay.innerHTML = "";
+    const owner = data.turn_order.indexOf(parseInt(uidKey, 10));
+    const grid = document.createElement("div");
+    grid.className = "board-grid";
+    grid.style.gridTemplateColumns = "repeat(8, 1fr)";
+
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const cell = document.createElement("div");
+        cell.className = "board-cell";
+        cell.style.fontSize = "22px";
+        const piece = data.board[r][c];
+        if (piece) {
+          const label = CHESS_LABELS[piece.type] || piece.type;
+          cell.innerHTML = `<span class="piece-token" style="color:${piece.owner === 0 ? '#fff' : '#111'}; -webkit-text-stroke: 0.5px #888;">${label}</span>`;
+        }
+        if (selectedBoardCell && selectedBoardCell[0] === r && selectedBoardCell[1] === c) cell.classList.add("selected");
+        cell.addEventListener("click", () => handleChessClick(data, r, c, owner, isMyTurn));
+        grid.appendChild(cell);
+      }
+    }
+    boardDisplay.appendChild(grid);
+  }
+
+  async function handleChessClick(data, r, c, owner, isMyTurn) {
+    if (!isMyTurn) return;
+    if (!selectedBoardCell) {
+      const piece = data.board[r][c];
+      if (piece && piece.owner === owner) { selectedBoardCell = [r, c]; render(data); }
+      return;
+    }
+    const [fr, fc] = selectedBoardCell;
+    selectedBoardCell = null;
+    if (fr === r && fc === c) { render(data); return; }
+    try {
+      await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "move", from_r: fr, from_c: fc, to_r: r, to_c: c });
+      fetchState();
+    } catch (err) { alert(err.message); render(data); }
   }
 
   // 将棋
