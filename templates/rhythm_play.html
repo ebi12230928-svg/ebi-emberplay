@@ -3,7 +3,7 @@
 
 {% block head %}
 <style>
-  #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: manipulation; }
   #rhythm-lanes { position: absolute; inset: 0; display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); }
   .rhythm-lane { position: relative; border-left: 1px solid rgba(255,255,255,0.08); }
   .rhythm-hitline { position: absolute; bottom: 50px; left:0; right:0; height: 3px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
@@ -11,10 +11,21 @@
     position: absolute; left: 6px; right: 6px; height: 22px; border-radius: 6px;
     background: linear-gradient(180deg, var(--ember-bright), var(--ember)); box-shadow: 0 2px 6px rgba(0,0,0,0.5);
   }
+  .rhythm-note.rhythm-note-hold {
+    height: 22px;
+  }
+  .rhythm-note.rhythm-note-hold::before {
+    content: ""; position: absolute; left: 20%; right: 20%; bottom: 100%; height: var(--tail-length, 40%);
+    background: linear-gradient(180deg, rgba(232,89,12,0.15), rgba(232,89,12,0.55));
+    border-radius: 4px 4px 0 0;
+  }
+  .rhythm-note.holding {
+    background: linear-gradient(180deg, var(--gold), var(--ember)); box-shadow: 0 0 14px rgba(212,162,78,0.8);
+  }
   .rhythm-judge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 800; animation: rhythm-judge-pop 0.4s ease forwards; white-space: nowrap; }
   @keyframes rhythm-judge-pop { 0% { opacity:1; transform: translateX(-50%) translateY(0); } 100% { opacity:0; transform: translateX(-50%) translateY(-20px); } }
-  #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; }
-  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; position: relative; overflow: visible; }
+  #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; touch-action: manipulation; }
+  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; position: relative; overflow: visible; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
   .rhythm-tap-btn:active { background: var(--ember); }
   .rhythm-tap-btn.hit-perfect { animation: rhythm-btn-flash-perfect 0.3s ease; }
   .rhythm-tap-btn.hit-good { animation: rhythm-btn-flash-good 0.3s ease; }
@@ -63,6 +74,15 @@
   #rhythm-game-container:-webkit-full-screen #rhythm-stage {
     height: 50vh;
   }
+
+  /* iOS Safari等、要素単位のFullscreen APIに対応していないブラウザ向けの疑似フルスクリーン */
+  #rhythm-game-container.pseudo-fullscreen {
+    position: fixed; inset: 0; z-index: 9999; background: var(--bg);
+    padding: 16px; display: flex; flex-direction: column; justify-content: center;
+    overflow-y: auto;
+  }
+  #rhythm-game-container.pseudo-fullscreen #rhythm-stage { height: 45vh; }
+  body.pseudo-fullscreen-active { overflow: hidden; }
 </style>
 {% endblock %}
 
@@ -122,7 +142,9 @@
     btn.className = "rhythm-tap-btn";
     btn.textContent = "👆";
     btn.dataset.lane = i;
-    btn.addEventListener("click", () => tapLane(i));
+    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); pressLane(i); });
+    btn.addEventListener("pointerup", (e) => { e.preventDefault(); releaseLane(i); });
+    btn.addEventListener("pointercancel", () => releaseLane(i));
     tapButtonsEl.appendChild(btn);
   }
 
@@ -155,8 +177,13 @@
       if (t >= note.time - NOTE_TRAVEL_TIME) {
         note._spawned = true;
         const el = document.createElement("div");
-        el.className = "rhythm-note";
+        el.className = "rhythm-note" + (note.hold ? " rhythm-note-hold" : "");
         el.style.top = "-24px";
+        if (note.hold) {
+          // ホールド時間の長さに応じて、ノーツの上に伸びる「尻尾」を表示する
+          const tailLength = (note.hold / NOTE_TRAVEL_TIME) * 100;
+          el.style.setProperty("--tail-length", tailLength + "%");
+        }
         lanesEl.children[note.lane].appendChild(el);
         noteElements.push({ note, el, judged: false });
       }
@@ -166,6 +193,16 @@
     const hitlineY = stageHeight - 50;
     noteElements.forEach((n) => {
       if (n.judged) return;
+
+      if (n.holding) {
+        // 長押し中は判定ラインに固定表示し、離さずに最後まで到達したら自動で成功にする
+        n.el.style.top = hitlineY + "px";
+        if (t >= n.note.time + n.note.hold) {
+          resolveHit(n, n.note.lane, n.holdStartDiff);
+        }
+        return;
+      }
+
       const progress = (t - (n.note.time - NOTE_TRAVEL_TIME)) / NOTE_TRAVEL_TIME;
       const y = progress * hitlineY;
       n.el.style.top = y + "px";
@@ -227,58 +264,114 @@
     btn.classList.add(perfect ? "hit-perfect" : "hit-good");
   }
 
-  function tapLane(lane) {
-    const t = currentTime();
-    let best = null, bestDiff = Infinity;
-    noteElements.forEach((n) => {
-      if (n.judged || n.note.lane !== lane) return;
-      const diff = Math.abs(t - n.note.time);
-      if (diff < bestDiff) { bestDiff = diff; best = n; }
-    });
-
-    if (best && bestDiff <= HIT_WINDOW) {
-      best.judged = true;
-      best.el.remove();
-      noteElements = noteElements.filter((n) => n !== best);
-      const perfect = bestDiff <= HIT_WINDOW * 0.4;
-      combo += 1;
-      maxCombo = Math.max(maxCombo, combo);
-      score += perfect ? 300 : 150;
-      scoreDisplay.textContent = String(score);
-      comboDisplay.textContent = String(combo);
-      showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
-
-      // 成功時の演出一式
-      spawnHitBurst(lane);
-      flashTapButton(lane, perfect);
-      if (combo > 0 && combo % 10 === 0) {
-        comboDisplay.classList.remove("combo-milestone");
-        void comboDisplay.offsetWidth;
-        comboDisplay.classList.add("combo-milestone");
-      }
+  function resolveHit(n, lane, bestDiff) {
+    n.judged = true;
+    n.el.remove();
+    noteElements = noteElements.filter((x) => x !== n);
+    const perfect = bestDiff <= HIT_WINDOW * 0.4;
+    combo += 1;
+    maxCombo = Math.max(maxCombo, combo);
+    score += perfect ? 300 : 150;
+    scoreDisplay.textContent = String(score);
+    comboDisplay.textContent = String(combo);
+    showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
+    spawnHitBurst(lane);
+    flashTapButton(lane, perfect);
+    if (combo > 0 && combo % 10 === 0) {
+      comboDisplay.classList.remove("combo-milestone");
+      void comboDisplay.offsetWidth;
+      comboDisplay.classList.add("combo-milestone");
     }
   }
 
-  // ───────── フルスクリーン切り替え ─────────
+  function pressLane(lane) {
+    const t = currentTime();
+    let best = null, bestDiff = Infinity;
+    noteElements.forEach((n) => {
+      if (n.judged || n.holding || n.note.lane !== lane) return;
+      const diff = Math.abs(t - n.note.time);
+      if (diff < bestDiff) { bestDiff = diff; best = n; }
+    });
+    if (!best || bestDiff > HIT_WINDOW) return;
+
+    if (best.note.hold) {
+      // ロングノーツ: 押しっぱなしにする。判定はreleaseLane、または離さずに最後まで到達した時に行う
+      best.holding = true;
+      best.holdStartDiff = bestDiff;
+      best.el.classList.add("holding");
+    } else {
+      resolveHit(best, lane, bestDiff);
+    }
+  }
+
+  function releaseLane(lane) {
+    const t = currentTime();
+    const held = noteElements.find((n) => n.holding && n.note.lane === lane);
+    if (!held) return;
+
+    const requiredEnd = held.note.time + held.note.hold;
+    const heldRatio = (t - held.note.time) / held.note.hold;
+    if (heldRatio >= 0.7) {
+      resolveHit(held, lane, held.holdStartDiff);
+    } else {
+      // 早く離しすぎた場合はミス扱い
+      held.judged = true;
+      held.el.remove();
+      noteElements = noteElements.filter((n) => n !== held);
+      combo = 0;
+      comboDisplay.textContent = "0";
+      showJudge(lane, "MISS", "var(--loss)");
+    }
+  }
+
+  // ───────── フルスクリーン切り替え(iOS Safari等、要素単位のFullscreen APIが使えない場合は疑似フルスクリーンにフォールバック) ─────────
   const fullscreenBtn = document.getElementById("fullscreen-btn");
   const gameContainer = document.getElementById("rhythm-game-container");
   if (fullscreenBtn && gameContainer) {
+    const supportsRealFullscreen = !!(
+      gameContainer.requestFullscreen || gameContainer.webkitRequestFullscreen
+    );
+
+    function setBtnLabel(isFs) {
+      fullscreenBtn.textContent = isFs ? "⛶ フルスクリーン解除" : "⛶ フルスクリーン";
+    }
+
+    function enterPseudoFullscreen() {
+      gameContainer.classList.add("pseudo-fullscreen");
+      document.body.classList.add("pseudo-fullscreen-active");
+      setBtnLabel(true);
+    }
+    function exitPseudoFullscreen() {
+      gameContainer.classList.remove("pseudo-fullscreen");
+      document.body.classList.remove("pseudo-fullscreen-active");
+      setBtnLabel(false);
+    }
+
     fullscreenBtn.addEventListener("click", () => {
       const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-      if (!isFullscreen) {
-        if (gameContainer.requestFullscreen) gameContainer.requestFullscreen();
-        else if (gameContainer.webkitRequestFullscreen) gameContainer.webkitRequestFullscreen();
-        else alert("お使いのブラウザではフルスクリーンに対応していません。");
-      } else {
+      const isPseudo = gameContainer.classList.contains("pseudo-fullscreen");
+
+      if (isPseudo) { exitPseudoFullscreen(); return; }
+      if (isFullscreen) {
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        return;
+      }
+
+      if (supportsRealFullscreen) {
+        const req = gameContainer.requestFullscreen ? gameContainer.requestFullscreen() : gameContainer.webkitRequestFullscreen();
+        // iOSの一部バージョンではPromiseが拒否されることがあるため、失敗したら疑似フルスクリーンに切り替える
+        if (req && req.catch) req.catch(() => enterPseudoFullscreen());
+      } else {
+        // iOS Safariなど、要素単位のフルスクリーンAPIが無いブラウザ向け
+        enterPseudoFullscreen();
       }
     });
     document.addEventListener("fullscreenchange", () => {
-      fullscreenBtn.textContent = (document.fullscreenElement) ? "⛶ フルスクリーン解除" : "⛶ フルスクリーン";
+      setBtnLabel(!!document.fullscreenElement);
     });
     document.addEventListener("webkitfullscreenchange", () => {
-      fullscreenBtn.textContent = (document.webkitFullscreenElement) ? "⛶ フルスクリーン解除" : "⛶ フルスクリーン";
+      setBtnLabel(!!document.webkitFullscreenElement);
     });
   }
 
