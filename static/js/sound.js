@@ -64,6 +64,15 @@ window.EmberSound = (function () {
     tone(880, audioCtx.currentTime, 0.05, "square", 0.05);
   }
 
+  function playNotify() {
+    if (!enabled) return;
+    const audioCtx = getCtx();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    tone(880, now, 0.1, "sine", 0.1);
+    tone(1174.66, now + 0.09, 0.16, "sine", 0.1);
+  }
+
   function isEnabled() {
     return enabled;
   }
@@ -79,7 +88,7 @@ window.EmberSound = (function () {
     return enabled;
   }
 
-  return { playWin, playBigWin, playLose, playClick, isEnabled, setEnabled, toggle };
+  return { playWin, playBigWin, playLose, playClick, playNotify, isEnabled, setEnabled, toggle };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
