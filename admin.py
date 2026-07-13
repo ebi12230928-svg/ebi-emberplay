@@ -88,6 +88,8 @@ def dashboard():
     active_polls = Poll.query.filter_by(is_active=True).order_by(Poll.created_at.desc()).all()
     active_tournaments = Tournament.query.filter_by(status="active").order_by(Tournament.created_at.desc()).all()
 
+    from rhythm import DIFFICULTIES as rhythm_difficulties
+
     from towerdefense import get_enemy_tier, enemy_tier_multiplier, ENEMY_TIER_LABELS, get_reward_multiplier
     current_enemy_tier = get_enemy_tier()
     current_reward_multiplier = get_reward_multiplier()
@@ -103,6 +105,7 @@ def dashboard():
         current_season=current_season, active_polls=active_polls,
         current_enemy_tier=current_enemy_tier, enemy_tier_multiplier=enemy_tier_multiplier,
         current_reward_multiplier=current_reward_multiplier, active_tournaments=active_tournaments,
+        difficulties=rhythm_difficulties,
         enemy_tier_labels=ENEMY_TIER_LABELS
     )
 
