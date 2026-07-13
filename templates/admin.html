@@ -7,15 +7,15 @@
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3>🎵 リズムゲーム楽曲追加</h3>
-  <p style="font-size: 13px;">YouTubeの動画URL(<code>https://www.youtube.com/watch?v=<strong>動画ID</strong></code>)の太字部分だけを「YouTube動画ID」に入力してください。著作権保護のため、音源は保存せずYouTube公式プレイヤーで再生されます。</p>
+  <p style="font-size: 13px;">YouTubeの動画URLをそのまま貼り付けてください(例: <code>https://www.youtube.com/watch?v=...</code> や <code>https://youtu.be/...</code>)。動画IDは自動的に読み取られます。著作権保護のため、音源は保存せずYouTube公式プレイヤーで再生されます。</p>
   <form method="POST" action="{{ url_for('admin.rhythm_add_song') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
     <div class="field" style="margin:0;">
       <label for="song-title">曲名</label>
       <input type="text" id="song-title" name="title" required>
     </div>
     <div class="field" style="margin:0;">
-      <label for="song-youtube">YouTube動画ID</label>
-      <input type="text" id="song-youtube" name="youtube_id" placeholder="dQw4w9WgXcQ" required>
+      <label for="song-youtube">YouTubeのURL</label>
+      <input type="text" id="song-youtube" name="youtube_id" placeholder="https://www.youtube.com/watch?v=..." required>
     </div>
     <div class="field" style="margin:0; width: 100px;">
       <label for="song-bpm">BPM</label>
