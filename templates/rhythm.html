@@ -6,6 +6,33 @@
 <h1>リズムゲーム</h1>
 <p>YouTubeで再生される楽曲に合わせて、落ちてくるノーツをタップしよう。難易度は太鼓の達人風に「かんたん・ふつう・むずかしい・おに」の4段階です。</p>
 
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 6px;">🔗 好きな曲のURLで今すぐ遊ぶ</h3>
+  <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">YouTubeのURLを貼り付けると、その場で譜面を自動生成してすぐに遊べます(テンポは実際の曲に合わせた解析ではなく、標準的な速さで生成されます)。</p>
+  <form method="POST" action="{{ url_for('rhythm.quick_play') }}" id="quick-play-form">
+    <div class="field">
+      <label for="quick-play-url">YouTubeのURL</label>
+      <input type="text" id="quick-play-url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=..." required>
+    </div>
+    <p id="quick-play-status" class="text-muted" style="font-size: 12px; margin: -6px 0 10px;"></p>
+    <input type="hidden" id="quick-play-duration" name="duration_seconds" value="90">
+    <div class="field">
+      <label>難易度</label>
+      <div style="display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+        {% for key, d in difficulties.items() %}
+        <label style="font-size: 13px; display:flex; align-items:center; gap: 6px;">
+          <input type="radio" name="difficulty" value="{{ key }}" {{ "checked" if key == "normal" }}>
+          <span style="color:{{ d.color }};">{{ d.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="btn btn-ember btn-block" style="margin-top: 12px;" id="quick-play-submit">この曲で今すぐ遊ぶ!</button>
+  </form>
+  <div id="yt-quickplay-fetcher" style="width:1px; height:1px; overflow:hidden; opacity:0;"></div>
+</div>
+
+<h2>登録されている楽曲</h2>
 {% if error %}
 <div class="panel"><p class="text-loss" style="margin:0;">{{ error }}</p></div>
 {% endif %}
@@ -41,7 +68,78 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
+  // クイックプレイ: URLを貼り付けたら、YouTube公式プレイヤーのAPIで再生時間を自動取得する(APIキー不要)
+  (function () {
+    const urlInput = document.getElementById("quick-play-url");
+    const durationField = document.getElementById("quick-play-duration");
+    const statusEl = document.getElementById("quick-play-status");
+    if (!urlInput) return;
+
+    let ytReady = false;
+    let fetchPlayer = null;
+    let debounceTimer = null;
+
+    const prevCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function () {
+      ytReady = true;
+      if (prevCallback) prevCallback();
+    };
+
+    function extractVideoId(text) {
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtube\.com\/live\/|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+      ];
+      for (const p of patterns) {
+        const m = text.match(p);
+        if (m) return m[1];
+      }
+      if (/^[A-Za-z0-9_-]{11}$/.test(text.trim())) return text.trim();
+      return null;
+    }
+
+    function pollDuration(player, attemptsLeft) {
+      const dur = Math.round(player.getDuration ? player.getDuration() : 0);
+      if (dur > 0) {
+        durationField.value = Math.min(600, dur);
+        statusEl.textContent = `✅ 再生時間を取得しました(${Math.min(600, dur)}秒。長い曲は10分までに制限されます)`;
+        return;
+      }
+      if (attemptsLeft <= 0) {
+        statusEl.textContent = "再生時間を取得できませんでした(標準の90秒で遊べます)。";
+        return;
+      }
+      setTimeout(() => pollDuration(player, attemptsLeft - 1), 400);
+    }
+
+    function fetchDuration(videoId) {
+      if (!ytReady) {
+        statusEl.textContent = "YouTubeプレイヤーを読み込み中…少し待ってからもう一度試してください。";
+        return;
+      }
+      statusEl.textContent = "再生時間を取得中…";
+      if (fetchPlayer) {
+        fetchPlayer.loadVideoById(videoId);
+        pollDuration(fetchPlayer, 10);
+      } else {
+        fetchPlayer = new YT.Player("yt-quickplay-fetcher", {
+          height: "1", width: "1", videoId: videoId,
+          playerVars: { autoplay: 0, controls: 0 },
+          events: { onReady: (e) => pollDuration(e.target, 10) },
+        });
+      }
+    }
+
+    urlInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const videoId = extractVideoId(urlInput.value);
+        if (videoId) fetchDuration(videoId);
+      }, 700);
+    });
+  })();
+
   document.querySelectorAll(".song-length-group").forEach((group) => {
     const songId = group.dataset.songId;
     group.querySelectorAll(".length-btn").forEach((btn) => {

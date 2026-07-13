@@ -1,13 +1,44 @@
 {% extends "base.html" %}
 {% block title %}おみくじ ・ EMBERPLAY{% endblock %}
 
+{% block head %}
+<style>
+  #fortune-icon { display: inline-block; transition: transform 0.1s ease; }
+  #fortune-icon.shaking { animation: fortune-shake 0.12s ease-in-out infinite; }
+  @keyframes fortune-shake {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    25% { transform: rotate(-8deg) translateX(-3px); }
+    75% { transform: rotate(8deg) translateX(3px); }
+  }
+  #fortune-stick { display: none; font-size: 40px; margin-top: 10px; animation: fortune-stick-pop 0.5s ease-out; }
+  @keyframes fortune-stick-pop {
+    0% { transform: translateY(-20px) scale(0.5); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  #fortune-result-card { display: none; margin-top: 12px; }
+  #fortune-result-card.revealed { animation: fortune-reveal 0.6s ease-out; }
+  @keyframes fortune-reveal {
+    0% { transform: rotateY(90deg) scale(0.7); opacity: 0; }
+    60% { transform: rotateY(-10deg) scale(1.05); opacity: 1; }
+    100% { transform: rotateY(0) scale(1); opacity: 1; }
+  }
+  .fortune-confetti { position: absolute; font-size: 18px; animation: fortune-confetti-fall 1.2s ease-in forwards; }
+  @keyframes fortune-confetti-fall {
+    0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <span class="eyebrow">🎋 Fortune</span>
 <h1>おみくじ</h1>
 <p>1日1回引けます。運勢が良いほど、もらえるEmbersも多くなります。</p>
 
-<div class="panel" style="text-align:center;">
+<div class="panel" style="text-align:center; position:relative; overflow:hidden;">
+  <div id="fortune-confetti-layer" style="position:absolute; inset:0; pointer-events:none;"></div>
   <div style="font-size: 56px;" id="fortune-icon">🎋</div>
+  <div id="fortune-stick">🥢</div>
   {% if drawn_today %}
   <h2 style="margin-top: 8px;">{{ {'daikichi':'大吉','kichi':'吉','chukichi':'中吉','shokichi':'小吉','kyo':'凶'}[drawn_today.result] }}</h2>
   <p class="text-muted">今日はもう引きました。また明日どうぞ。</p>
@@ -15,25 +46,63 @@
   {% else %}
   <button type="button" class="btn btn-ember btn-block" id="draw-btn" style="margin-top: 12px;">おみくじを引く</button>
   {% endif %}
-  <p id="fortune-result" style="margin-top: 12px; font-weight: 700;"></p>
+  <div id="fortune-result-card" class="panel" style="margin-top: 12px; background: var(--bg-raised);">
+    <p id="fortune-result" style="margin: 0; font-weight: 700;"></p>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
   const drawBtn = document.getElementById("draw-btn");
+  const iconEl = document.getElementById("fortune-icon");
+  const stickEl = document.getElementById("fortune-stick");
+  const resultCard = document.getElementById("fortune-result-card");
+  const confettiLayer = document.getElementById("fortune-confetti-layer");
+
+  function spawnConfetti() {
+    const emojis = ["🎉", "✨", "🎊"];
+    for (let i = 0; i < 10; i++) {
+      const el = document.createElement("div");
+      el.className = "fortune-confetti";
+      el.textContent = emojis[i % emojis.length];
+      el.style.left = (10 + Math.random() * 80) + "%";
+      el.style.animationDelay = (Math.random() * 0.3) + "s";
+      confettiLayer.appendChild(el);
+      setTimeout(() => el.remove(), 1500);
+    }
+  }
+
   if (drawBtn) {
     drawBtn.addEventListener("click", async () => {
       drawBtn.disabled = true;
+
+      // 1. 箱を振る演出
+      iconEl.classList.add("shaking");
+      await new Promise((r) => setTimeout(r, 900));
+      iconEl.classList.remove("shaking");
+
+      // 2. 棒(おみくじ)が出てくる演出
+      stickEl.style.display = "block";
+      await new Promise((r) => setTimeout(r, 500));
+
       try {
         const data = await EmberPlay.postJSON("/fortune/draw", {});
-        document.getElementById("fortune-icon").textContent = "🎉";
+
+        // 3. 結果発表
+        iconEl.textContent = "🎉";
+        resultCard.innerHTML = '<p id="fortune-result" style="margin: 0; font-weight: 700;"></p>';
         document.getElementById("fortune-result").innerHTML =
           `<span style="font-size:24px;">${data.label}</span><br>${data.message}<br><span style="color:var(--win);">+${data.reward} Embers</span>`;
+        resultCard.style.display = "block";
+        resultCard.classList.add("revealed");
+        spawnConfetti();
+
         EmberPlay.updateBalance(data.balance, "win");
         drawBtn.remove();
       } catch (err) {
         alert(err.message);
+        stickEl.style.display = "none";
         drawBtn.disabled = false;
       }
     });
