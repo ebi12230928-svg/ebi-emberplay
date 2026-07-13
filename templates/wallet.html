@@ -56,11 +56,11 @@
   </p>
   <p class="mono" style="font-size: 20px; margin: 0 0 16px;">🔒 {{ "{:,}".format(nav_user.vault_balance) }} Embers</p>
   <div style="display:flex; gap: 10px; flex-wrap: wrap;">
-    <form method="POST" action="{{ url_for('rewards.vault_deposit') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px;">
+    <form method="POST" action="{{ url_for('rewards.vault_deposit') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px; flex-wrap: wrap;">
       <input type="number" name="amount" placeholder="預ける額" min="1" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
       <button type="submit" class="btn btn-ghost">預ける</button>
     </form>
-    <form method="POST" action="{{ url_for('rewards.vault_withdraw') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px;">
+    <form method="POST" action="{{ url_for('rewards.vault_withdraw') }}" style="display:flex; gap: 8px; flex: 1; min-width: 200px; flex-wrap: wrap;">
       <input type="number" name="amount" placeholder="引き出す額" min="1" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
       <button type="submit" class="btn btn-ghost">引き出す</button>
     </form>

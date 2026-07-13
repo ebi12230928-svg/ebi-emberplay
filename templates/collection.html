@@ -6,7 +6,7 @@
 <h1>キャラクター図鑑</h1>
 <p>ガチャで手に入れたキャラクターの一覧です。同じキャラクターを重複取得するとレベルが上がり、攻撃力が強化されます(タワーディフェンスにも反映されます)。</p>
 
-<div class="panel" style="margin-bottom: 24px; display:flex; justify-content: space-between;">
+<div class="panel" style="margin-bottom: 24px; display:flex; justify-content: space-between; flex-wrap: wrap;">
   <div>
     <span class="eyebrow">コンプリート状況</span>
     <p class="mono" style="font-size: 18px; font-weight: 800; margin: 4px 0 0;">{{ owned_count }} / {{ total_count }}</p>
@@ -24,10 +24,10 @@
     <h3 style="font-size: 13px; text-align:center; margin: 6px 0 2px;">{{ "???" if c.locked else c.name }}</h3>
     <p style="font-size: 10px; text-align:center; margin: 0; color: {{ c.colors[0] }};">{{ c.rarity_label }} ・ {{ c.element_label }}属性</p>
     {% if not c.locked %}
-    <div class="mono" style="font-size: 11px; margin-top: 8px; display:flex; justify-content: space-between;">
+    <div class="mono" style="font-size: 11px; margin-top: 8px; display:flex; justify-content: space-between; flex-wrap: wrap;">
       <span>Lv.{{ c.level }}</span><span>⚔️{{ c.attack }}</span>
     </div>
-    <div class="mono text-muted" style="font-size: 10px; display:flex; justify-content: space-between;">
+    <div class="mono text-muted" style="font-size: 10px; display:flex; justify-content: space-between; flex-wrap: wrap;">
       <span>射程{{ c.range }}</span><span>速度{{ c.speed }}s</span>
     </div>
     {% else %}

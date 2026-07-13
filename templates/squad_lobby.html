@@ -21,7 +21,7 @@
 <div class="panel"><p style="margin:0;">現在、フレンドが開いている部屋はありません。自分で部屋を作ってみましょう。</p></div>
 {% endif %}
 {% for room in open_rooms %}
-<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center;">
+<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap;">
   <div>
     <strong>{{ room.host_username }}の部屋</strong>
     <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">{{ room.members | length }}人参加中 ・ 難易度{{ room.difficulty_scale }}x</p>

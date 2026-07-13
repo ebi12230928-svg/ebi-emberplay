@@ -27,7 +27,7 @@
       <label>プレイ料</label>
       <input type="number" name="wager" value="100" min="1">
     </div>
-    <div style="display:flex; gap: 10px;">
+    <div style="display:flex; gap: 10px; flex-wrap: wrap;">
       <button type="submit" name="pick" value="home" class="btn btn-ghost" style="flex:1;">
         {{ event.home_team }}<br><span class="mono">{{ event.odds_home }}x</span>
       </button>
@@ -47,7 +47,7 @@
 <h2 style="margin-top: 32px;">あなたのベット履歴</h2>
 <div class="panel" style="padding: 0;">
   {% for bet in bets %}
-  <div style="padding: 14px 20px; border-bottom: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center;">
+  <div style="padding: 14px 20px; border-bottom: 1px solid var(--panel-border); display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap;">
     <div>
       <strong>{{ bet.event.home_team }} vs {{ bet.event.away_team }}</strong>
       <div class="text-muted" style="font-size: 12px;">

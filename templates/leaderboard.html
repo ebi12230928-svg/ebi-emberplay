@@ -15,7 +15,7 @@
   <div class="panel">
     <h3 style="margin-bottom: 16px;">残高ランキング</h3>
     {% for u in top_balance %}
-    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;">
       <span>{{ loop.index }}. {{ u.username }}</span>
       <span class="mono" style="color: var(--gold);">{{ "{:,}".format(u.balance) }}</span>
     </div>
@@ -27,7 +27,7 @@
   <div class="panel">
     <h3 style="margin-bottom: 16px;">{{ periods[period] }}の合計損益</h3>
     {% for r in top_profit %}
-    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;">
       <span>{{ loop.index }}. {{ r.username }}</span>
       <span class="mono {{ 'text-win' if r.net >= 0 else 'text-loss' }}">{{ "{:+,}".format(r.net) }}</span>
     </div>
@@ -39,7 +39,7 @@
   <div class="panel">
     <h3 style="margin-bottom: 16px;">最大獲得ランキング(全期間)</h3>
     {% for net, bet in top_gains %}
-    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;">
       <span>{{ loop.index }}. {{ bet.user.username }} <span class="text-muted" style="font-size:12px;">({{ bet.game }})</span></span>
       <span class="mono text-win">+{{ "{:,}".format(net) }}</span>
     </div>
@@ -51,7 +51,7 @@
   <div class="panel">
     <h3 style="margin-bottom: 16px;">🎁 紹介者ランキング</h3>
     {% for r in top_referrers %}
-    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border);">
+    <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;">
       <span>{{ loop.index }}. {{ r.username }}</span>
       <span class="mono" style="color: var(--gold);">{{ r.count }}人紹介</span>
     </div>

@@ -11,7 +11,7 @@
 <h2>🌊 タワーディフェンス・エンドレス TOP10</h2>
 <div class="panel" style="padding: 0; margin-bottom: 20px;">
   {% for row in td_board %}
-  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border);">
+  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border); flex-wrap: wrap;">
     <span>{{ loop.index }}. {{ row.username }}</span>
     <span class="mono text-win">{{ row.score }} ウェーブ</span>
   </div>
@@ -23,7 +23,7 @@
 <h2>⚔️ RPGボス討伐・エンドレス TOP10</h2>
 <div class="panel" style="padding: 0; margin-bottom: 24px;">
   {% for row in rpg_board %}
-  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border);">
+  <div style="display:flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid var(--panel-border); flex-wrap: wrap;">
     <span>{{ loop.index }}. {{ row.username }}</span>
     <span class="mono text-win">{{ row.score }} 体撃破</span>
   </div>
@@ -36,7 +36,7 @@
 <p style="font-size: 13px;">現在のポイント: <strong class="mono text-win">{{ progress.points }}</strong>(ゲームで獲得したEmbers 10につき1ポイント)</p>
 <div style="display:flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
   {% for tier in tiers %}
-  <div class="panel" style="display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; {{ 'border-color: var(--gold);' if tier.unlocked and not tier.claimed }}">
+  <div class="panel" style="display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; {{ 'border-color: var(--gold);' if tier.unlocked and not tier.claimed }}; flex-wrap: wrap;">
     <div>
       <span class="mono" style="font-size: 12px;">Tier {{ tier.index + 1 }} ・ {{ tier.points }}pt</span>
       <div style="font-size: 13px; margin-top: 2px;">

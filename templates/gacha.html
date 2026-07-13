@@ -8,7 +8,7 @@
 
 <div class="panel" style="margin-bottom: 20px;">
   <p class="mono" style="font-size: 13px; margin-bottom: 12px;">図鑑コンプリート状況: {{ owned_count }} / {{ total_count }}</p>
-  <div style="display:flex; gap: 12px;">
+  <div style="display:flex; gap: 12px; flex-wrap: wrap;">
     <button class="btn btn-ember" id="pull1-btn" style="flex:1;">1回引く<br><span class="mono" style="font-size:12px;">{{ "{:,}".format(cost_single) }} Embers</span></button>
     <button class="btn btn-ember" id="pull10-btn" style="flex:1;">10連引く<br><span class="mono" style="font-size:12px;">{{ "{:,}".format(cost_ten) }} Embers</span></button>
   </div>
@@ -16,7 +16,7 @@
 </div>
 
 <div id="reveal-area" style="display:none; margin-bottom: 24px;">
-  <div id="reveal-grid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 8px;"></div>
+  <div id="reveal-grid" class="grid-5"></div>
 </div>
 
 <h2>図鑑</h2>

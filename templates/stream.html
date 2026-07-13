@@ -27,7 +27,7 @@
   <h3 style="margin-bottom: 8px;">{{ session.title }}</h3>
   <p class="mono text-muted" style="font-size: 13px;">視聴者数: <span id="viewer-count">{{ viewer_count }}</span>人</p>
   <video id="local-video" autoplay muted playsinline style="width:100%; border-radius: 10px; background:#000; margin: 12px 0;"></video>
-  <div style="display:flex; gap: 10px;">
+  <div style="display:flex; gap: 10px; flex-wrap: wrap;">
     <button class="btn btn-ember" id="start-share-btn">画面共有を開始</button>
     <form method="POST" action="{{ url_for('stream.stop') }}">
       <button type="submit" class="btn btn-ghost">配信を終了</button>
