@@ -11,8 +11,17 @@
   const daifugoRules = document.getElementById("daifugo-rules");
   const eightGiriCheck = document.getElementById("rule-eight-giri");
   const revolutionCheck = document.getElementById("rule-revolution");
+  const howToPlayBtn = document.getElementById("how-to-play-btn");
+  const howToPlayModal = document.getElementById("how-to-play-modal");
+  const howToPlayTitle = document.getElementById("how-to-play-title");
+  const howToPlayText = document.getElementById("how-to-play-text");
+  const howToPlayClose = document.getElementById("how-to-play-close");
+  const chatLog = document.getElementById("room-chat-log");
+  const chatInput = document.getElementById("room-chat-input");
+  const chatSendBtn = document.getElementById("room-chat-send");
 
   let redirected = false;
+  let currentGameType = null;
 
   if (ownerGameSelect) {
     ownerGameSelect.addEventListener("change", saveGameSettings);
@@ -52,14 +61,82 @@
     });
   }
 
+  document.querySelectorAll(".bot-add-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await EmberPlay.postJSON(`/cards/room/${CODE}/add-bot`, { difficulty: btn.dataset.difficulty });
+        poll();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  });
+
+  async function removePlayer(userId) {
+    try {
+      await EmberPlay.postJSON(`/cards/room/${CODE}/remove-player`, { user_id: userId });
+      poll();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  if (howToPlayBtn) {
+    howToPlayBtn.addEventListener("click", async () => {
+      if (!currentGameType) return;
+      try {
+        const res = await fetch(`/cards/how-to-play/${currentGameType}`);
+        const data = await res.json();
+        howToPlayTitle.textContent = `📖 ${data.label} の遊び方`;
+        howToPlayText.textContent = data.text;
+        howToPlayModal.style.display = "flex";
+      } catch (err) { /* noop */ }
+    });
+  }
+  if (howToPlayClose) howToPlayClose.addEventListener("click", () => { howToPlayModal.style.display = "none"; });
+
+  if (chatSendBtn) {
+    chatSendBtn.addEventListener("click", sendChat);
+    chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+  }
+  async function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = "";
+    try {
+      await EmberPlay.postJSON(`/cards/room/${CODE}/chat/send`, { message: text });
+      pollChat();
+    } catch (err) { /* noop */ }
+  }
+  async function pollChat() {
+    try {
+      const res = await fetch(`/cards/room/${CODE}/chat`);
+      const data = await res.json();
+      if (!chatLog || !data.messages) return;
+      chatLog.innerHTML = data.messages.map((m) =>
+        `<div style="margin-bottom:4px;"><strong style="color:${m.is_me ? 'var(--gold)' : 'var(--text)'};">${m.username}:</strong> ${m.message}</div>`
+      ).join("");
+      chatLog.scrollTop = chatLog.scrollHeight;
+    } catch (err) { /* noop */ }
+  }
+
   async function poll() {
     try {
       const res = await fetch(`/cards/room/${CODE}/poll`);
       const data = await res.json();
       if (data.error) return;
+      currentGameType = data.game_type;
 
       playerCountEl.textContent = String(data.players.length);
-      playerListEl.innerHTML = data.players.map((p) => `<div style="padding:6px 0; border-top:1px solid var(--panel-border);">${p.username}</div>`).join("");
+      playerListEl.innerHTML = data.players.map((p) => {
+        const botTag = p.is_bot ? ' <span style="color:var(--text-muted); font-size:11px;">🤖</span>' : "";
+        const removeBtn = (IS_OWNER && p.user_id !== data.owner_id)
+          ? `<button type="button" class="btn btn-ghost remove-player-btn" data-uid="${p.user_id}" style="padding:2px 8px; font-size:11px;">除外</button>` : "";
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--panel-border);"><span>${p.username}${botTag}</span>${removeBtn}</div>`;
+      }).join("");
+      document.querySelectorAll(".remove-player-btn").forEach((btn) => {
+        btn.addEventListener("click", () => removePlayer(parseInt(btn.dataset.uid, 10)));
+      });
       gameTypeDisplay.textContent = `ゲーム: ${GAME_LABELS[data.game_type] || data.game_type}`;
 
       if (data.status === "playing" && !redirected) {
@@ -72,5 +149,7 @@
   }
 
   poll();
+  pollChat();
   setInterval(poll, 2000);
+  setInterval(pollChat, 2500);
 })();
