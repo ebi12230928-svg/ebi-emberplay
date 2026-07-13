@@ -77,8 +77,24 @@ def both_stuck(state):
 
 
 def refill_center(state):
+    refilled = False
     for i, pid in enumerate(state["turn_order"]):
         stock = state["stocks"][str(pid)]
         if stock:
             state["center"][i] = stock.pop(0)
-    state["log"].append("両者とも手詰まり。場を補充札から作り直しました。")
+            refilled = True
+    if refilled:
+        state["log"].append("両者とも手詰まり。場を補充札から作り直しました。")
+        return
+    # 双方の補充札が尽きていて、これ以上は絶対に復帰できない完全なデッドロック状態
+    # -> 手札の少ない方を勝者とする(同数なら引き分け)
+    counts = {pid: len(state["hands"][str(pid)]) for pid in state["turn_order"]}
+    min_count = min(counts.values())
+    leaders = [pid for pid, c in counts.items() if c == min_count]
+    if len(leaders) == 1:
+        state["winner"] = leaders[0]
+        state["log"].append("これ以上進められません。手札が少ない方の勝ちとします。")
+    else:
+        state["winner"] = None
+        state["is_draw"] = True
+        state["log"].append("これ以上進められず、引き分けとなりました。")
