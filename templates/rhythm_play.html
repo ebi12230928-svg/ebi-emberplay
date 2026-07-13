@@ -14,30 +14,79 @@
   .rhythm-judge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 800; animation: rhythm-judge-pop 0.4s ease forwards; white-space: nowrap; }
   @keyframes rhythm-judge-pop { 0% { opacity:1; transform: translateX(-50%) translateY(0); } 100% { opacity:0; transform: translateX(-50%) translateY(-20px); } }
   #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; }
-  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; }
+  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; position: relative; overflow: visible; }
   .rhythm-tap-btn:active { background: var(--ember); }
+  .rhythm-tap-btn.hit-perfect { animation: rhythm-btn-flash-perfect 0.3s ease; }
+  .rhythm-tap-btn.hit-good { animation: rhythm-btn-flash-good 0.3s ease; }
+  @keyframes rhythm-btn-flash-perfect {
+    0% { transform: scale(1); box-shadow: 0 0 0 rgba(212,162,78,0); }
+    30% { transform: scale(1.15); box-shadow: 0 0 22px rgba(212,162,78,0.9); background: var(--gold); }
+    100% { transform: scale(1); box-shadow: 0 0 0 rgba(212,162,78,0); }
+  }
+  @keyframes rhythm-btn-flash-good {
+    0% { transform: scale(1); box-shadow: 0 0 0 rgba(76,175,109,0); }
+    30% { transform: scale(1.1); box-shadow: 0 0 16px rgba(76,175,109,0.8); background: var(--win); }
+    100% { transform: scale(1); box-shadow: 0 0 0 rgba(76,175,109,0); }
+  }
+  .rhythm-lane.hit-flash::after {
+    content: ""; position: absolute; inset: 0; background: rgba(212,162,78,0.25);
+    animation: rhythm-lane-flash 0.3s ease-out forwards; pointer-events: none;
+  }
+  @keyframes rhythm-lane-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .rhythm-burst {
+    position: absolute; bottom: 46px; left: 50%; width: 10px; height: 10px; border-radius: 50%;
+    border: 3px solid var(--gold); transform: translate(-50%, 50%); animation: rhythm-burst-expand 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes rhythm-burst-expand {
+    0% { width: 10px; height: 10px; opacity: 1; }
+    100% { width: 60px; height: 60px; opacity: 0; }
+  }
+  .rhythm-particle {
+    position: absolute; bottom: 50px; left: 50%; font-size: 14px; pointer-events: none;
+    animation: rhythm-particle-fly 0.5s ease-out forwards;
+  }
+  @keyframes rhythm-particle-fly {
+    0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--px, 0px)), -40px) scale(0.6); opacity: 0; }
+  }
+  #combo-display.combo-milestone { display: inline-block; animation: rhythm-combo-pop 0.4s ease; color: var(--gold); }
+  @keyframes rhythm-combo-pop { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
   #yt-player-wrap { width: 100%; max-width: 320px; margin: 0 auto 12px; }
+
+  #rhythm-game-container:fullscreen,
+  #rhythm-game-container:-webkit-full-screen {
+    background: var(--bg); padding: 16px; display: flex; flex-direction: column; justify-content: center;
+    height: 100%;
+  }
+  #rhythm-game-container:fullscreen #rhythm-stage,
+  #rhythm-game-container:-webkit-full-screen #rhythm-stage {
+    height: 50vh;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <span class="eyebrow">🎵 {{ difficulty_label }}</span>
 <h1>{{ song.title }}</h1>
+<button type="button" class="btn btn-ghost" id="fullscreen-btn" style="margin-bottom: 10px;">⛶ フルスクリーン</button>
 
-<div id="yt-player-wrap"><div id="yt-player"></div></div>
+<div id="rhythm-game-container">
+  <div id="yt-player-wrap"><div id="yt-player"></div></div>
 
-<div style="display:flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
-  <span>スコア: <strong id="score-display">0</strong></span>
-  <span>コンボ: <strong id="combo-display">0</strong></span>
+  <div style="display:flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+    <span>スコア: <strong id="score-display">0</strong></span>
+    <span>コンボ: <strong id="combo-display">0</strong></span>
+  </div>
+
+  <div id="rhythm-stage">
+    <div id="rhythm-lanes"></div>
+  </div>
+
+  <div id="rhythm-tap-buttons"></div>
+
+  <div id="rhythm-result" class="panel" style="display:none; text-align:center;"></div>
 </div>
-
-<div id="rhythm-stage">
-  <div id="rhythm-lanes"></div>
-</div>
-
-<div id="rhythm-tap-buttons"></div>
-
-<div id="rhythm-result" class="panel" style="display:none; text-align:center;"></div>
 
 <a href="{{ url_for('rhythm.index') }}" class="btn btn-ghost btn-block" style="margin-top: 12px;">曲選択に戻る</a>
 {% endblock %}
@@ -147,6 +196,37 @@
     setTimeout(() => el.remove(), 400);
   }
 
+  function spawnHitBurst(lane) {
+    const laneEl = lanesEl.children[lane];
+    const burst = document.createElement("div");
+    burst.className = "rhythm-burst";
+    laneEl.appendChild(burst);
+    setTimeout(() => burst.remove(), 400);
+
+    const emojis = ["✨", "⭐", "💫"];
+    for (let i = 0; i < 4; i++) {
+      const p = document.createElement("div");
+      p.className = "rhythm-particle";
+      p.textContent = emojis[i % emojis.length];
+      p.style.setProperty("--px", `${(Math.random() * 50 - 25)}px`);
+      laneEl.appendChild(p);
+      setTimeout(() => p.remove(), 500);
+    }
+
+    laneEl.classList.remove("hit-flash");
+    void laneEl.offsetWidth;
+    laneEl.classList.add("hit-flash");
+    setTimeout(() => laneEl.classList.remove("hit-flash"), 300);
+  }
+
+  function flashTapButton(lane, perfect) {
+    const btn = tapButtonsEl.children[lane];
+    if (!btn) return;
+    btn.classList.remove("hit-perfect", "hit-good");
+    void btn.offsetWidth;
+    btn.classList.add(perfect ? "hit-perfect" : "hit-good");
+  }
+
   function tapLane(lane) {
     const t = currentTime();
     let best = null, bestDiff = Infinity;
@@ -167,7 +247,39 @@
       scoreDisplay.textContent = String(score);
       comboDisplay.textContent = String(combo);
       showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
+
+      // 成功時の演出一式
+      spawnHitBurst(lane);
+      flashTapButton(lane, perfect);
+      if (combo > 0 && combo % 10 === 0) {
+        comboDisplay.classList.remove("combo-milestone");
+        void comboDisplay.offsetWidth;
+        comboDisplay.classList.add("combo-milestone");
+      }
     }
+  }
+
+  // ───────── フルスクリーン切り替え ─────────
+  const fullscreenBtn = document.getElementById("fullscreen-btn");
+  const gameContainer = document.getElementById("rhythm-game-container");
+  if (fullscreenBtn && gameContainer) {
+    fullscreenBtn.addEventListener("click", () => {
+      const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+      if (!isFullscreen) {
+        if (gameContainer.requestFullscreen) gameContainer.requestFullscreen();
+        else if (gameContainer.webkitRequestFullscreen) gameContainer.webkitRequestFullscreen();
+        else alert("お使いのブラウザではフルスクリーンに対応していません。");
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenBtn.textContent = (document.fullscreenElement) ? "⛶ フルスクリーン解除" : "⛶ フルスクリーン";
+    });
+    document.addEventListener("webkitfullscreenchange", () => {
+      fullscreenBtn.textContent = (document.webkitFullscreenElement) ? "⛶ フルスクリーン解除" : "⛶ フルスクリーン";
+    });
   }
 
   async function finishSong() {
@@ -175,7 +287,7 @@
     resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}</p>`;
     try {
       const data = await EmberPlay.postJSON("/rhythm/submit-score", {
-        song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo, play_seconds: PLAY_SECONDS,
+        song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo, play_seconds: PLAY_SECONDS, bpm: {{ song.bpm }},
       });
       resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers</p>`;
       EmberPlay.updateBalance(data.balance, "win");
