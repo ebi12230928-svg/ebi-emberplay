@@ -5,6 +5,7 @@
 <span class="eyebrow">🃏 Room {{ room.code }}</span>
 <h1>参加コード: <span class="mono" style="color: var(--gold);">{{ room.code }}</span></h1>
 <p>このコードをフレンドに伝えれば、「コードで参加する」から入室できます。</p>
+<button type="button" class="btn btn-ghost" id="how-to-play-btn" style="margin-bottom: 12px;">📖 遊び方</button>
 
 <div class="panel" style="margin-bottom: 16px;">
   <h3 id="game-type-display">ゲーム: {{ game_labels[room.game_type] }}</h3>
@@ -27,6 +28,14 @@
 <div class="panel" style="margin-bottom: 16px;">
   <h3 style="margin-bottom: 8px;">参加者(<span id="player-count">0</span>)</h3>
   <div id="player-list"></div>
+  {% if is_owner %}
+  <div style="margin-top: 12px; display:flex; gap: 8px; flex-wrap: wrap;">
+    <button type="button" class="btn btn-ghost bot-add-btn" data-difficulty="easy" style="font-size:12px;">🤖弱いCPUを追加</button>
+    <button type="button" class="btn btn-ghost bot-add-btn" data-difficulty="normal" style="font-size:12px;">🤖普通のCPUを追加</button>
+    <button type="button" class="btn btn-ghost bot-add-btn" data-difficulty="hard" style="font-size:12px;">🤖強いCPUを追加</button>
+  </div>
+  <p class="text-muted" style="font-size: 11px; margin-top: 6px;">人数が足りなくても、CPUを追加すれば1人からでもプレイできます。</p>
+  {% endif %}
 </div>
 
 {% if is_owner %}
@@ -38,6 +47,23 @@
 <form method="POST" action="{{ url_for('cardroom.leave', code=room.code) }}" style="margin-top: 12px;">
   <button type="submit" class="btn btn-ghost">退出する</button>
 </form>
+
+<div class="panel" style="margin-top: 16px;">
+  <h3 style="font-size: 13px; margin-bottom: 6px;">💬 ルームチャット</h3>
+  <div id="room-chat-log" style="height: 140px; overflow-y:auto; font-size: 13px; margin-bottom: 8px;"></div>
+  <div style="display:flex; gap: 8px;">
+    <input type="text" id="room-chat-input" placeholder="メッセージを入力…" maxlength="300" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+    <button type="button" class="btn btn-ember" id="room-chat-send" style="padding: 10px 16px;">送信</button>
+  </div>
+</div>
+
+<div id="how-to-play-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding: 20px;">
+  <div class="panel" style="max-width: 420px; max-height: 80vh; overflow-y:auto;">
+    <h3 id="how-to-play-title" style="margin-bottom: 10px;"></h3>
+    <p id="how-to-play-text" style="font-size: 14px; line-height: 1.7;"></p>
+    <button type="button" class="btn btn-ghost btn-block" id="how-to-play-close" style="margin-top: 12px;">閉じる</button>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
