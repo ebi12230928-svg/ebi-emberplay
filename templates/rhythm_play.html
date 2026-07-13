@@ -158,18 +158,39 @@
       height: "180", width: "320", videoId: "{{ song.youtube_id }}",
       playerVars: { autoplay: 0, controls: 0 },
       events: {
-        onReady: () => { player.playVideo(); started = true; requestAnimationFrame(gameLoop); },
+        onReady: () => {
+          player.playVideo();
+          started = true;
+          resyncClock();
+          requestAnimationFrame(gameLoop);
+          // getCurrentTime()はYouTube側とのpostMessage通信を伴い、毎フレーム呼ぶと処理落ちの原因になるため、
+          // 数秒おきにだけ実際の再生位置と照合してズレを補正する(体感の同期は保ったまま軽くする)
+          setInterval(resyncClock, 2000);
+        },
       },
     });
   }
   window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
 
+  // ローカルの時計(performance.now())を基準に進行時間を計算し、数秒おきだけYouTube側の実際の再生位置と照合する
+  let syncBaseVideoTime = 0;
+  let syncBaseWallClock = 0;
+
+  function resyncClock() {
+    if (!player || !player.getCurrentTime) return;
+    syncBaseVideoTime = player.getCurrentTime();
+    syncBaseWallClock = performance.now();
+  }
+
   function currentTime() {
-    return player && player.getCurrentTime ? player.getCurrentTime() : 0;
+    if (!player) return 0;
+    return syncBaseVideoTime + (performance.now() - syncBaseWallClock) / 1000;
   }
 
   const stageEl = document.getElementById("rhythm-stage"); // 毎フレームDOM検索しないようキャッシュしておく
   let nextSpawnIndex = 0; // まだ画面に出していないノーツの先頭位置(毎フレーム全件スキャンしないため)
+  let cachedHitlineY = stageEl.offsetHeight - 50; // レイアウト再計算(reflow)を毎フレーム発生させないようキャッシュ
+  window.addEventListener("resize", () => { cachedHitlineY = stageEl.offsetHeight - 50; });
 
   function gameLoop() {
     if (!started) return;
@@ -191,7 +212,7 @@
       nextSpawnIndex++;
     }
 
-    const hitlineY = stageEl.offsetHeight - 50;
+    const hitlineY = cachedHitlineY;
     let anyJudgedThisFrame = false;
     for (let i = 0; i < noteElements.length; i++) {
       const n = noteElements[i];
