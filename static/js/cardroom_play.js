@@ -474,9 +474,13 @@
             cell.innerHTML = `<span class="piece-token">${symbols[val.owner]}${val.king ? "👑" : ""}</span>`;
           }
           if (selectedBoardCell && selectedBoardCell[0] === r && selectedBoardCell[1] === c) cell.classList.add("selected");
+          if (isLegalDest(data, r, c)) cell.classList.add("legal-move");
           cell.addEventListener("click", () => handleCheckersClick(data, r, c, isMyTurn));
         } else {
           if (val !== null && val !== undefined) cell.innerHTML = `<span class="piece-token">${symbols[val]}</span>`;
+          if (GAME_TYPE === "othello" && isMyTurn && (data.legal_placements || []).some(([lr, lc]) => lr === r && lc === c)) {
+            cell.classList.add("legal-move");
+          }
           cell.addEventListener("click", async () => {
             if (!isMyTurn) return;
             try { await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "place", row: r, col: c }); fetchState(); }
@@ -534,6 +538,16 @@
       pt.style.top = coords[1] + "%";
       if (val !== null && val !== undefined) pt.innerHTML = `<span class="piece-token">${symbols[val]}</span>`;
       if (selectedBoardCell === i) pt.classList.add("selected");
+
+      const isEmpty = val === null || val === undefined;
+      if (isMyTurn && !data.must_remove) {
+        if (data.phase === "placing" && isEmpty) {
+          pt.classList.add("legal-move");
+        } else if (data.phase === "moving" && selectedBoardCell !== null) {
+          const dests = (data.legal_moves_map_morris || {})[String(selectedBoardCell)] || [];
+          if (dests.includes(i)) pt.classList.add("legal-move");
+        }
+      }
       pt.addEventListener("click", () => handleMorrisClick(data, i, owner, isMyTurn));
       container.appendChild(pt);
     });
@@ -595,6 +609,20 @@
   // チェス
   const CHESS_LABELS = { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚" };
 
+  // 選択中の駒について、(r,c)が合法な移動先かどうかをサーバーから受け取ったマップで判定する
+  function isLegalDest(data, r, c) {
+    if (!selectedBoardCell || !data.legal_moves_map) return false;
+    const key = `${selectedBoardCell[0]},${selectedBoardCell[1]}`;
+    const dests = data.legal_moves_map[key];
+    if (!dests) return false;
+    return dests.some(([dr, dc]) => dr === r && dc === c);
+  }
+
+  function hasAnyLegalMoveFrom(data, r, c) {
+    if (!data.legal_moves_map) return false;
+    return !!data.legal_moves_map[`${r},${c}`];
+  }
+
   function renderChess(data, uidKey, isMyTurn) {
     boardDisplay.innerHTML = "";
     const owner = data.turn_order.indexOf(parseInt(uidKey, 10));
@@ -613,6 +641,7 @@
           cell.innerHTML = `<span class="piece-token" style="color:${piece.owner === 0 ? '#fff' : '#111'}; -webkit-text-stroke: 0.5px #888;">${label}</span>`;
         }
         if (selectedBoardCell && selectedBoardCell[0] === r && selectedBoardCell[1] === c) cell.classList.add("selected");
+        if (isLegalDest(data, r, c)) cell.classList.add("legal-move");
         cell.addEventListener("click", () => handleChessClick(data, r, c, owner, isMyTurn));
         grid.appendChild(cell);
       }
@@ -657,6 +686,7 @@
           cell.innerHTML = `<span class="piece-token" style="color:${piece.owner === owner ? '#fff' : '#f87171'};">${label}</span>`;
         }
         if (selectedBoardCell && selectedBoardCell[0] === r && selectedBoardCell[1] === c) cell.classList.add("selected");
+        if (isLegalDest(data, r, c)) cell.classList.add("legal-move");
         cell.addEventListener("click", () => handleShogiClick(data, r, c, owner, isMyTurn));
         grid.appendChild(cell);
       }

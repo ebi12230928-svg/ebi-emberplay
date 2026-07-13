@@ -227,6 +227,7 @@
           activePlacementChar = c;
           Array.from(placementRoster.children).forEach((child) => child.style.outline = "none");
           el.style.outline = "2px solid var(--gold)";
+          tdGrid.querySelectorAll(".td-cell.buildable").forEach((cellEl) => cellEl.classList.add("placement-ready"));
         });
       }
       placementRoster.appendChild(el);
@@ -263,6 +264,7 @@
     });
 
     activePlacementChar = null;
+    tdGrid.querySelectorAll(".td-cell.buildable").forEach((cellEl) => cellEl.classList.remove("placement-ready"));
     renderPlacementRoster();
     startWaveBtn.disabled = placedTowers.length === 0;
   }
