@@ -134,11 +134,17 @@ def credit_reward(user, amount):
     """
     タワーディフェンス・RPG・ガチャなど、カジノゲーム以外の場所でも使える汎用の残高加算ヘルパー。
     ブラックリスト登録済みのユーザーには一切反映しない(借金の自動返済ロジックは適用しない、単純な加算)。
+    ペットのレベルボーナスも反映される。
     """
     if amount <= 0:
         return False
     if getattr(user, "is_blacklisted", False):
         return False
+    try:
+        from pets import get_pet_bonus_multiplier
+        amount = round(amount * get_pet_bonus_multiplier(user.id))
+    except Exception:
+        pass
     user.balance += amount
     return True
 
@@ -147,6 +153,7 @@ def credit_winnings(user, amount):
     """
     勝利ポイントを付与する。
     ブラックリスト登録済みのユーザーには一切反映しない(何をしても残高が増えなくなる)。
+    ペットのレベルボーナスも反映される(借金返済中は返済額そのものには影響しない)。
     借金がある間は、勝利分を全額そのまま借金の返済に充てる(残高には反映されない)。
     その回で借金がちょうど完済になった場合、余った分だけ0.01倍換算で残高に反映し、
     以降は通常どおり全額が残高に反映されるようになる。
@@ -166,4 +173,9 @@ def credit_winnings(user, amount):
                 user.balance += round(leftover * DEBT_REPAY_RATE)
         # 借金がまだ残っている場合、この勝利分は残高に反映しない
     else:
+        try:
+            from pets import get_pet_bonus_multiplier
+            amount = round(amount * get_pet_bonus_multiplier(user.id))
+        except Exception:
+            pass
         user.balance += amount
