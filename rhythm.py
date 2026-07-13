@@ -68,7 +68,8 @@ QUICK_PLAY_BPM = 120  # ユーザーが自分のURLで遊ぶ時は、実際のBP
 def quick_play():
     """
     ユーザーが自分でYouTubeのURLを貼り付けて、その場でリズムゲームを始められる機能。
-    管理者が登録した曲とは違い、BPMは解析できないため固定テンポの譜面になる。
+    BPM・開始位置(イントロを飛ばす秒数)を自分で指定できるので、知っている曲ならしっかり合わせられる。
+    未入力の場合は標準テンポ(120)で生成する。
     """
     url_input = request.form.get("youtube_url", "").strip()
     difficulty = request.form.get("difficulty", "normal")
@@ -76,6 +77,16 @@ def quick_play():
         duration = max(10, min(600, int(request.form.get("duration_seconds", "90"))))
     except (TypeError, ValueError):
         duration = 90
+    try:
+        bpm_raw = request.form.get("bpm", "").strip()
+        bpm = max(40, min(300, int(bpm_raw))) if bpm_raw else QUICK_PLAY_BPM
+    except (TypeError, ValueError):
+        bpm = QUICK_PLAY_BPM
+    try:
+        offset_raw = request.form.get("offset_seconds", "").strip()
+        offset = max(0.0, float(offset_raw)) if offset_raw else 0.0
+    except (TypeError, ValueError):
+        offset = 0.0
     if difficulty not in DIFFICULTIES:
         difficulty = "normal"
 
@@ -89,10 +100,10 @@ def quick_play():
         )
 
     interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
-    beat_seconds = 60 / QUICK_PLAY_BPM
+    beat_seconds = 60 / bpm
     note_gap = beat_seconds * interval_beats
     notes = []
-    t = 2.0
+    t = max(2.0, offset)
     i = 0
     while t < duration - 1:
         lane = (i * 7 + i * i) % LANES
@@ -103,7 +114,7 @@ def quick_play():
     # クイックプレイ用の、DBに保存しない「その場限りの曲」情報
     fake_song = type("FakeSong", (), {
         "id": 0, "title": "あなたが選んだ曲", "youtube_id": youtube_id,
-        "duration_seconds": duration, "bpm": QUICK_PLAY_BPM,
+        "duration_seconds": duration, "bpm": bpm,
     })()
 
     return render_template(
@@ -141,8 +152,9 @@ def play(song_id):
     interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
     beat_seconds = 60 / song.bpm
     note_gap = beat_seconds * interval_beats
+    offset = max(0.0, song.offset_seconds or 0.0)
     notes = []
-    t = 2.0
+    t = max(2.0, offset)  # 最初の拍(イントロ明け)より前にはノーツを出さない
     i = 0
     while t < play_seconds - 1:
         lane = (i * 7 + i * i) % LANES
@@ -171,7 +183,10 @@ def submit_score():
 
     is_quick_play = not song_id  # song_id が 0 / None の場合はクイックプレイ(その場限りの曲)
     if is_quick_play:
-        bpm = QUICK_PLAY_BPM
+        try:
+            bpm = max(40, min(300, int(data.get("bpm", QUICK_PLAY_BPM))))
+        except (TypeError, ValueError):
+            bpm = QUICK_PLAY_BPM
     else:
         song = RhythmSong.query.get(song_id)
         if not song:

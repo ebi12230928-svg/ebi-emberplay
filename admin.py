@@ -845,8 +845,9 @@ def rhythm_add_song():
     try:
         duration = int(request.form.get("duration_seconds", "90"))
         bpm = int(request.form.get("bpm", "120"))
+        offset_seconds = float(request.form.get("offset_seconds", "0") or "0")
     except ValueError:
-        flash("再生時間・BPMは数値で入力してください。", "error")
+        flash("再生時間・BPM・拍の開始位置は数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
     def parse_optional_seconds(field_name):
@@ -878,7 +879,7 @@ def rhythm_add_song():
         return redirect(url_for("admin.dashboard"))
 
     db.session.add(RhythmSong(
-        title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm,
+        title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm, offset_seconds=max(0.0, offset_seconds),
         verse1_end_seconds=verse1_end, verse2_end_seconds=verse2_end,
         available_difficulties_json=json.dumps(valid_difficulties),
     ))

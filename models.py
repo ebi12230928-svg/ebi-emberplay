@@ -896,6 +896,7 @@ class RhythmSong(db.Model):
     verse1_end_seconds = db.Column(db.Integer, nullable=True)  # 「1番まで」の終了位置(秒)。未設定なら選択肢に出さない
     verse2_end_seconds = db.Column(db.Integer, nullable=True)  # 「2番まで」の終了位置(秒)。未設定なら選択肢に出さない
     bpm = db.Column(db.Integer, default=120, nullable=False)
+    offset_seconds = db.Column(db.Float, default=0.0, nullable=False)  # イントロ等を飛ばし、最初の拍が実際に始まる位置(秒)
     available_difficulties_json = db.Column(db.Text, default='["easy","normal","hard","oni"]', nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
