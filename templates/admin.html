@@ -7,26 +7,54 @@
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3>🎵 リズムゲーム楽曲追加</h3>
-  <p style="font-size: 13px;">YouTubeの動画URLをそのまま貼り付けてください(例: <code>https://www.youtube.com/watch?v=...</code> や <code>https://youtu.be/...</code>)。動画IDは自動的に読み取られます。著作権保護のため、音源は保存せずYouTube公式プレイヤーで再生されます。</p>
-  <form method="POST" action="{{ url_for('admin.rhythm_add_song') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
-    <div class="field" style="margin:0;">
-      <label for="song-title">曲名</label>
-      <input type="text" id="song-title" name="title" required>
+  <p style="font-size: 13px;">YouTubeの動画URLを貼り付けると、<strong>再生時間は自動的に読み取られます</strong>(URLを貼り付けた後、少し待ってから追加してください)。著作権保護のため、音源は保存せずYouTube公式プレイヤーで再生されます。</p>
+  <form method="POST" action="{{ url_for('admin.rhythm_add_song') }}" id="song-add-form">
+    <div style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap; margin-bottom: 12px;">
+      <div class="field" style="margin:0;">
+        <label for="song-title">曲名</label>
+        <input type="text" id="song-title" name="title" required>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="song-youtube">YouTubeのURL</label>
+        <input type="text" id="song-youtube" name="youtube_id" placeholder="https://www.youtube.com/watch?v=..." required>
+      </div>
+      <div class="field" style="margin:0; width: 100px;">
+        <label for="song-bpm">BPM</label>
+        <input type="number" id="song-bpm" name="bpm" value="120" min="1">
+      </div>
+      <div class="field" style="margin:0; width: 140px;">
+        <label for="song-duration">再生時間(秒・自動取得)</label>
+        <input type="number" id="song-duration" name="duration_seconds" value="90" min="1">
+      </div>
     </div>
-    <div class="field" style="margin:0;">
-      <label for="song-youtube">YouTubeのURL</label>
-      <input type="text" id="song-youtube" name="youtube_id" placeholder="https://www.youtube.com/watch?v=..." required>
+    <p id="song-duration-status" class="text-muted" style="font-size: 12px; margin: -6px 0 12px;"></p>
+
+    <div style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap; margin-bottom: 12px;">
+      <div class="field" style="margin:0; width: 140px;">
+        <label for="song-verse1">「1番まで」(秒・任意)</label>
+        <input type="number" id="song-verse1" name="verse1_end_seconds" min="1" placeholder="例: 75">
+      </div>
+      <div class="field" style="margin:0; width: 140px;">
+        <label for="song-verse2">「2番まで」(秒・任意)</label>
+        <input type="number" id="song-verse2" name="verse2_end_seconds" min="1" placeholder="例: 150">
+      </div>
     </div>
-    <div class="field" style="margin:0; width: 100px;">
-      <label for="song-bpm">BPM</label>
-      <input type="number" id="song-bpm" name="bpm" value="120" min="1">
+    <p class="text-muted" style="font-size: 12px; margin: -6px 0 12px;">「1番まで」「2番まで」を入力すると、プレイヤーが遊ぶ範囲を選べるようになります(空欄でもOK。常に「最後まで」は選べます)。</p>
+
+    <div class="field" style="margin: 0 0 12px;">
+      <label>使用する難易度(太鼓の達人風・4段階)</label>
+      <div style="display:flex; gap: 14px; flex-wrap: wrap; margin-top: 6px;">
+        {% for key, d in difficulties.items() %}
+        <label style="font-size: 13px; display:flex; align-items:center; gap: 6px;">
+          <input type="checkbox" name="difficulties" value="{{ key }}" checked> <span style="color:{{ d.color }};">{{ d.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
     </div>
-    <div class="field" style="margin:0; width: 120px;">
-      <label for="song-duration">再生時間(秒)</label>
-      <input type="number" id="song-duration" name="duration_seconds" value="90" min="1">
-    </div>
+
     <button type="submit" class="btn btn-ember">追加する</button>
   </form>
+  <div id="yt-duration-fetcher" style="width:1px; height:1px; overflow:hidden; opacity:0;"></div>
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
@@ -653,6 +681,79 @@
 
     select.addEventListener("change", loadCurrent);
     loadCurrent();
+  })();
+</script>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+  // YouTubeのURLを貼り付けると、公式プレイヤーのAPIを使って再生時間を自動取得する(APIキー不要)
+  (function () {
+    const urlInput = document.getElementById("song-youtube");
+    const durationInput = document.getElementById("song-duration");
+    const statusEl = document.getElementById("song-duration-status");
+    if (!urlInput) return;
+
+    let ytReady = false;
+    let fetchPlayer = null;
+    let debounceTimer = null;
+
+    window.onYouTubeIframeAPIReady = function () {
+      ytReady = true;
+    };
+
+    function extractVideoId(text) {
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtube\.com\/live\/|youtube\.com\/shorts\/|youtube\.com\/embed\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+      ];
+      for (const p of patterns) {
+        const m = text.match(p);
+        if (m) return m[1];
+      }
+      if (/^[A-Za-z0-9_-]{11}$/.test(text.trim())) return text.trim();
+      return null;
+    }
+
+    function pollDuration(player, attemptsLeft) {
+      const dur = Math.round(player.getDuration ? player.getDuration() : 0);
+      if (dur > 0) {
+        durationInput.value = dur;
+        statusEl.textContent = `✅ 再生時間を自動取得しました(${dur}秒)`;
+        return;
+      }
+      if (attemptsLeft <= 0) {
+        statusEl.textContent = "再生時間を取得できませんでした。手動で入力してください。";
+        return;
+      }
+      setTimeout(() => pollDuration(player, attemptsLeft - 1), 400);
+    }
+
+    function fetchDuration(videoId) {
+      if (!ytReady) {
+        statusEl.textContent = "YouTubeプレイヤーを読み込み中…少し待ってからもう一度試してください。";
+        return;
+      }
+      statusEl.textContent = "再生時間を取得中…";
+      if (fetchPlayer) {
+        fetchPlayer.loadVideoById(videoId);
+        pollDuration(fetchPlayer, 10);
+      } else {
+        fetchPlayer = new YT.Player("yt-duration-fetcher", {
+          height: "1", width: "1", videoId: videoId,
+          playerVars: { autoplay: 0, controls: 0 },
+          events: {
+            onReady: (e) => { pollDuration(e.target, 10); },
+          },
+        });
+      }
+    }
+
+    urlInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const videoId = extractVideoId(urlInput.value);
+        if (videoId) fetchDuration(videoId);
+      }, 700);
+    });
   })();
 </script>
 {% endblock %}

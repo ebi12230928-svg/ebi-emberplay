@@ -4,7 +4,7 @@
 {% block content %}
 <span class="eyebrow">🎵 Rhythm</span>
 <h1>リズムゲーム</h1>
-<p>YouTubeで再生される楽曲に合わせて、落ちてくるノーツをタップしよう。</p>
+<p>YouTubeで再生される楽曲に合わせて、落ちてくるノーツをタップしよう。難易度は太鼓の達人風に「かんたん・ふつう・むずかしい・おに」の4段階です。</p>
 
 {% if error %}
 <div class="panel"><p class="text-loss" style="margin:0;">{{ error }}</p></div>
@@ -18,11 +18,47 @@
 <div class="panel" style="margin-bottom: 12px;">
   <h3 style="margin-bottom: 4px;">{{ song.title }}</h3>
   <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">BPM {{ song.bpm }} ・ {{ song.duration_seconds }}秒</p>
+
+  <p style="font-size: 12px; margin: 0 0 4px;">どこまで遊ぶか</p>
+  <div class="song-length-group" data-song-id="{{ song.id }}" style="display:flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+    {% for opt in song_info[song.id].lengths %}
+    <button type="button" class="btn btn-ghost length-btn {{ 'selected' if loop.last }}" data-key="{{ opt.key }}" style="padding: 6px 12px; font-size: 11px;">{{ opt.label }}</button>
+    {% endfor %}
+  </div>
+
+  <p style="font-size: 12px; margin: 0 0 4px;">難易度</p>
   <div style="display:flex; gap: 8px; flex-wrap: wrap;">
-    {% for key, d in difficulties.items() %}
-    <a href="{{ url_for('rhythm.play', song_id=song.id, difficulty=key) }}" class="btn btn-ghost" style="padding: 8px 14px; font-size: 12px;">{{ d.label }}</a>
+    {% for key in song_info[song.id].difficulties %}
+    <a href="{{ url_for('rhythm.play', song_id=song.id, difficulty=key, length=song_info[song.id].lengths[-1].key) }}"
+       class="btn btn-ghost difficulty-link" data-song-id="{{ song.id }}" data-difficulty="{{ key }}"
+       style="padding: 8px 14px; font-size: 12px; border-color: {{ difficulties[key].color }}; color: {{ difficulties[key].color }};">
+      {{ difficulties[key].label }}
+    </a>
     {% endfor %}
   </div>
 </div>
 {% endfor %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".song-length-group").forEach((group) => {
+    const songId = group.dataset.songId;
+    group.querySelectorAll(".length-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        group.querySelectorAll(".length-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        document.querySelectorAll(`.difficulty-link[data-song-id="${songId}"]`).forEach((link) => {
+          const url = new URL(link.href, window.location.origin);
+          url.searchParams.set("length", btn.dataset.key);
+          link.href = url.toString();
+        });
+      });
+    });
+  });
+</script>
+<style>
+  .length-btn.selected { border-color: var(--gold) !important; color: var(--gold) !important; }
+</style>
+{% endblock %}
+

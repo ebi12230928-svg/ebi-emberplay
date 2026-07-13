@@ -21,7 +21,7 @@
 {% endblock %}
 
 {% block content %}
-<span class="eyebrow">🎵 {{ difficulty.upper() }}</span>
+<span class="eyebrow">🎵 {{ difficulty_label }}</span>
 <h1>{{ song.title }}</h1>
 
 <div id="yt-player-wrap"><div id="yt-player"></div></div>
@@ -47,6 +47,7 @@
 <script>
   const SONG_ID = {{ song.id }};
   const DIFFICULTY = "{{ difficulty }}";
+  const PLAY_SECONDS = {{ play_seconds }};
   const LANES = {{ lanes }};
   const NOTES = {{ notes_json | tojson }};
   const NOTE_TRAVEL_TIME = 2.2;
@@ -129,7 +130,7 @@
     });
     noteElements = noteElements.filter((n) => !n.judged);
 
-    if (t >= {{ song.duration_seconds }}) {
+    if (t >= PLAY_SECONDS) {
       finishSong();
       return;
     }
@@ -174,7 +175,7 @@
     resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}</p>`;
     try {
       const data = await EmberPlay.postJSON("/rhythm/submit-score", {
-        song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo,
+        song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo, play_seconds: PLAY_SECONDS,
       });
       resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers</p>`;
       EmberPlay.updateBalance(data.balance, "win");
