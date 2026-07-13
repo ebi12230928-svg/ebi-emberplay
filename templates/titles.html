@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}称号 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎖️ Titles</span>
+<h1>称号</h1>
+<p>実績を達成すると称号を獲得できます。1つ選んで、プロフィールに表示できます。</p>
+
+<div class="panel" style="margin-bottom: 16px;">
+  <button type="button" class="btn btn-ghost title-select-btn" data-key="" style="{{ 'border-color: var(--gold);' if not active }}">称号なし</button>
+</div>
+
+{% for key, t in catalog.items() %}
+<div class="panel" style="margin-bottom: 10px; display:flex; justify-content: space-between; align-items:center; {{ 'opacity:0.4;' if key not in earned }}">
+  <div>
+    <strong>{{ t.icon }} {{ t.name }}</strong>
+    <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">{{ t.desc }}</p>
+  </div>
+  {% if key in earned %}
+  <button type="button" class="btn btn-ghost title-select-btn" data-key="{{ key }}" style="padding: 8px 14px; font-size: 12px; {{ 'border-color: var(--gold); color: var(--gold);' if active == key }}">
+    {{ "使用中" if active == key else "選ぶ" }}
+  </button>
+  {% else %}
+  <span class="text-muted" style="font-size: 12px;">未獲得</span>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".title-select-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await EmberPlay.postJSON("/titles/set", { title_key: btn.dataset.key || null });
+        location.reload();
+      } catch (err) { alert(err.message); }
+    });
+  });
+</script>
+{% endblock %}

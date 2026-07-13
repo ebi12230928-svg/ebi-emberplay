@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}{{ song.title }} ・ EMBERPLAY{% endblock %}
+
+{% block head %}
+<style>
+  #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  #rhythm-lanes { position: absolute; inset: 0; display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); }
+  .rhythm-lane { position: relative; border-left: 1px solid rgba(255,255,255,0.08); }
+  .rhythm-hitline { position: absolute; bottom: 50px; left:0; right:0; height: 3px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  .rhythm-note {
+    position: absolute; left: 6px; right: 6px; height: 22px; border-radius: 6px;
+    background: linear-gradient(180deg, var(--ember-bright), var(--ember)); box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  .rhythm-judge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 800; animation: rhythm-judge-pop 0.4s ease forwards; white-space: nowrap; }
+  @keyframes rhythm-judge-pop { 0% { opacity:1; transform: translateX(-50%) translateY(0); } 100% { opacity:0; transform: translateX(-50%) translateY(-20px); } }
+  #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; }
+  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; }
+  .rhythm-tap-btn:active { background: var(--ember); }
+  #yt-player-wrap { width: 100%; max-width: 320px; margin: 0 auto 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎵 {{ difficulty.upper() }}</span>
+<h1>{{ song.title }}</h1>
+
+<div id="yt-player-wrap"><div id="yt-player"></div></div>
+
+<div style="display:flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
+  <span>スコア: <strong id="score-display">0</strong></span>
+  <span>コンボ: <strong id="combo-display">0</strong></span>
+</div>
+
+<div id="rhythm-stage">
+  <div id="rhythm-lanes"></div>
+</div>
+
+<div id="rhythm-tap-buttons"></div>
+
+<div id="rhythm-result" class="panel" style="display:none; text-align:center;"></div>
+
+<a href="{{ url_for('rhythm.index') }}" class="btn btn-ghost btn-block" style="margin-top: 12px;">曲選択に戻る</a>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+  const SONG_ID = {{ song.id }};
+  const DIFFICULTY = "{{ difficulty }}";
+  const LANES = {{ lanes }};
+  const NOTES = {{ notes_json | tojson }};
+  const NOTE_TRAVEL_TIME = 2.2;
+  const HIT_WINDOW = 0.18;
+
+  const lanesEl = document.getElementById("rhythm-lanes");
+  const tapButtonsEl = document.getElementById("rhythm-tap-buttons");
+  const scoreDisplay = document.getElementById("score-display");
+  const comboDisplay = document.getElementById("combo-display");
+  const resultPanel = document.getElementById("rhythm-result");
+
+  for (let i = 0; i < LANES; i++) {
+    const lane = document.createElement("div");
+    lane.className = "rhythm-lane";
+    lane.dataset.lane = i;
+    const hitline = document.createElement("div");
+    hitline.className = "rhythm-hitline";
+    lane.appendChild(hitline);
+    lanesEl.appendChild(lane);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "rhythm-tap-btn";
+    btn.textContent = "👆";
+    btn.dataset.lane = i;
+    btn.addEventListener("click", () => tapLane(i));
+    tapButtonsEl.appendChild(btn);
+  }
+
+  let score = 0, combo = 0, maxCombo = 0;
+  let player = null;
+  let started = false;
+  let noteElements = [];
+
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player("yt-player", {
+      height: "180", width: "320", videoId: "{{ song.youtube_id }}",
+      playerVars: { autoplay: 0, controls: 0 },
+      events: {
+        onReady: () => { player.playVideo(); started = true; requestAnimationFrame(gameLoop); },
+      },
+    });
+  }
+  window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+  function currentTime() {
+    return player && player.getCurrentTime ? player.getCurrentTime() : 0;
+  }
+
+  function gameLoop() {
+    if (!started) return;
+    const t = currentTime();
+
+    NOTES.forEach((note) => {
+      if (note._spawned) return;
+      if (t >= note.time - NOTE_TRAVEL_TIME) {
+        note._spawned = true;
+        const el = document.createElement("div");
+        el.className = "rhythm-note";
+        el.style.top = "-24px";
+        lanesEl.children[note.lane].appendChild(el);
+        noteElements.push({ note, el, judged: false });
+      }
+    });
+
+    const stageHeight = document.getElementById("rhythm-stage").offsetHeight;
+    const hitlineY = stageHeight - 50;
+    noteElements.forEach((n) => {
+      if (n.judged) return;
+      const progress = (t - (n.note.time - NOTE_TRAVEL_TIME)) / NOTE_TRAVEL_TIME;
+      const y = progress * hitlineY;
+      n.el.style.top = y + "px";
+      if (t > n.note.time + HIT_WINDOW + 0.15) {
+        n.judged = true;
+        combo = 0;
+        comboDisplay.textContent = "0";
+        showJudge(n.note.lane, "MISS", "var(--loss)");
+        n.el.remove();
+      }
+    });
+    noteElements = noteElements.filter((n) => !n.judged);
+
+    if (t >= {{ song.duration_seconds }}) {
+      finishSong();
+      return;
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  function showJudge(lane, text, color) {
+    const el = document.createElement("div");
+    el.className = "rhythm-judge";
+    el.textContent = text;
+    el.style.color = color;
+    el.style.bottom = "56px";
+    lanesEl.children[lane].appendChild(el);
+    setTimeout(() => el.remove(), 400);
+  }
+
+  function tapLane(lane) {
+    const t = currentTime();
+    let best = null, bestDiff = Infinity;
+    noteElements.forEach((n) => {
+      if (n.judged || n.note.lane !== lane) return;
+      const diff = Math.abs(t - n.note.time);
+      if (diff < bestDiff) { bestDiff = diff; best = n; }
+    });
+
+    if (best && bestDiff <= HIT_WINDOW) {
+      best.judged = true;
+      best.el.remove();
+      noteElements = noteElements.filter((n) => n !== best);
+      const perfect = bestDiff <= HIT_WINDOW * 0.4;
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+      score += perfect ? 300 : 150;
+      scoreDisplay.textContent = String(score);
+      comboDisplay.textContent = String(combo);
+      showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
+    }
+  }
+
+  async function finishSong() {
+    resultPanel.style.display = "block";
+    resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}</p>`;
+    try {
+      const data = await EmberPlay.postJSON("/rhythm/submit-score", {
+        song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo,
+      });
+      resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers</p>`;
+      EmberPlay.updateBalance(data.balance, "win");
+    } catch (err) {
+      resultPanel.innerHTML += `<p class="text-loss">${err.message}</p>`;
+    }
+  }
+</script>
+{% endblock %}

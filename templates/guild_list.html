@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}ギルド ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🛡️ Guild</span>
+<h1>ギルド</h1>
+<p>フレンドより大きい単位のチームです。1人1ギルドまで所属できます。</p>
+
+<div class="panel" style="margin-bottom: 16px;">
+  <h3>新しくギルドを作る</h3>
+  <form method="POST" action="{{ url_for('guild.create') }}">
+    <div class="field">
+      <label for="guild-name">ギルド名</label>
+      <input type="text" id="guild-name" name="name" maxlength="40" required>
+    </div>
+    <div class="field">
+      <label for="guild-desc">紹介文(任意)</label>
+      <input type="text" id="guild-desc" name="description" maxlength="200">
+    </div>
+    <button type="submit" class="btn btn-ember">設立する</button>
+  </form>
+</div>
+
+<h2>ギルドランキング</h2>
+{% if not guilds %}
+<div class="panel"><p style="margin:0;">まだギルドがありません。最初のギルドを作ってみましょう。</p></div>
+{% endif %}
+{% for g in guilds %}
+<div class="panel" style="margin-bottom: 10px; display:flex; justify-content: space-between; align-items:center;">
+  <div>
+    <strong>{{ g.name }}</strong>
+    <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">{{ member_counts[g.id] }}人 ・ {{ g.points }}pt</p>
+  </div>
+  <form method="POST" action="{{ url_for('guild.join', guild_id=g.id) }}">
+    <button type="submit" class="btn btn-ghost" style="padding: 8px 16px; font-size: 13px;">加入する</button>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

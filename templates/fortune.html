@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}おみくじ ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎋 Fortune</span>
+<h1>おみくじ</h1>
+<p>1日1回引けます。運勢が良いほど、もらえるEmbersも多くなります。</p>
+
+<div class="panel" style="text-align:center;">
+  <div style="font-size: 56px;" id="fortune-icon">🎋</div>
+  {% if drawn_today %}
+  <h2 style="margin-top: 8px;">{{ {'daikichi':'大吉','kichi':'吉','chukichi':'中吉','shokichi':'小吉','kyo':'凶'}[drawn_today.result] }}</h2>
+  <p class="text-muted">今日はもう引きました。また明日どうぞ。</p>
+  <p class="mono text-win">+{{ drawn_today.reward }} Embers を獲得済み</p>
+  {% else %}
+  <button type="button" class="btn btn-ember btn-block" id="draw-btn" style="margin-top: 12px;">おみくじを引く</button>
+  {% endif %}
+  <p id="fortune-result" style="margin-top: 12px; font-weight: 700;"></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const drawBtn = document.getElementById("draw-btn");
+  if (drawBtn) {
+    drawBtn.addEventListener("click", async () => {
+      drawBtn.disabled = true;
+      try {
+        const data = await EmberPlay.postJSON("/fortune/draw", {});
+        document.getElementById("fortune-icon").textContent = "🎉";
+        document.getElementById("fortune-result").innerHTML =
+          `<span style="font-size:24px;">${data.label}</span><br>${data.message}<br><span style="color:var(--win);">+${data.reward} Embers</span>`;
+        EmberPlay.updateBalance(data.balance, "win");
+        drawBtn.remove();
+      } catch (err) {
+        alert(err.message);
+        drawBtn.disabled = false;
+      }
+    });
+  }
+</script>
+{% endblock %}

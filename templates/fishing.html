@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}釣り ・ EMBERPLAY{% endblock %}
+
+{% block head %}
+<style>
+  #fishing-bar { position: relative; width: 100%; height: 36px; background: var(--bg-raised); border-radius: 100px; overflow: hidden; margin: 16px 0; }
+  #fishing-target { position: absolute; top:0; bottom:0; background: rgba(232,89,12,0.4); border-left: 2px solid var(--ember); border-right: 2px solid var(--ember); }
+  #fishing-indicator { position: absolute; top:0; bottom:0; width: 4px; background: #fff; box-shadow: 0 0 6px #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎣 Fishing</span>
+<h1>釣り</h1>
+<p>竿を投げて、動くインジケーターが色付きのゾーンに来たタイミングで「釣る!」を押しましょう。精度が高いほどレアな魚が釣れます。</p>
+
+<div class="panel" style="text-align:center;">
+  <div style="font-size: 48px;" id="fish-display">🎣</div>
+  <div id="fishing-bar" style="display:none;">
+    <div id="fishing-target"></div>
+    <div id="fishing-indicator"></div>
+  </div>
+  <button type="button" class="btn btn-ember btn-block" id="cast-btn" style="margin-top: 12px;">竿を投げる(💰{{ cast_cost }})</button>
+  <button type="button" class="btn btn-ember btn-block" id="reel-btn" style="margin-top: 12px; display:none;">🎣 釣る!</button>
+  <p id="fishing-result" style="margin-top: 12px; font-weight: 700;"></p>
+</div>
+
+{% if recent %}
+<h2 style="margin-top: 24px;">最近の釣果</h2>
+<div class="panel">
+  {% for c in recent %}
+  <div style="display:flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--panel-border); font-size: 13px;">
+    <span>{{ c.fish_key }}</span>
+    <span class="mono text-win">+{{ c.reward }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const castBtn = document.getElementById("cast-btn");
+  const reelBtn = document.getElementById("reel-btn");
+  const bar = document.getElementById("fishing-bar");
+  const target = document.getElementById("fishing-target");
+  const indicator = document.getElementById("fishing-indicator");
+  const resultEl = document.getElementById("fishing-result");
+  const fishDisplay = document.getElementById("fish-display");
+
+  let targetStart = 0, targetWidth = 0;
+  let indicatorPos = 0, direction = 1, animId = null;
+
+  castBtn.addEventListener("click", async () => {
+    castBtn.disabled = true;
+    try {
+      const data = await EmberPlay.postJSON("/fishing/cast", {});
+      EmberPlay.updateBalance(data.balance);
+      targetStart = data.target_start;
+      targetWidth = data.target_width;
+      target.style.left = targetStart + "%";
+      target.style.width = targetWidth + "%";
+      bar.style.display = "block";
+      castBtn.style.display = "none";
+      reelBtn.style.display = "block";
+      resultEl.textContent = "";
+      fishDisplay.textContent = "🌊";
+      indicatorPos = 0; direction = 1;
+      animate();
+    } catch (err) {
+      alert(err.message);
+      castBtn.disabled = false;
+    }
+  });
+
+  function animate() {
+    indicatorPos += direction * 1.8;
+    if (indicatorPos >= 100) { indicatorPos = 100; direction = -1; }
+    if (indicatorPos <= 0) { indicatorPos = 0; direction = 1; }
+    indicator.style.left = indicatorPos + "%";
+    animId = requestAnimationFrame(animate);
+  }
+
+  reelBtn.addEventListener("click", async () => {
+    cancelAnimationFrame(animId);
+    reelBtn.disabled = true;
+    try {
+      const data = await EmberPlay.postJSON("/fishing/reel", {
+        position: indicatorPos, target_start: targetStart, target_width: targetWidth,
+      });
+      if (data.success) {
+        fishDisplay.textContent = data.fish.icon;
+        resultEl.textContent = `${data.fish.icon} ${data.fish.name}を釣った!+${data.reward} Embers`;
+        resultEl.style.color = "var(--win)";
+        EmberPlay.updateBalance(data.balance, "win");
+      } else {
+        fishDisplay.textContent = "💦";
+        resultEl.textContent = data.message;
+        resultEl.style.color = "var(--loss)";
+      }
+    } catch (err) {
+      resultEl.textContent = err.message;
+    }
+    bar.style.display = "none";
+    reelBtn.style.display = "none";
+    castBtn.style.display = "block";
+    castBtn.disabled = false;
+    reelBtn.disabled = false;
+  });
+</script>
+{% endblock %}

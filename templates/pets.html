@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}相棒 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🐾 Pet</span>
+<h1>相棒</h1>
+
+{% if not pet %}
+<p>エサをあげて育てる相棒を迎えましょう。レベルが上がると、カジノ全体の勝利額に少しボーナスが付くようになります。</p>
+<div class="panel">
+  <form method="POST" action="{{ url_for('pets.create') }}">
+    <div class="field">
+      <label for="pet-name">名前</label>
+      <input type="text" id="pet-name" name="name" maxlength="32" required>
+    </div>
+    <div class="field">
+      <label>種類</label>
+      <div class="grid-3">
+        {% for key, s in species.items() %}
+        <label class="panel" style="text-align:center; padding: 12px; cursor:pointer;">
+          <input type="radio" name="species" value="{{ key }}" {{ "checked" if loop.first }} style="display:none;">
+          <div style="font-size:32px;">{{ s.icon }}</div>
+          <div style="font-size:12px; margin-top:4px;">{{ s.name }}</div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="btn btn-ember btn-block">迎える</button>
+  </form>
+</div>
+{% else %}
+<div class="panel" style="text-align:center;">
+  <div style="font-size:64px;">{{ species[pet.species].icon }}</div>
+  <h2>{{ pet.name }}</h2>
+  <p class="text-muted">{{ species[pet.species].name }} ・ Lv.{{ pet.level }}</p>
+
+  <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow:hidden; margin: 12px 0;">
+    <div style="background: linear-gradient(90deg, var(--ember), var(--gold)); height:100%; width: {{ (pet.xp / xp_needed * 100) if xp_needed else 0 }}%;"></div>
+  </div>
+  <p class="mono text-muted" style="font-size:12px;">XP {{ pet.xp }} / {{ xp_needed }}</p>
+
+  <p style="margin-top: 12px;">現在のボーナス: <strong style="color: var(--gold);">カジノ勝利額 +{{ bonus_percent }}%</strong></p>
+  <p class="text-muted" style="font-size: 12px;">次のボーナスアップ: Lv.{{ next_bonus_level }}(+{{ (next_bonus_level // 5) }}%になります)</p>
+
+  <button type="button" class="btn btn-ember btn-block" id="feed-btn" style="margin-top: 16px;">🍖 エサをあげる(💰{{ feed_cost }})</button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const feedBtn = document.getElementById("feed-btn");
+  if (feedBtn) {
+    feedBtn.addEventListener("click", async () => {
+      feedBtn.disabled = true;
+      try {
+        const data = await EmberPlay.postJSON("{{ url_for('pets.feed') }}", {});
+        EmberPlay.updateBalance(data.balance);
+        if (data.leveled_up) {
+          alert(`レベルアップ!Lv.${data.level}になりました!(ボーナス+${data.bonus_percent}%)`);
+        }
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+        feedBtn.disabled = false;
+      }
+    });
+  }
+</script>
+{% endblock %}

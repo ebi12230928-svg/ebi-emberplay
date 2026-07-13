@@ -8,6 +8,7 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  <div id="dm-notify-bar" style="display:none; position: sticky; top: 0; z-index: 200; background: var(--ember); color: #fff; padding: 10px 16px; font-size: 13px; cursor: pointer; text-align:center;"></div>
   <nav class="navbar">
     <a href="{{ url_for('lobby.index') if nav_user.is_authenticated else url_for('auth.login') }}" class="brand">
       EMBER<span class="dot">PLAY</span>
@@ -29,6 +30,7 @@
       <a href="{{ url_for('rewards.wallet') }}">ウォレット</a>
       <a href="{{ url_for('challenges.index') }}">📋 チャレンジ</a>
       <a href="{{ url_for('friends.index') }}">👥 フレンド</a>
+      <a href="{{ url_for('dm.index') }}">✉️ DM</a>
       <a href="{{ url_for('gacha.index') }}">🎴 ガチャ</a>
       <a href="{{ url_for('collection.index') }}">📖 図鑑</a>
       <a href="{{ url_for('towerdefense.index') }}">🏰 タワーディフェンス</a>
@@ -36,6 +38,14 @@
       <a href="{{ url_for('seasons.index') }}">🏆 シーズン</a>
       <a href="{{ url_for('polls.index') }}">📊 アンケート</a>
       <a href="{{ url_for('cardroom.index') }}">🃏 トランプ</a>
+      <a href="{{ url_for('pets.index') }}">🐾 相棒</a>
+      <a href="{{ url_for('trade.index') }}">🔄 トレード</a>
+      <a href="{{ url_for('fishing.index') }}">🎣 釣り</a>
+      <a href="{{ url_for('rhythm.index') }}">🎵 リズムゲーム</a>
+      <a href="{{ url_for('fortune.index') }}">🎋 おみくじ</a>
+      <a href="{{ url_for('guild.index') }}">🛡️ ギルド</a>
+      <a href="{{ url_for('titles.index') }}">🎖️ 称号</a>
+      <a href="{{ url_for('tournament.index') }}">🏆 トーナメント</a>
       <a href="{{ url_for('lobby.history') }}">履歴</a>
       <a href="{{ url_for('leaderboard.index') }}">ランキング</a>
       <a href="{{ url_for('rewards.fairness_settings') }}">フェアネス</a>
@@ -72,6 +82,7 @@
 
   <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
   <script src="{{ url_for('static', filename='js/balance.js') }}"></script>
+  {% if nav_user.is_authenticated %}<script src="{{ url_for('static', filename='js/dm_notify.js') }}"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

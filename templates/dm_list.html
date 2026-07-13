@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}DM ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">✉️ Direct Messages</span>
+<h1>DM</h1>
+
+{% if error %}
+<div class="panel"><p class="text-loss" style="margin:0;">{{ error }}</p></div>
+{% endif %}
+
+{% if not conversations %}
+<div class="panel"><p style="margin:0;">フレンドがいません。まずはフレンド機能から追加しましょう。</p></div>
+{% endif %}
+
+{% for c in conversations %}
+<a href="{{ url_for('dm.conversation', friend_id=c.friend.id) }}" style="text-decoration:none; color:inherit;">
+  <div class="panel" style="margin-bottom: 10px; display:flex; justify-content: space-between; align-items:center;">
+    <div>
+      <strong>{{ c.friend.username }}</strong>
+      {% if c.last %}
+      <p class="text-muted" style="font-size: 12px; margin: 2px 0 0; max-width: 220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+        {{ c.last.message }}
+      </p>
+      {% else %}
+      <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">まだメッセージがありません</p>
+      {% endif %}
+    </div>
+    {% if c.unread > 0 %}
+    <span class="mono" style="background: var(--ember); color:#fff; border-radius: 100px; padding: 2px 8px; font-size: 11px;">{{ c.unread }}</span>
+    {% endif %}
+  </div>
+</a>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ friend.username }} ・ DM ・ EMBERPLAY{% endblock %}
+
+{% block head %}
+<style>
+  .dm-bubble { max-width: 75%; padding: 8px 12px; border-radius: 14px; margin-bottom: 8px; font-size: 14px; word-break: break-word; }
+  .dm-bubble.mine { background: var(--ember); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+  .dm-bubble.theirs { background: var(--bg-raised); margin-right: auto; border-bottom-left-radius: 4px; }
+  .dm-meta { font-size: 10px; opacity: 0.7; margin-top: 2px; text-align: right; }
+</style>
+{% endblock %}
+
+{% block content %}
+<span class="eyebrow">✉️ DM</span>
+<h1>{{ friend.username }}</h1>
+
+<div id="dm-log" style="display:flex; flex-direction: column; min-height: 300px; max-height: 55vh; overflow-y: auto; padding: 8px 0;">
+  {% for m in messages %}
+  <div class="dm-bubble {{ 'mine' if m.from_user_id != friend.id else 'theirs' }}" data-id="{{ m.id }}">
+    {{ m.message }}
+    <div class="dm-meta">{{ m.created_at.strftime("%H:%M") }}{% if m.from_user_id != friend.id %} ・ {{ "既読" if m.is_read else "未読" }}{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="display:flex; gap: 8px; margin-top: 10px;">
+  <input type="text" id="dm-input" placeholder="メッセージを入力…" maxlength="500" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+  <button type="button" class="btn btn-ember" id="dm-send-btn" style="padding: 10px 18px;">送信</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const FRIEND_ID = {{ friend.id }};
+  const dmLog = document.getElementById("dm-log");
+  const dmInput = document.getElementById("dm-input");
+  const sendBtn = document.getElementById("dm-send-btn");
+
+  function lastMessageId() {
+    const bubbles = dmLog.querySelectorAll(".dm-bubble");
+    if (!bubbles.length) return 0;
+    return parseInt(bubbles[bubbles.length - 1].dataset.id, 10) || 0;
+  }
+
+  function scrollToBottom() { dmLog.scrollTop = dmLog.scrollHeight; }
+  scrollToBottom();
+
+  async function send() {
+    const text = dmInput.value.trim();
+    if (!text) return;
+    dmInput.value = "";
+    try {
+      await EmberPlay.postJSON(`/dm/${FRIEND_ID}/send`, { message: text });
+      poll();
+    } catch (err) { alert(err.message); }
+  }
+  sendBtn.addEventListener("click", send);
+  dmInput.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+
+  async function poll() {
+    try {
+      const res = await fetch(`/dm/${FRIEND_ID}/poll?after_id=${lastMessageId()}`);
+      const data = await res.json();
+      if (!data.messages || !data.messages.length) return;
+      data.messages.forEach((m) => {
+        const el = document.createElement("div");
+        el.className = "dm-bubble " + (m.from_me ? "mine" : "theirs");
+        el.dataset.id = m.id;
+        el.innerHTML = `${m.message}<div class="dm-meta">${m.created_at}${!m.from_me ? " ・ " + (m.is_read ? "既読" : "未読") : ""}</div>`;
+        dmLog.appendChild(el);
+      });
+      scrollToBottom();
+    } catch (err) { /* 次回のポーリングに任せる */ }
+  }
+
+  setInterval(poll, 2000);
+</script>
+{% endblock %}

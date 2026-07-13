@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}トーナメント ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🏆 Tournament</span>
+<h1>トーナメント</h1>
+
+<h2>開催中</h2>
+{% if not active %}
+<div class="panel"><p style="margin:0;">現在開催中の大会はありません。</p></div>
+{% endif %}
+{% for t in active %}
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 4px;">{{ t.name }}</h3>
+  <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">対象: {{ t.game_key }} ・ 優勝賞品 💰{{ t.prize_amount }}{{ " + キャラクター" if t.prize_character_key }}</p>
+  {% for row in leaderboards[t.id] %}
+  <div style="display:flex; justify-content: space-between; padding: 4px 0; font-size: 13px;">
+    <span>{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}位{% endif %} {{ row.username }}</span>
+    <span class="mono text-win">{{ row.score }}</span>
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size: 12px;">まだ参加者がいません。</p>
+  {% endfor %}
+</div>
+{% endfor %}
+
+{% if finished %}
+<h2>終了した大会</h2>
+{% for t in finished %}
+<div class="panel" style="margin-bottom: 16px; opacity: 0.8;">
+  <h3 style="margin-bottom: 4px;">{{ t.name }}</h3>
+  <p class="text-muted" style="font-size: 12px;">優勝: {{ t.winner.username if t.winner else "-" }}</p>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

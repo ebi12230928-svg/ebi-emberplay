@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ guild.name }} ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🛡️ Guild</span>
+<h1>{{ guild.name }}</h1>
+{% if guild.description %}<p>{{ guild.description }}</p>{% endif %}
+
+<div class="panel" style="margin-bottom: 16px;">
+  <p style="margin:0;">ギルドポイント: <strong style="color: var(--gold);">{{ guild.points }}pt</strong></p>
+</div>
+
+<h2>メンバー({{ members|length }}人)</h2>
+<div class="panel">
+  {% for m in members %}
+  <div style="display:flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--panel-border);">
+    <span>{{ m.user.username }}{% if m.user_id == guild.owner_id %} 👑{% endif %}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<form method="POST" action="{{ url_for('guild.leave') }}" style="margin-top: 16px;">
+  <button type="submit" class="btn btn-ghost">{{ "ギルドを解散する" if is_owner and members|length == 1 else "脱退する" }}</button>
+</form>
+{% endblock %}

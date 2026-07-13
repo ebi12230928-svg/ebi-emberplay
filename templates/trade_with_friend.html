@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ friend.username }}とトレード ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🔄 Trade with {{ friend.username }}</span>
+<h1>{{ friend.username }} とトレード</h1>
+<p>あなたのキャラクターを1つ、相手のキャラクターを1つ選んでください(<strong>同じレアリティ同士のみ</strong>選択できます)。</p>
+
+<h3>あなたのキャラクター</h3>
+<div class="grid-4" id="my-roster">
+  {% for c in my_roster %}
+  <div class="panel roster-pick" data-key="{{ c.key }}" data-rarity="{{ c.rarity }}" style="text-align:center; padding: 8px; cursor:pointer; border-color: {{ c.colors[0] }};">
+    <div style="font-size:22px;">{{ c.icon }}</div>
+    <div style="font-size:10px;">{{ c.name }}</div>
+    <div class="mono text-muted" style="font-size:9px;">x{{ c.count }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<h3 style="margin-top: 20px;">{{ friend.username }} のキャラクター</h3>
+<div class="grid-4" id="their-roster">
+  {% for c in their_roster %}
+  <div class="panel roster-pick" data-key="{{ c.key }}" data-rarity="{{ c.rarity }}" style="text-align:center; padding: 8px; cursor:pointer; border-color: {{ c.colors[0] }};">
+    <div style="font-size:22px;">{{ c.icon }}</div>
+    <div style="font-size:10px;">{{ c.name }}</div>
+    <div class="mono text-muted" style="font-size:9px;">x{{ c.count }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="panel" style="margin-top: 16px; position: sticky; bottom: 10px;">
+  <p id="selection-summary" style="font-size: 13px; margin: 0 0 10px;">キャラクターを選んでください。</p>
+  <button type="button" class="btn btn-ember btn-block" id="propose-btn" disabled>この内容でトレードを申し込む</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const FRIEND_ID = {{ friend.id }};
+  let selectedMine = null;
+  let selectedTheirs = null;
+
+  function updateSummary() {
+    const summary = document.getElementById("selection-summary");
+    const btn = document.getElementById("propose-btn");
+    if (selectedMine && selectedTheirs) {
+      summary.textContent = `あなたの ${selectedMine.name} ⇄ {{ friend.username }} の ${selectedTheirs.name} を申し込みます。`;
+      btn.disabled = false;
+    } else {
+      summary.textContent = "キャラクターを選んでください(同じレアリティ同士のみ選択できます)。";
+      btn.disabled = true;
+    }
+  }
+
+  document.querySelectorAll("#my-roster .roster-pick").forEach((el) => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll("#my-roster .roster-pick").forEach((e) => e.style.outline = "none");
+      el.style.outline = "2px solid var(--gold)";
+      selectedMine = { key: el.dataset.key, rarity: el.dataset.rarity, name: el.querySelector("div:nth-child(2)").textContent };
+      filterTheirsByRarity();
+      updateSummary();
+    });
+  });
+  document.querySelectorAll("#their-roster .roster-pick").forEach((el) => {
+    el.addEventListener("click", () => {
+      if (selectedMine && el.dataset.rarity !== selectedMine.rarity) {
+        alert("同じレアリティのキャラクターしか選べません。");
+        return;
+      }
+      document.querySelectorAll("#their-roster .roster-pick").forEach((e) => e.style.outline = "none");
+      el.style.outline = "2px solid var(--gold)";
+      selectedTheirs = { key: el.dataset.key, rarity: el.dataset.rarity, name: el.querySelector("div:nth-child(2)").textContent };
+      updateSummary();
+    });
+  });
+
+  function filterTheirsByRarity() {
+    document.querySelectorAll("#their-roster .roster-pick").forEach((el) => {
+      el.style.opacity = (el.dataset.rarity === selectedMine.rarity) ? "1" : "0.3";
+    });
+  }
+
+  document.getElementById("propose-btn").addEventListener("click", async () => {
+    try {
+      await EmberPlay.postJSON("/trade/propose", {
+        to_user_id: FRIEND_ID, offered_key: selectedMine.key, requested_key: selectedTheirs.key,
+      });
+      alert("トレードを申し込みました!");
+      window.location.href = "/trade";
+    } catch (err) { alert(err.message); }
+  });
+</script>
+{% endblock %}

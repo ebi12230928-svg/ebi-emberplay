@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}リズムゲーム ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🎵 Rhythm</span>
+<h1>リズムゲーム</h1>
+<p>YouTubeで再生される楽曲に合わせて、落ちてくるノーツをタップしよう。</p>
+
+{% if error %}
+<div class="panel"><p class="text-loss" style="margin:0;">{{ error }}</p></div>
+{% endif %}
+
+{% if not songs %}
+<div class="panel"><p style="margin:0;">現在プレイできる楽曲がありません(管理者が追加すると表示されます)。</p></div>
+{% endif %}
+
+{% for song in songs %}
+<div class="panel" style="margin-bottom: 12px;">
+  <h3 style="margin-bottom: 4px;">{{ song.title }}</h3>
+  <p class="text-muted" style="font-size: 12px; margin-bottom: 10px;">BPM {{ song.bpm }} ・ {{ song.duration_seconds }}秒</p>
+  <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+    {% for key, d in difficulties.items() %}
+    <a href="{{ url_for('rhythm.play', song_id=song.id, difficulty=key) }}" class="btn btn-ghost" style="padding: 8px 14px; font-size: 12px;">{{ d.label }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

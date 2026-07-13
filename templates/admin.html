@@ -6,6 +6,67 @@
 <h1>管理パネル</h1>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>🎵 リズムゲーム楽曲追加</h3>
+  <p style="font-size: 13px;">YouTubeの動画URL(<code>https://www.youtube.com/watch?v=<strong>動画ID</strong></code>)の太字部分だけを「YouTube動画ID」に入力してください。著作権保護のため、音源は保存せずYouTube公式プレイヤーで再生されます。</p>
+  <form method="POST" action="{{ url_for('admin.rhythm_add_song') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0;">
+      <label for="song-title">曲名</label>
+      <input type="text" id="song-title" name="title" required>
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="song-youtube">YouTube動画ID</label>
+      <input type="text" id="song-youtube" name="youtube_id" placeholder="dQw4w9WgXcQ" required>
+    </div>
+    <div class="field" style="margin:0; width: 100px;">
+      <label for="song-bpm">BPM</label>
+      <input type="number" id="song-bpm" name="bpm" value="120" min="1">
+    </div>
+    <div class="field" style="margin:0; width: 120px;">
+      <label for="song-duration">再生時間(秒)</label>
+      <input type="number" id="song-duration" name="duration_seconds" value="90" min="1">
+    </div>
+    <button type="submit" class="btn btn-ember">追加する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>🏆 トーナメント開催</h3>
+  <p style="font-size: 13px;">対象ゲームのキー(例: blackjack, roulette, towerdefense など)を指定すると、そのゲームでの勝利額合計を集計してランキング化します。</p>
+  <form method="POST" action="{{ url_for('admin.tournament_create') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
+    <div class="field" style="margin:0;">
+      <label for="tourney-name">大会名</label>
+      <input type="text" id="tourney-name" name="name" placeholder="第1回ブラックジャック杯" required>
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="tourney-game">対象ゲームキー</label>
+      <input type="text" id="tourney-game" name="game_key" placeholder="blackjack" required>
+    </div>
+    <div class="field" style="margin:0; width: 120px;">
+      <label for="tourney-prize">優勝賞品(Embers)</label>
+      <input type="number" id="tourney-prize" name="prize_amount" value="500" min="0">
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="tourney-char">優勝賞品キャラ(任意・キー)</label>
+      <input type="text" id="tourney-char" name="prize_character_key" placeholder="例: ebi">
+    </div>
+    <button type="submit" class="btn btn-ember">開催する</button>
+  </form>
+
+  {% if active_tournaments %}
+  <hr class="divider">
+  <h3 style="margin-bottom: 10px;">開催中の大会</h3>
+  {% for t in active_tournaments %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 10px 0; border-top: 1px solid var(--panel-border);">
+    <span style="font-size: 13px;">{{ t.name }}({{ t.game_key }}) ・ 賞品💰{{ t.prize_amount }}</span>
+    <form method="POST" action="{{ url_for('admin.tournament_end', tournament_id=t.id) }}" onsubmit="return confirm('大会を終了し、優勝者に賞品を付与しますか?');">
+      <button type="submit" class="btn btn-ghost" style="padding: 6px 12px; font-size: 12px;">終了して賞品付与</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>📊 アンケート作成</h3>
   <form method="POST" action="{{ url_for('admin.poll_create') }}">
     <div class="field">
