@@ -12,7 +12,7 @@
       <label for="wager">プレイ料</label>
       <input type="number" id="wager" value="100" min="1">
     </div>
-    <div style="display:flex; gap: 8px;">
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
       <select id="digit-0">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
       <select id="digit-1">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
       <select id="digit-2">{% for n in range(10) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
@@ -22,7 +22,7 @@
 
   <div>
     <div class="game-stage" style="flex-direction: column; gap: 16px;">
-      <div id="drawn-numbers" style="display:flex; gap: 12px; font-size: 40px; font-weight: 800;">
+      <div id="drawn-numbers" style="display:flex; gap: 12px; font-size: 40px; font-weight: 800; flex-wrap: wrap;">
         <div>❔</div><div>❔</div><div>❔</div>
       </div>
       <div class="result-readout" id="result-readout"></div>

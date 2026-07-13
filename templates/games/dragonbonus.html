@@ -12,7 +12,7 @@
       <label for="wager">プレイ料</label>
       <input type="number" id="wager" value="100" min="1">
     </div>
-    <div style="display:flex; gap: 10px;">
+    <div style="display:flex; gap: 10px; flex-wrap: wrap;">
       <button class="btn btn-ember pick-btn" data-pick="player" style="flex:1;">Player</button>
       <button class="btn btn-ember pick-btn" data-pick="banker" style="flex:1;">Banker</button>
     </div>
@@ -22,7 +22,7 @@
 
   <div>
     <div class="game-stage" style="flex-direction: column; gap: 16px;">
-      <div style="display:flex; gap: 40px;">
+      <div style="display:flex; gap: 40px; flex-wrap: wrap;">
         <div style="text-align:center;">
           <div class="eyebrow">Player</div>
           <div class="mono" id="player-total" style="font-size: 32px;">-</div>

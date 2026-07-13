@@ -12,7 +12,7 @@
       <label for="wager">プレイ料</label>
       <input type="number" id="wager" value="100" min="1">
     </div>
-    <div style="display:flex; gap: 8px;">
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
       <button class="btn btn-ember pick-btn" data-pick="under" style="flex:1;">Under 7<br>{{ payouts.under }}x</button>
       <button class="btn btn-ember pick-btn" data-pick="seven" style="flex:1;">= 7<br>{{ payouts.seven }}x</button>
       <button class="btn btn-ember pick-btn" data-pick="over" style="flex:1;">Over 7<br>{{ payouts.over }}x</button>
@@ -21,7 +21,7 @@
 
   <div>
     <div class="game-stage" style="flex-direction: column; gap: 16px;">
-      <div style="display:flex; gap: 16px; font-size: 48px;">
+      <div style="display:flex; gap: 16px; font-size: 48px; flex-wrap: wrap;">
         <div id="die-0">🎲</div>
         <div id="die-1">🎲</div>
       </div>

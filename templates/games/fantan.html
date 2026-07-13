@@ -12,7 +12,7 @@
       <label for="wager">プレイ料</label>
       <input type="number" id="wager" value="100" min="1">
     </div>
-    <div style="display:flex; gap: 8px;">
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
       {% for n in range(4) %}
       <button class="btn btn-ember pick-btn" data-pick="{{ n }}" style="flex:1;">{{ n }}</button>
       {% endfor %}
