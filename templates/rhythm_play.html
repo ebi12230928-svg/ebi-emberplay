@@ -168,53 +168,60 @@
     return player && player.getCurrentTime ? player.getCurrentTime() : 0;
   }
 
+  const stageEl = document.getElementById("rhythm-stage"); // 毎フレームDOM検索しないようキャッシュしておく
+  let nextSpawnIndex = 0; // まだ画面に出していないノーツの先頭位置(毎フレーム全件スキャンしないため)
+
   function gameLoop() {
     if (!started) return;
     const t = currentTime();
 
-    NOTES.forEach((note) => {
-      if (note._spawned) return;
-      if (t >= note.time - NOTE_TRAVEL_TIME) {
-        note._spawned = true;
-        const el = document.createElement("div");
-        el.className = "rhythm-note" + (note.hold ? " rhythm-note-hold" : "");
-        el.style.top = "-24px";
-        if (note.hold) {
-          // ホールド時間の長さに応じて、ノーツの上に伸びる「尻尾」を表示する
-          const tailLength = (note.hold / NOTE_TRAVEL_TIME) * 100;
-          el.style.setProperty("--tail-length", tailLength + "%");
-        }
-        lanesEl.children[note.lane].appendChild(el);
-        noteElements.push({ note, el, judged: false });
+    // NOTESは時間順に並んでいるため、次に出すべきノーツから順番に見ていくだけでよい
+    // (既に出し終わったノーツを毎フレーム再チェックする必要が無くなり、負荷が大きく下がる)
+    while (nextSpawnIndex < NOTES.length && t >= NOTES[nextSpawnIndex].time - NOTE_TRAVEL_TIME) {
+      const note = NOTES[nextSpawnIndex];
+      const el = document.createElement("div");
+      el.className = "rhythm-note" + (note.hold ? " rhythm-note-hold" : "");
+      el.style.top = "-24px";
+      if (note.hold) {
+        const tailLength = (note.hold / NOTE_TRAVEL_TIME) * 100;
+        el.style.setProperty("--tail-length", tailLength + "%");
       }
-    });
+      lanesEl.children[note.lane].appendChild(el);
+      noteElements.push({ note, el, judged: false });
+      nextSpawnIndex++;
+    }
 
-    const stageHeight = document.getElementById("rhythm-stage").offsetHeight;
-    const hitlineY = stageHeight - 50;
-    noteElements.forEach((n) => {
-      if (n.judged) return;
+    const hitlineY = stageEl.offsetHeight - 50;
+    let anyJudgedThisFrame = false;
+    for (let i = 0; i < noteElements.length; i++) {
+      const n = noteElements[i];
+      if (n.judged) continue;
 
       if (n.holding) {
         // 長押し中は判定ラインに固定表示し、離さずに最後まで到達したら自動で成功にする
         n.el.style.top = hitlineY + "px";
         if (t >= n.note.time + n.note.hold) {
           resolveHit(n, n.note.lane, n.holdStartDiff);
+          anyJudgedThisFrame = true;
         }
-        return;
+        continue;
       }
 
       const progress = (t - (n.note.time - NOTE_TRAVEL_TIME)) / NOTE_TRAVEL_TIME;
-      const y = progress * hitlineY;
-      n.el.style.top = y + "px";
+      n.el.style.top = (progress * hitlineY) + "px";
       if (t > n.note.time + HIT_WINDOW + 0.15) {
         n.judged = true;
         combo = 0;
         comboDisplay.textContent = "0";
         showJudge(n.note.lane, "MISS", "var(--loss)");
         n.el.remove();
+        anyJudgedThisFrame = true;
       }
-    });
-    noteElements = noteElements.filter((n) => !n.judged);
+    }
+    // 実際に何か判定が確定した時だけ配列を作り直す(毎フレームの無駄な複製をなくす)
+    if (anyJudgedThisFrame) {
+      noteElements = noteElements.filter((n) => !n.judged);
+    }
 
     if (t >= PLAY_SECONDS) {
       finishSong();
@@ -240,8 +247,8 @@
     laneEl.appendChild(burst);
     setTimeout(() => burst.remove(), 400);
 
-    const emojis = ["✨", "⭐", "💫"];
-    for (let i = 0; i < 4; i++) {
+    const emojis = ["✨", "⭐"];
+    for (let i = 0; i < 2; i++) {
       const p = document.createElement("div");
       p.className = "rhythm-particle";
       p.textContent = emojis[i % emojis.length];
@@ -267,7 +274,6 @@
   function resolveHit(n, lane, bestDiff) {
     n.judged = true;
     n.el.remove();
-    noteElements = noteElements.filter((x) => x !== n);
     const perfect = bestDiff <= HIT_WINDOW * 0.4;
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
@@ -282,6 +288,9 @@
       void comboDisplay.offsetWidth;
       comboDisplay.classList.add("combo-milestone");
     }
+    // 配列からの削除はここでは行わない(gameLoopのループ中に呼ばれる場合があり、
+    // その場でfilterして配列を作り直すとループのインデックスと矛盾するため)。
+    // n.judged = true を見て、呼び出し元がまとめて掃除する。
   }
 
   function pressLane(lane) {
@@ -301,6 +310,7 @@
       best.el.classList.add("holding");
     } else {
       resolveHit(best, lane, bestDiff);
+      noteElements = noteElements.filter((n) => !n.judged);
     }
   }
 
@@ -309,7 +319,6 @@
     const held = noteElements.find((n) => n.holding && n.note.lane === lane);
     if (!held) return;
 
-    const requiredEnd = held.note.time + held.note.hold;
     const heldRatio = (t - held.note.time) / held.note.hold;
     if (heldRatio >= 0.7) {
       resolveHit(held, lane, held.holdStartDiff);
@@ -317,11 +326,11 @@
       // 早く離しすぎた場合はミス扱い
       held.judged = true;
       held.el.remove();
-      noteElements = noteElements.filter((n) => n !== held);
       combo = 0;
       comboDisplay.textContent = "0";
       showJudge(lane, "MISS", "var(--loss)");
     }
+    noteElements = noteElements.filter((n) => !n.judged);
   }
 
   // ───────── フルスクリーン切り替え(iOS Safari等、要素単位のFullscreen APIが使えない場合は疑似フルスクリーンにフォールバック) ─────────
