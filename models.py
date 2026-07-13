@@ -30,6 +30,8 @@ class User(UserMixin, db.Model):
     is_vip = db.Column(db.Boolean, default=False, nullable=False)
     vip_tier = db.Column(db.Integer, default=1, nullable=False)  # 1=Bronze 2=Silver 3=Gold 4=Diamond(is_vip=Trueの時だけ意味を持つ)
     is_blacklisted = db.Column(db.Boolean, default=False, nullable=False)  # Trueの間、何をしても残高が増えなくなる
+    is_bot = db.Column(db.Boolean, default=False, nullable=False)  # トランプ・ボードゲームのCPUプレイヤー
+    bot_difficulty = db.Column(db.String(16), nullable=True)  # easy / normal / hard(is_bot=Trueの時のみ意味を持つ)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -608,6 +610,17 @@ class GachaSetting(db.Model):
     cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
 
 
+class RoomChatMessage(db.Model):
+    """ゲームルーム(トランプ・ボードゲーム共通)専用のチャットメッセージ"""
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    message = db.Column(db.String(300), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
 class CardRoom(db.Model):
     """
     トランプ(大富豪・ババ抜き・スピード)をフレンドと遊ぶための部屋。
@@ -638,10 +651,21 @@ class CardRoomPlayer(db.Model):
 
 
 class CardGameState(db.Model):
-    """トランプの対局状態(手札・場札・手番など)をJSONで保持する"""
+    """トランプ・ボードゲームの対局状態(手札・盤面・手番など)をJSONで保持する"""
     room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), primary_key=True)
     state_json = db.Column(db.Text, default="{}", nullable=False)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
+class RoomChatMessage(db.Model):
+    """トランプ・ボードゲームの部屋専用チャット"""
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    message = db.Column(db.String(300), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
 
 
 class PlayerSpell(db.Model):
