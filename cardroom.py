@@ -433,6 +433,45 @@ def _build_public_state(room_obj, state, viewer_id, names_by_id):
             })
         elif game_type == "shogi":
             public["hands"] = state.get("hands", {})
+
+        # 「どこに置ける/動かせるか」を色で示すための合法手マップを計算する
+        # (自分の手番の時だけ計算する。閲覧者本人の駒についてのみ)
+        is_my_turn = str(module.current_turn_player(state)) == str(viewer_id)
+        if is_my_turn and game_type in ("chess", "shogi", "checkers"):
+            owner = state.get("turn_order", []).index(viewer_id) if viewer_id in state.get("turn_order", []) else None
+            board = state.get("board")
+            legal_map = {}
+            if owner is not None and board:
+                size = len(board)
+                for r in range(size):
+                    for c in range(size):
+                        cell = board[r][c]
+                        piece_owner = cell.get("owner") if isinstance(cell, dict) else None
+                        if piece_owner != owner:
+                            continue
+                        if game_type == "checkers":
+                            simple, jumps = module._piece_moves(board, r, c)
+                            dests = jumps if jumps else simple
+                        else:
+                            dests = module.legal_moves_for(state, r, c)
+                        if dests:
+                            legal_map[f"{r},{c}"] = [list(d) for d in dests]
+            public["legal_moves_map"] = legal_map
+        elif is_my_turn and game_type == "othello":
+            public["legal_placements"] = [list(m) for m in module.legal_moves(state, viewer_id)]
+        elif is_my_turn and game_type == "morris" and state.get("phase") == "moving" and not state.get("must_remove"):
+            owner = state.get("turn_order", []).index(viewer_id) if viewer_id in state.get("turn_order", []) else None
+            board = state.get("board")
+            legal_map = {}
+            if owner is not None and board:
+                my_points = [i for i, v in enumerate(board) if v == owner]
+                flying = sum(1 for v in board if v == owner) <= 3
+                empties = [i for i, v in enumerate(board) if v is None]
+                for p in my_points:
+                    dests = empties if flying else [n for n in module.ADJACENCY[p] if board[n] is None]
+                    if dests:
+                        legal_map[str(p)] = dests
+            public["legal_moves_map_morris"] = legal_map
     return public
 
 
