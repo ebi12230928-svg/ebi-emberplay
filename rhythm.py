@@ -6,6 +6,7 @@
 """
 import json
 import re
+import random
 
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
@@ -63,6 +64,43 @@ def _extract_youtube_id(text):
 QUICK_PLAY_BPM = 120  # ユーザーが自分のURLで遊ぶ時は、実際のBPMを解析できないため固定値を使う
 
 
+def _generate_notes(bpm, offset, play_seconds, difficulty, seed=None):
+    """
+    レーンをしっかり全て使い、同じレーンが連続しすぎないように生成する。
+    難易度が高いほど、プロセカのような「長押し(ホールド)」ノーツも混ざるようにする。
+    """
+    rng = random.Random(seed)  # 同じ曲・難易度・区間なら毎回同じ譜面になるようにシードを固定する
+    interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
+    beat_seconds = 60 / bpm
+    note_gap = beat_seconds * interval_beats
+    hold_chance = {"easy": 0.0, "normal": 0.08, "hard": 0.15, "oni": 0.22}.get(difficulty, 0.1)
+
+    notes = []
+    t = max(2.0, offset)
+    last_lane = -1
+    recent_lanes = []
+    while t < play_seconds - 1:
+        # 直近を含めて同じレーンばかりにならないよう、まんべんなく全レーンを使う
+        candidates = [l for l in range(LANES) if l != last_lane and recent_lanes.count(l) < 2]
+        if not candidates:
+            candidates = [l for l in range(LANES) if l != last_lane]
+        lane = rng.choice(candidates)
+
+        note = {"time": round(t, 2), "lane": lane}
+        if hold_chance > 0 and rng.random() < hold_chance:
+            hold_beats = rng.choice([1, 1.5, 2])
+            note["hold"] = round(beat_seconds * hold_beats, 2)
+
+        notes.append(note)
+        last_lane = lane
+        recent_lanes.append(lane)
+        if len(recent_lanes) > 3:
+            recent_lanes.pop(0)
+
+        t += note_gap + note.get("hold", 0)  # ロングノーツの分、次のノーツまでの間隔を空ける
+    return notes
+
+
 @rhythm_bp.route("/rhythm/quick-play", methods=["POST"])
 @login_required
 def quick_play():
@@ -99,17 +137,7 @@ def quick_play():
             error="YouTubeのURLから動画IDを読み取れませんでした。URLをそのまま貼り付けてみてください。",
         )
 
-    interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
-    beat_seconds = 60 / bpm
-    note_gap = beat_seconds * interval_beats
-    notes = []
-    t = max(2.0, offset)
-    i = 0
-    while t < duration - 1:
-        lane = (i * 7 + i * i) % LANES
-        notes.append({"time": round(t, 2), "lane": lane})
-        t += note_gap
-        i += 1
+    notes = _generate_notes(bpm, offset, duration, difficulty, seed=youtube_id + difficulty)
 
     # クイックプレイ用の、DBに保存しない「その場限りの曲」情報
     fake_song = type("FakeSong", (), {
@@ -149,18 +177,8 @@ def play(song_id):
     length_options = {o["key"]: o["seconds"] for o in _length_options(song)}
     play_seconds = length_options.get(length_key, song.duration_seconds)
 
-    interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
-    beat_seconds = 60 / song.bpm
-    note_gap = beat_seconds * interval_beats
     offset = max(0.0, song.offset_seconds or 0.0)
-    notes = []
-    t = max(2.0, offset)  # 最初の拍(イントロ明け)より前にはノーツを出さない
-    i = 0
-    while t < play_seconds - 1:
-        lane = (i * 7 + i * i) % LANES
-        notes.append({"time": round(t, 2), "lane": lane})
-        t += note_gap
-        i += 1
+    notes = _generate_notes(song.bpm, offset, play_seconds, difficulty, seed=f"{song.id}-{difficulty}-{length_key}")
 
     return render_template(
         "rhythm_play.html", song=song, difficulty=difficulty, difficulty_label=DIFFICULTIES[difficulty]["label"],
