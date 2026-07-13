@@ -892,8 +892,11 @@ class RhythmSong(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120), nullable=False)
     youtube_id = db.Column(db.String(32), nullable=False)  # YouTube動画ID(例: dQw4w9WgXcQ)
-    duration_seconds = db.Column(db.Integer, default=90, nullable=False)
+    duration_seconds = db.Column(db.Integer, default=90, nullable=False)  # 動画全体の長さ(自動取得)
+    verse1_end_seconds = db.Column(db.Integer, nullable=True)  # 「1番まで」の終了位置(秒)。未設定なら選択肢に出さない
+    verse2_end_seconds = db.Column(db.Integer, nullable=True)  # 「2番まで」の終了位置(秒)。未設定なら選択肢に出さない
     bpm = db.Column(db.Integer, default=120, nullable=False)
+    available_difficulties_json = db.Column(db.Text, default='["easy","normal","hard","oni"]', nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
 

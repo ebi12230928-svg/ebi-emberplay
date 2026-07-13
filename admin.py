@@ -846,6 +846,22 @@ def rhythm_add_song():
         flash("再生時間・BPMは数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
+    def parse_optional_seconds(field_name):
+        raw = request.form.get(field_name, "").strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            return None
+
+    verse1_end = parse_optional_seconds("verse1_end_seconds")
+    verse2_end = parse_optional_seconds("verse2_end_seconds")
+    difficulties = request.form.getlist("difficulties")
+    valid_difficulties = [d for d in difficulties if d in ("easy", "normal", "hard", "oni")]
+    if not valid_difficulties:
+        valid_difficulties = ["easy", "normal", "hard", "oni"]
+
     if not title or not youtube_input:
         flash("曲名とYouTubeのURL(または動画ID)を入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
@@ -858,7 +874,11 @@ def rhythm_add_song():
         flash("YouTubeのURLから動画IDを読み取れませんでした。URLをそのまま貼り付けてみてください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    db.session.add(RhythmSong(title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm))
+    db.session.add(RhythmSong(
+        title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm,
+        verse1_end_seconds=verse1_end, verse2_end_seconds=verse2_end,
+        available_difficulties_json=json.dumps(valid_difficulties),
+    ))
     db.session.commit()
     flash(f"楽曲「{title}」を追加しました。(動画ID: {youtube_id})", "success")
     return redirect(url_for("admin.dashboard"))

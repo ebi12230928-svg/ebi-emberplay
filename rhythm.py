@@ -2,7 +2,10 @@
 リズムゲーム。管理者がYouTube動画(楽曲)を登録し、プレイヤーはYouTube公式プレイヤーで
 再生される楽曲に合わせて、BPMから自動生成される譜面のノーツをタップする。
 著作権保護のため、音源そのものはダウンロード・保存せず、常にYouTube公式プレイヤーで再生する。
+難易度は太鼓の達人を参考に「かんたん・ふつう・むずかしい・おに」の4段階。曲ごとに使える難易度を管理者が設定できる。
 """
+import json
+
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 
@@ -11,19 +14,45 @@ from models import RhythmSong, RhythmScore
 
 rhythm_bp = Blueprint("rhythm", __name__)
 
+# 太鼓の達人を参考にした4段階の難易度
 DIFFICULTIES = {
-    "easy": {"label": "EASY", "note_interval_beats": 2},
-    "normal": {"label": "NORMAL", "note_interval_beats": 1},
-    "hard": {"label": "HARD", "note_interval_beats": 0.5},
+    "easy": {"label": "かんたん", "color": "#4caf6d", "note_interval_beats": 2},
+    "normal": {"label": "ふつう", "color": "#3b82f6", "note_interval_beats": 1},
+    "hard": {"label": "むずかしい", "color": "#f59e0b", "note_interval_beats": 0.5},
+    "oni": {"label": "おに", "color": "#dc2626", "note_interval_beats": 0.25},
 }
+DIFFICULTY_ORDER = ["easy", "normal", "hard", "oni"]
 LANES = 4
+
+
+def _song_difficulties(song):
+    try:
+        keys = json.loads(song.available_difficulties_json)
+    except (TypeError, ValueError):
+        keys = list(DIFFICULTIES.keys())
+    return [k for k in DIFFICULTY_ORDER if k in keys]
+
+
+def _length_options(song):
+    """曲ごとに選べる「どこまで遊ぶか」の選択肢(区切りが設定されている分だけ表示)"""
+    options = []
+    if song.verse1_end_seconds:
+        options.append({"key": "verse1", "label": "1番まで", "seconds": song.verse1_end_seconds})
+    if song.verse2_end_seconds:
+        options.append({"key": "verse2", "label": "2番まで", "seconds": song.verse2_end_seconds})
+    options.append({"key": "full", "label": "最後まで", "seconds": song.duration_seconds})
+    return options
 
 
 @rhythm_bp.route("/rhythm")
 @login_required
 def index():
     songs = RhythmSong.query.filter_by(is_active=True).order_by(RhythmSong.created_at.desc()).all()
-    return render_template("rhythm.html", songs=songs, difficulties=DIFFICULTIES)
+    song_info = {
+        s.id: {"difficulties": _song_difficulties(s), "lengths": _length_options(s)}
+        for s in songs
+    }
+    return render_template("rhythm.html", songs=songs, difficulties=DIFFICULTIES, song_info=song_info)
 
 
 @rhythm_bp.route("/rhythm/play/<int:song_id>")
@@ -31,10 +60,15 @@ def index():
 def play(song_id):
     song = RhythmSong.query.get(song_id)
     if not song or not song.is_active:
-        return render_template("rhythm.html", songs=[], difficulties=DIFFICULTIES, error="この楽曲は見つかりません。")
+        return render_template("rhythm.html", songs=[], difficulties=DIFFICULTIES, song_info={}, error="この楽曲は見つかりません。")
+
     difficulty = request.args.get("difficulty", "normal")
-    if difficulty not in DIFFICULTIES:
-        difficulty = "normal"
+    if difficulty not in _song_difficulties(song):
+        difficulty = _song_difficulties(song)[0] if _song_difficulties(song) else "normal"
+
+    length_key = request.args.get("length", "full")
+    length_options = {o["key"]: o["seconds"] for o in _length_options(song)}
+    play_seconds = length_options.get(length_key, song.duration_seconds)
 
     interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
     beat_seconds = 60 / song.bpm
@@ -42,15 +76,15 @@ def play(song_id):
     notes = []
     t = 2.0
     i = 0
-    while t < song.duration_seconds - 1:
+    while t < play_seconds - 1:
         lane = (i * 7 + i * i) % LANES
         notes.append({"time": round(t, 2), "lane": lane})
         t += note_gap
         i += 1
 
     return render_template(
-        "rhythm_play.html", song=song, difficulty=difficulty,
-        notes_json=notes, lanes=LANES,
+        "rhythm_play.html", song=song, difficulty=difficulty, difficulty_label=DIFFICULTIES[difficulty]["label"],
+        notes_json=notes, lanes=LANES, play_seconds=play_seconds, length_key=length_key,
     )
 
 
@@ -63,6 +97,7 @@ def submit_score():
     try:
         score = max(0, int(data.get("score", 0)))
         max_combo = max(0, int(data.get("max_combo", 0)))
+        play_seconds = max(1, int(data.get("play_seconds", 90)))
     except (TypeError, ValueError):
         return jsonify({"error": "不正なスコアです。"}), 400
 
@@ -70,7 +105,12 @@ def submit_score():
     if not song:
         return jsonify({"error": "楽曲が見つかりません。"}), 400
 
-    theoretical_max = int(song.duration_seconds / 0.4) * 300 + 500
+    # 難易度が上がるほどノーツが増える(=理論上の最大スコアも増える)ことを考慮して不正防止の上限を計算する
+    interval_beats = DIFFICULTIES.get(difficulty, DIFFICULTIES["normal"])["note_interval_beats"]
+    beat_seconds = 60 / song.bpm
+    note_gap = max(0.05, beat_seconds * interval_beats)
+    theoretical_notes = int(play_seconds / note_gap) + 5
+    theoretical_max = theoretical_notes * 300 + 500
     if score > theoretical_max:
         return jsonify({"error": "スコアが不正です。"}), 400
 
@@ -78,7 +118,9 @@ def submit_score():
         user_id=current_user.id, song_id=song_id, difficulty=difficulty, score=score, max_combo=max_combo
     ))
 
-    reward = min(300, round(score / 20))
+    # 難易度が高いほど報酬も少し多くする
+    difficulty_mult = {"easy": 1.0, "normal": 1.3, "hard": 1.7, "oni": 2.2}.get(difficulty, 1.0)
+    reward = min(500, round(score / 20 * difficulty_mult))
     from games.common import credit_reward
     credit_reward(current_user, reward)
     db.session.commit()
