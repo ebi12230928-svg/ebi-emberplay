@@ -657,17 +657,6 @@ class CardGameState(db.Model):
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
-class RoomChatMessage(db.Model):
-    """トランプ・ボードゲームの部屋専用チャット"""
-    id = db.Column(db.Integer, primary_key=True)
-    room_id = db.Column(db.Integer, db.ForeignKey("card_room.id"), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    message = db.Column(db.String(300), nullable=False)
-    created_at = db.Column(db.DateTime, default=utcnow)
-
-    user = db.relationship("User")
-
-
 class PlayerSpell(db.Model):
     """RPGボス討伐で入手した魔法(スペル)の所持数。戦闘中にボタンで使用できる"""
     id = db.Column(db.Integer, primary_key=True)
