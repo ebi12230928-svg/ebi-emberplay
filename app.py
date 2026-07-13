@@ -88,6 +88,15 @@ def create_app():
     from seasons import seasons_bp
     from polls import polls_bp
     from cardroom import cardroom_bp
+    from pets import pets_bp
+    from trade import trade_bp
+    from fishing import fishing_bp
+    from rhythm import rhythm_bp
+    from fortune import fortune_bp
+    from guild import guild_bp
+    from titles import titles_bp
+    from tournament import tournament_bp
+    from dm import dm_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -115,6 +124,15 @@ def create_app():
     app.register_blueprint(seasons_bp)
     app.register_blueprint(polls_bp)
     app.register_blueprint(cardroom_bp)
+    app.register_blueprint(pets_bp)
+    app.register_blueprint(trade_bp)
+    app.register_blueprint(fishing_bp)
+    app.register_blueprint(rhythm_bp)
+    app.register_blueprint(fortune_bp)
+    app.register_blueprint(guild_bp)
+    app.register_blueprint(titles_bp)
+    app.register_blueprint(tournament_bp)
+    app.register_blueprint(dm_bp)
 
     @app.context_processor
     def inject_user():

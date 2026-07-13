@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -85,6 +85,7 @@ def dashboard():
     current_season = get_current_season()
 
     active_polls = Poll.query.filter_by(is_active=True).order_by(Poll.created_at.desc()).all()
+    active_tournaments = Tournament.query.filter_by(status="active").order_by(Tournament.created_at.desc()).all()
 
     from towerdefense import get_enemy_tier, enemy_tier_multiplier, ENEMY_TIER_LABELS, get_reward_multiplier
     current_enemy_tier = get_enemy_tier()
@@ -100,7 +101,7 @@ def dashboard():
         rarity_order=ch.RARITY_ORDER,
         current_season=current_season, active_polls=active_polls,
         current_enemy_tier=current_enemy_tier, enemy_tier_multiplier=enemy_tier_multiplier,
-        current_reward_multiplier=current_reward_multiplier,
+        current_reward_multiplier=current_reward_multiplier, active_tournaments=active_tournaments,
         enemy_tier_labels=ENEMY_TIER_LABELS
     )
 
@@ -812,6 +813,111 @@ def grant_character():
         pass
 
     flash(f"{user.username} に「{info['name']}」を{count}体付与しました(所持数: {row.count})。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/rhythm/add-song", methods=["POST"])
+@login_required
+@admin_required
+def rhythm_add_song():
+    title = request.form.get("title", "").strip()
+    youtube_id = request.form.get("youtube_id", "").strip()
+    try:
+        duration = int(request.form.get("duration_seconds", "90"))
+        bpm = int(request.form.get("bpm", "120"))
+    except ValueError:
+        flash("再生時間・BPMは数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if not title or not youtube_id:
+        flash("曲名とYouTube動画IDを入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if bpm <= 0 or duration <= 0:
+        flash("BPM・再生時間は1以上で指定してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    db.session.add(RhythmSong(title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm))
+    db.session.commit()
+    flash(f"楽曲「{title}」を追加しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/tournament/create", methods=["POST"])
+@login_required
+@admin_required
+def tournament_create():
+    name = request.form.get("name", "").strip()
+    game_key = request.form.get("game_key", "").strip()
+    prize_character_key = request.form.get("prize_character_key", "").strip() or None
+    try:
+        prize_amount = int(request.form.get("prize_amount", "0"))
+    except ValueError:
+        prize_amount = 0
+
+    if not name or not game_key:
+        flash("大会名と対象ゲームを入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if prize_amount < 0:
+        flash("優勝賞品(Embers)は0以上で指定してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    db.session.add(Tournament(
+        name=name, game_key=game_key, prize_amount=prize_amount,
+        prize_character_key=prize_character_key, created_by=current_user.username,
+    ))
+    db.session.commit()
+
+    try:
+        notify_all(f"🏆 新しい大会「{name}」が始まりました!対象ゲーム: {game_key}")
+        db.session.commit()
+    except Exception:
+        pass
+
+    flash("大会を開催しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/tournament/<int:tournament_id>/end", methods=["POST"])
+@login_required
+@admin_required
+def tournament_end(tournament_id):
+    from tournament import compute_scores
+    t = Tournament.query.get(tournament_id)
+    if not t or t.status != "active":
+        flash("この大会はすでに終了しています。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    scores = compute_scores(t)
+    if scores:
+        winner_id = max(scores, key=scores.get)
+        winner = User.query.get(winner_id)
+        t.winner_id = winner_id
+
+        if t.prize_amount > 0:
+            from games.common import credit_reward
+            credit_reward(winner, t.prize_amount)
+            db.session.add(Transaction(
+                user_id=winner_id, amount=t.prize_amount, kind="tournament_prize",
+                description=f"大会優勝賞品: {t.name}"
+            ))
+        if t.prize_character_key:
+            existing = UserCharacter.query.filter_by(user_id=winner_id, character_key=t.prize_character_key).first()
+            if existing:
+                existing.count += 1
+            else:
+                db.session.add(UserCharacter(user_id=winner_id, character_key=t.prize_character_key, count=1))
+
+        try:
+            from notifications import notify
+            notify(winner_id, f"🏆 「{t.name}」で優勝しました!賞品を獲得しました。")
+        except Exception:
+            pass
+        flash(f"大会を終了し、{winner.username} に賞品を付与しました。", "success")
+    else:
+        flash("大会を終了しました(参加者がいなかったため賞品は付与されていません)。", "success")
+
+    t.status = "finished"
+    db.session.commit()
     return redirect(url_for("admin.dashboard"))
 
 

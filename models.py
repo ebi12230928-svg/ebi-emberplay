@@ -32,6 +32,7 @@ class User(UserMixin, db.Model):
     is_blacklisted = db.Column(db.Boolean, default=False, nullable=False)  # Trueの間、何をしても残高が増えなくなる
     is_bot = db.Column(db.Boolean, default=False, nullable=False)  # トランプ・ボードゲームのCPUプレイヤー
     bot_difficulty = db.Column(db.String(16), nullable=True)  # easy / normal / hard(is_bot=Trueの時のみ意味を持つ)
+    active_title = db.Column(db.String(32), nullable=True)  # 現在表示中の称号キー
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -610,6 +611,19 @@ class GachaSetting(db.Model):
     cost_ten = db.Column(db.Integer, default=1800, nullable=False)  # 10連ガチャ(単発より少しお得な価格)
 
 
+class DirectMessage(db.Model):
+    """フレンド間のプライベートDM。既読管理付き"""
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    message = db.Column(db.String(500), nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    from_user = db.relationship("User", foreign_keys=[from_user_id])
+    to_user = db.relationship("User", foreign_keys=[to_user_id])
+
+
 class RoomChatMessage(db.Model):
     """ゲームルーム(トランプ・ボードゲーム共通)専用のチャットメッセージ"""
     id = db.Column(db.Integer, primary_key=True)
@@ -831,3 +845,139 @@ class SquadMember(db.Model):
     user = db.relationship("User")
 
     __table_args__ = (db.UniqueConstraint("room_id", "user_id", name="uq_squad_member"),)
+
+
+# ───────── ペット/相棒システム ─────────
+class Pet(db.Model):
+    """1人1匹まで育てられる相棒。エサ(Embers)を与えるとXPが貯まりレベルアップする"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+    name = db.Column(db.String(32), nullable=False)
+    species = db.Column(db.String(16), nullable=False)  # dragon / cat / slime / phoenix / wolf
+    level = db.Column(db.Integer, default=1, nullable=False)
+    xp = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+# ───────── フレンド間トレード ─────────
+class TradeOffer(db.Model):
+    """同じレアリティのキャラクター同士でのみ成立するフレンド間トレード"""
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    offered_character_key = db.Column(db.String(64), nullable=False)
+    requested_character_key = db.Column(db.String(64), nullable=False)
+    status = db.Column(db.String(16), default="pending", nullable=False)  # pending / accepted / declined / cancelled
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    from_user = db.relationship("User", foreign_keys=[from_user_id])
+    to_user = db.relationship("User", foreign_keys=[to_user_id])
+
+
+# ───────── 釣りゲーム ─────────
+class FishingCatch(db.Model):
+    """釣果の記録(統計・図鑑的な用途)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    fish_key = db.Column(db.String(32), nullable=False)
+    reward = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+# ───────── リズムゲーム(YouTube連携) ─────────
+class RhythmSong(db.Model):
+    """管理者が登録する楽曲(YouTube動画IDを指定)。譜面は難易度に応じて自動生成される"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120), nullable=False)
+    youtube_id = db.Column(db.String(32), nullable=False)  # YouTube動画ID(例: dQw4w9WgXcQ)
+    duration_seconds = db.Column(db.Integer, default=90, nullable=False)
+    bpm = db.Column(db.Integer, default=120, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class RhythmScore(db.Model):
+    """リズムゲームのスコア記録"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    song_id = db.Column(db.Integer, db.ForeignKey("rhythm_song.id"), nullable=False)
+    difficulty = db.Column(db.String(16), default="normal", nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False)
+    max_combo = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+# ───────── おみくじ ─────────
+class FortuneDraw(db.Model):
+    """1日1回引けるおみくじの記録(重複引き防止用)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    result = db.Column(db.String(16), nullable=False)  # daikichi / kichi / chukichi / shokichi / kyo
+    reward = db.Column(db.Integer, default=0, nullable=False)
+    drawn_date = db.Column(db.String(10), nullable=False)  # "YYYY-MM-DD"(その日1回だけ引けるようにする)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "drawn_date", name="uq_fortune_draw"),)
+
+
+# ───────── ギルド ─────────
+class Guild(db.Model):
+    """フレンドより大きい単位のチーム。ギルドポイントで簡易ランキングを持つ"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(40), unique=True, nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    description = db.Column(db.String(200), nullable=True)
+    points = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    owner = db.relationship("User")
+
+
+class GuildMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    guild_id = db.Column(db.Integer, db.ForeignKey("guild.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)  # 1人1ギルドまで
+    joined_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+# ───────── 称号システム ─────────
+class Title(db.Model):
+    """実績達成で獲得できる称号のマスタ(コード側に一覧を定義し、ここは付与記録のみ)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    title_key = db.Column(db.String(32), nullable=False)
+    earned_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "title_key", name="uq_user_title"),)
+
+
+# ───────── トーナメント(管理者主催) ─────────
+class Tournament(db.Model):
+    """管理者が作成する大会。対象ゲーム・優勝賞品を設定し、終了時に自動で賞品が付与される"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    game_key = db.Column(db.String(32), nullable=False)  # 対象ゲーム(例: "blackjack", "towerdefense" など)
+    prize_amount = db.Column(db.Integer, default=0, nullable=False)
+    prize_character_key = db.Column(db.String(64), nullable=True)  # 任意: 優勝賞品としてキャラクターも付与できる
+    status = db.Column(db.String(16), default="active", nullable=False)  # active / finished
+    winner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_by = db.Column(db.String(32), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    ends_at = db.Column(db.DateTime, nullable=True)
+
+    winner = db.relationship("User")
+
+
+class TournamentScore(db.Model):
+    """トーナメント参加者のスコア(対象ゲームでの合計勝利額などをそのまま記録)"""
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey("tournament.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    score = db.Column(db.Integer, default=0, nullable=False)
+
+    user = db.relationship("User")
+
+    __table_args__ = (db.UniqueConstraint("tournament_id", "user_id", name="uq_tournament_score"),)
