@@ -5,6 +5,7 @@
 難易度は太鼓の達人を参考に「かんたん・ふつう・むずかしい・おに」の4段階。曲ごとに使える難易度を管理者が設定できる。
 """
 import json
+import re
 
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
@@ -42,6 +43,73 @@ def _length_options(song):
         options.append({"key": "verse2", "label": "2番まで", "seconds": song.verse2_end_seconds})
     options.append({"key": "full", "label": "最後まで", "seconds": song.duration_seconds})
     return options
+
+
+def _extract_youtube_id(text):
+    """YouTubeのURL(様々な形式)、または動画IDそのものから、動画IDだけを取り出す"""
+    text = text.strip()
+    patterns = [
+        r"(?:youtube\.com/watch\?v=|youtube\.com/live/|youtube\.com/shorts/|youtube\.com/embed/|youtu\.be/)([A-Za-z0-9_-]{11})",
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text)
+        if m:
+            return m.group(1)
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", text):
+        return text
+    return None
+
+
+QUICK_PLAY_BPM = 120  # ユーザーが自分のURLで遊ぶ時は、実際のBPMを解析できないため固定値を使う
+
+
+@rhythm_bp.route("/rhythm/quick-play", methods=["POST"])
+@login_required
+def quick_play():
+    """
+    ユーザーが自分でYouTubeのURLを貼り付けて、その場でリズムゲームを始められる機能。
+    管理者が登録した曲とは違い、BPMは解析できないため固定テンポの譜面になる。
+    """
+    url_input = request.form.get("youtube_url", "").strip()
+    difficulty = request.form.get("difficulty", "normal")
+    try:
+        duration = max(10, min(600, int(request.form.get("duration_seconds", "90"))))
+    except (TypeError, ValueError):
+        duration = 90
+    if difficulty not in DIFFICULTIES:
+        difficulty = "normal"
+
+    youtube_id = _extract_youtube_id(url_input)
+    if not youtube_id:
+        songs = RhythmSong.query.filter_by(is_active=True).order_by(RhythmSong.created_at.desc()).all()
+        song_info = {s.id: {"difficulties": _song_difficulties(s), "lengths": _length_options(s)} for s in songs}
+        return render_template(
+            "rhythm.html", songs=songs, difficulties=DIFFICULTIES, song_info=song_info,
+            error="YouTubeのURLから動画IDを読み取れませんでした。URLをそのまま貼り付けてみてください。",
+        )
+
+    interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
+    beat_seconds = 60 / QUICK_PLAY_BPM
+    note_gap = beat_seconds * interval_beats
+    notes = []
+    t = 2.0
+    i = 0
+    while t < duration - 1:
+        lane = (i * 7 + i * i) % LANES
+        notes.append({"time": round(t, 2), "lane": lane})
+        t += note_gap
+        i += 1
+
+    # クイックプレイ用の、DBに保存しない「その場限りの曲」情報
+    fake_song = type("FakeSong", (), {
+        "id": 0, "title": "あなたが選んだ曲", "youtube_id": youtube_id,
+        "duration_seconds": duration, "bpm": QUICK_PLAY_BPM,
+    })()
+
+    return render_template(
+        "rhythm_play.html", song=fake_song, difficulty=difficulty, difficulty_label=DIFFICULTIES[difficulty]["label"],
+        notes_json=notes, lanes=LANES, play_seconds=duration, length_key="full", is_quick_play=True,
+    )
 
 
 @rhythm_bp.route("/rhythm")
@@ -101,22 +169,28 @@ def submit_score():
     except (TypeError, ValueError):
         return jsonify({"error": "不正なスコアです。"}), 400
 
-    song = RhythmSong.query.get(song_id)
-    if not song:
-        return jsonify({"error": "楽曲が見つかりません。"}), 400
+    is_quick_play = not song_id  # song_id が 0 / None の場合はクイックプレイ(その場限りの曲)
+    if is_quick_play:
+        bpm = QUICK_PLAY_BPM
+    else:
+        song = RhythmSong.query.get(song_id)
+        if not song:
+            return jsonify({"error": "楽曲が見つかりません。"}), 400
+        bpm = song.bpm
 
     # 難易度が上がるほどノーツが増える(=理論上の最大スコアも増える)ことを考慮して不正防止の上限を計算する
     interval_beats = DIFFICULTIES.get(difficulty, DIFFICULTIES["normal"])["note_interval_beats"]
-    beat_seconds = 60 / song.bpm
+    beat_seconds = 60 / bpm
     note_gap = max(0.05, beat_seconds * interval_beats)
     theoretical_notes = int(play_seconds / note_gap) + 5
     theoretical_max = theoretical_notes * 300 + 500
     if score > theoretical_max:
         return jsonify({"error": "スコアが不正です。"}), 400
 
-    db.session.add(RhythmScore(
-        user_id=current_user.id, song_id=song_id, difficulty=difficulty, score=score, max_combo=max_combo
-    ))
+    if not is_quick_play:
+        db.session.add(RhythmScore(
+            user_id=current_user.id, song_id=song_id, difficulty=difficulty, score=score, max_combo=max_combo
+        ))
 
     # 難易度が高いほど報酬も少し多くする
     difficulty_mult = {"easy": 1.0, "normal": 1.3, "hard": 1.7, "oni": 2.2}.get(difficulty, 1.0)

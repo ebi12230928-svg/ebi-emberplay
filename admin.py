@@ -820,9 +820,6 @@ def grant_character():
     return redirect(url_for("admin.dashboard"))
 
 
-@admin_bp.route("/admin/rhythm/add-song", methods=["POST"])
-@login_required
-@admin_required
 def _extract_youtube_id(text):
     """YouTubeのURL(様々な形式)、または動画IDそのものから、動画IDだけを取り出す"""
     text = text.strip()
@@ -839,6 +836,9 @@ def _extract_youtube_id(text):
     return None
 
 
+@admin_bp.route("/admin/rhythm/add-song", methods=["POST"])
+@login_required
+@admin_required
 def rhythm_add_song():
     title = request.form.get("title", "").strip()
     youtube_input = request.form.get("youtube_id", "").strip()
