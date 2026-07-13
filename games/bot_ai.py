@@ -24,9 +24,74 @@ def bot_move(game_type, module, state, bot_id, difficulty="normal"):
             return _bot_morris(module, state, bot_id, difficulty)
         if game_type == "shogi":
             return _bot_shogi(module, state, bot_id, difficulty)
+        if game_type == "tictactoe":
+            return _bot_tictactoe(module, state, bot_id, difficulty)
+        if game_type == "connect4":
+            return _bot_connect4(module, state, bot_id, difficulty)
+        if game_type == "chess":
+            return _bot_chess(module, state, bot_id, difficulty)
+        if game_type == "sevens":
+            return _bot_sevens(module, state, bot_id, difficulty)
+        if game_type == "concentration":
+            return _bot_concentration(module, state, bot_id, difficulty)
     except Exception:
         return False
     return False
+
+
+def _bot_tictactoe(module, state, bot_id, difficulty):
+    empties = [(r, c) for r in range(3) for c in range(3) if state["board"][r][c] is None]
+    if not empties:
+        return False
+    random.shuffle(empties)
+    r, c = empties[0]
+    return module.apply_place(state, bot_id, r, c) is None
+
+
+def _bot_connect4(module, state, bot_id, difficulty):
+    cols = [c for c in range(7) if state["board"][0][c] is None]
+    if not cols:
+        return False
+    random.shuffle(cols)
+    return module.apply_place(state, bot_id, cols[0]) is None
+
+
+def _bot_chess(module, state, bot_id, difficulty):
+    owner = state["turn_order"].index(bot_id)
+    board = state["board"]
+    pieces = [(r, c) for r in range(8) for c in range(8) if board[r][c] and board[r][c]["owner"] == owner]
+    random.shuffle(pieces)
+    # hard/normalは相手の駒を取れる手があれば優先する
+    best = None
+    for (r, c) in pieces:
+        moves = module.legal_moves_for(state, r, c)
+        random.shuffle(moves)
+        for (tr, tc) in moves:
+            if difficulty in ("normal", "hard") and board[tr][tc] and board[tr][tc]["owner"] != owner:
+                if module.apply_move(state, bot_id, r, c, tr, tc) is None:
+                    return True
+            elif best is None:
+                best = (r, c, tr, tc)
+    if best:
+        r, c, tr, tc = best
+        return module.apply_move(state, bot_id, r, c, tr, tc) is None
+    return False
+
+
+def _bot_sevens(module, state, bot_id, difficulty):
+    cards = module.legal_cards(state, bot_id)
+    if cards:
+        card = random.choice(cards)
+        return module.apply_play(state, bot_id, card) is None
+    return module.apply_pass(state, bot_id) is None
+
+
+def _bot_concentration(module, state, bot_id, difficulty):
+    empties = [i for i in range(52) if not state["matched"][i] and i not in state["revealed"]]
+    if not empties:
+        return False
+    random.shuffle(empties)
+    return module.apply_flip(state, bot_id, empties[0]) is None
 
 
 def _bot_daifugo(module, state, bot_id, difficulty):
