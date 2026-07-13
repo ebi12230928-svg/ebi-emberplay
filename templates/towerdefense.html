@@ -66,8 +66,13 @@
   }
   .td-cell { border: 1px solid rgba(255,255,255,0.05); position: relative; }
   .td-cell.path { background: #3d3222; }
-  .td-cell.buildable { cursor: pointer; transition: background 0.15s ease; }
+  .td-cell.buildable { cursor: pointer; transition: background 0.15s ease; background: rgba(76, 175, 109, 0.08); }
   .td-cell.buildable:hover { background: rgba(232, 89, 12, 0.18); }
+  .td-cell.buildable.placement-ready { background: rgba(76, 175, 109, 0.28); animation: td-buildable-pulse 1.2s ease-in-out infinite; }
+  @keyframes td-buildable-pulse {
+    0%, 100% { background: rgba(76, 175, 109, 0.22); }
+    50% { background: rgba(76, 175, 109, 0.4); }
+  }
   .td-tower {
     position: absolute; inset: 3px; border-radius: 8px; display:flex; align-items:center; justify-content:center;
     font-size: 60%; background: rgba(0,0,0,0.45); border: 2px solid var(--gold); cursor: pointer;
