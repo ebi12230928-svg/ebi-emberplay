@@ -1,6 +1,7 @@
 import secrets
 import json
 import uuid
+import re
 from functools import wraps
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
@@ -819,9 +820,25 @@ def grant_character():
 @admin_bp.route("/admin/rhythm/add-song", methods=["POST"])
 @login_required
 @admin_required
+def _extract_youtube_id(text):
+    """YouTubeのURL(様々な形式)、または動画IDそのものから、動画IDだけを取り出す"""
+    text = text.strip()
+    patterns = [
+        r"(?:youtube\.com/watch\?v=|youtube\.com/live/|youtube\.com/shorts/|youtube\.com/embed/|youtu\.be/)([A-Za-z0-9_-]{11})",
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text)
+        if m:
+            return m.group(1)
+    # URLではなく、動画IDそのものが入力された場合(11文字の英数字・-・_)
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", text):
+        return text
+    return None
+
+
 def rhythm_add_song():
     title = request.form.get("title", "").strip()
-    youtube_id = request.form.get("youtube_id", "").strip()
+    youtube_input = request.form.get("youtube_id", "").strip()
     try:
         duration = int(request.form.get("duration_seconds", "90"))
         bpm = int(request.form.get("bpm", "120"))
@@ -829,16 +846,21 @@ def rhythm_add_song():
         flash("再生時間・BPMは数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    if not title or not youtube_id:
-        flash("曲名とYouTube動画IDを入力してください。", "error")
+    if not title or not youtube_input:
+        flash("曲名とYouTubeのURL(または動画ID)を入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
     if bpm <= 0 or duration <= 0:
         flash("BPM・再生時間は1以上で指定してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
+    youtube_id = _extract_youtube_id(youtube_input)
+    if not youtube_id:
+        flash("YouTubeのURLから動画IDを読み取れませんでした。URLをそのまま貼り付けてみてください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
     db.session.add(RhythmSong(title=title, youtube_id=youtube_id, duration_seconds=duration, bpm=bpm))
     db.session.commit()
-    flash(f"楽曲「{title}」を追加しました。", "success")
+    flash(f"楽曲「{title}」を追加しました。(動画ID: {youtube_id})", "success")
     return redirect(url_for("admin.dashboard"))
 
 
