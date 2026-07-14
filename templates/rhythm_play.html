@@ -4,6 +4,19 @@
 {% block head %}
 <style>
   #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: manipulation; }
+  #rhythm-start-overlay {
+    position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  #rhythm-countdown-display {
+    font-size: 64px; font-weight: 900; color: var(--gold); text-shadow: 0 0 20px rgba(212,162,78,0.8), 0 2px 6px rgba(0,0,0,0.9);
+  }
+  #rhythm-countdown-display.countdown-pop { animation: rhythm-countdown-pop 0.5s ease-out; }
+  @keyframes rhythm-countdown-pop {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.3); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   #rhythm-lanes { position: absolute; inset: 0; display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); }
   .rhythm-lane { position: relative; border-left: 1px solid rgba(255,255,255,0.08); }
   .rhythm-hitline { position: absolute; bottom: 50px; left:0; right:0; height: 3px; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
@@ -40,6 +53,28 @@
   }
   .rhythm-note.holding {
     background: linear-gradient(180deg, var(--gold), var(--ember)); box-shadow: 0 0 14px rgba(212,162,78,0.8);
+  }
+  .rhythm-note.rhythm-note-flick {
+    background: linear-gradient(180deg, #d946ef, #a21caf); box-shadow: 0 2px 8px rgba(217,70,239,0.6);
+  }
+  .rhythm-note.rhythm-note-flick::after {
+    content: "⬆"; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; color: #d946ef; animation: rhythm-flick-hint 0.6s ease-in-out infinite;
+  }
+  @keyframes rhythm-flick-hint { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-5px); } }
+  .rhythm-note.rhythm-note-sync {
+    background: linear-gradient(180deg, #22d3ee, #0e7490); box-shadow: 0 0 10px rgba(34,211,238,0.7);
+    border: 2px solid #67e8f9;
+  }
+  .rhythm-tap-btn.flick-armed { outline: 2px dashed #d946ef; }
+  .rhythm-curve-label {
+    position: absolute; top: -34px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900;
+    color: #67e8f9; text-shadow: 0 0 6px rgba(103,232,249,0.9), 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap;
+    animation: rhythm-curve-label-pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes rhythm-curve-label-pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+  .rhythm-note.rhythm-note-hold[data-curve="1"] {
+    background: linear-gradient(180deg, #67e8f9, #0e7490); box-shadow: 0 0 10px rgba(103,232,249,0.7);
   }
   .rhythm-judge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 800; animation: rhythm-judge-pop 0.4s ease forwards; white-space: nowrap; }
   @keyframes rhythm-judge-pop { 0% { opacity:1; transform: translateX(-50%) translateY(0); } 100% { opacity:0; transform: translateX(-50%) translateY(-20px); } }
@@ -132,6 +167,10 @@
 
   <div id="rhythm-stage">
     <div id="rhythm-lanes"></div>
+    <div id="rhythm-start-overlay" style="display:none;">
+      <button type="button" class="btn btn-ember" id="rhythm-start-btn">▶ スタート</button>
+      <div id="rhythm-countdown-display" style="display:none;"></div>
+    </div>
   </div>
 
   <div id="rhythm-tap-buttons"></div>
@@ -173,10 +212,27 @@
     btn.className = "rhythm-tap-btn";
     btn.textContent = "👆";
     btn.dataset.lane = i;
-    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); laneIsPressed[i] = true; pressLane(i); });
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      laneIsPressed[i] = true;
+      pointerStartY[i] = e.clientY;
+      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* 非対応環境では無視 */ }
+      pressLane(i);
+    });
+    btn.addEventListener("pointermove", (e) => {
+      if (!laneIsPressed[i]) return;
+      checkFlickMove(i, e.clientY);
+      updateCurveTracking(i, e.clientX);
+    });
     btn.addEventListener("pointerup", (e) => { e.preventDefault(); laneIsPressed[i] = false; releaseLane(i); });
     btn.addEventListener("pointercancel", () => { laneIsPressed[i] = false; releaseLane(i); });
-    btn.addEventListener("pointerleave", () => { laneIsPressed[i] = false; releaseLane(i); });
+    btn.addEventListener("pointerleave", () => {
+      // カーブホールド中は、意図的に別のレーンへ指を動かしている最中なのでミス扱いにしない
+      const isCurving = noteElements.some((n) => n.holding && n.note.lane === i && n.note.curve_to !== undefined);
+      if (isCurving) return;
+      laneIsPressed[i] = false;
+      releaseLane(i);
+    });
     tapButtonsEl.appendChild(btn);
   }
 
@@ -185,24 +241,67 @@
   let started = false;
   let noteElements = [];
 
+  const COUNTDOWN_SECONDS = 3; // カウントダウンの秒数(ここを変えれば長さを調整できる)
+
   function onYouTubeIframeAPIReady() {
     player = new YT.Player("yt-player", {
       height: "180", width: "320", videoId: "{{ song.youtube_id }}",
       playerVars: { autoplay: 0, controls: 0 },
       events: {
-        onReady: () => {
-          player.playVideo();
-          started = true;
-          resyncClock();
-          requestAnimationFrame(gameLoop);
-          // getCurrentTime()はYouTube側とのpostMessage通信を伴い、毎フレーム呼ぶと処理落ちの原因になるため、
-          // 数秒おきにだけ実際の再生位置と照合してズレを補正する(体感の同期は保ったまま軽くする)
-          setInterval(resyncClock, 2000);
-        },
+        // 準備ができた時点ではまだ再生を始めない。スタートボタンを押せる状態にするだけにする
+        // (すぐ再生してしまうと、動画のバッファリングの間にノーツだけ先に流れてしまうズレの原因になっていた)
+        onReady: () => { showStartButton(); },
       },
     });
   }
   window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+  const startOverlay = document.getElementById("rhythm-start-overlay");
+  const startBtn = document.getElementById("rhythm-start-btn");
+  const countdownDisplay = document.getElementById("rhythm-countdown-display");
+
+  function showStartButton() {
+    startOverlay.style.display = "flex";
+    startBtn.style.display = "block";
+    countdownDisplay.style.display = "none";
+  }
+
+  function beginCountdownThenPlay() {
+    startBtn.style.display = "none";
+    countdownDisplay.style.display = "block";
+    let remaining = COUNTDOWN_SECONDS;
+    countdownDisplay.textContent = String(remaining);
+    countdownDisplay.classList.remove("countdown-pop");
+    void countdownDisplay.offsetWidth;
+    countdownDisplay.classList.add("countdown-pop");
+
+    const tick = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        countdownDisplay.textContent = String(remaining);
+        countdownDisplay.classList.remove("countdown-pop");
+        void countdownDisplay.offsetWidth;
+        countdownDisplay.classList.add("countdown-pop");
+      } else {
+        clearInterval(tick);
+        countdownDisplay.textContent = "GO!";
+        countdownDisplay.classList.remove("countdown-pop");
+        void countdownDisplay.offsetWidth;
+        countdownDisplay.classList.add("countdown-pop");
+        // 動画の再生開始とゲームの開始を、このタイミングで完全に同時に行う
+        setTimeout(() => {
+          startOverlay.style.display = "none";
+          player.playVideo();
+          started = true;
+          resyncClock();
+          requestAnimationFrame(gameLoop);
+          setInterval(resyncClock, 2000);
+        }, 500); // 「GO!」の文字を一瞬見せてから開始する
+      }
+    }, 1000);
+  }
+
+  startBtn.addEventListener("click", beginCountdownThenPlay);
 
   // ローカルの時計(performance.now())を基準に進行時間を計算し、数秒おきだけYouTube側の実際の再生位置と照合する
   let syncBaseVideoTime = 0;
@@ -223,6 +322,10 @@
   let nextSpawnIndex = 0; // まだ画面に出していないノーツの先頭位置(毎フレーム全件スキャンしないため)
   let cachedHitlineY = stageEl.offsetHeight - 50; // レイアウト再計算(reflow)を毎フレーム発生させないようキャッシュ
   const laneIsPressed = {}; // 各レーンで、指が実際に押され続けているかどうか(離しイベントが取りこぼされても検知できるようにする)
+  const pointerStartY = {}; // 各レーンで、指を置いた瞬間のY座標(フリック=上スライドの検出に使う)
+  const trackingFlick = {}; // 各レーンで、フリック待ちのノーツ
+  const FLICK_THRESHOLD_PX = 18; // これ以上上にスライドしたらフリック成功とみなす
+  const syncPartnerHitTime = {}; // 同時押しノーツの、片方が押された時刻(もう片方の判定品質に使う)
   window.addEventListener("resize", () => { cachedHitlineY = stageEl.offsetHeight - 50; });
 
   function gameLoop() {
@@ -234,7 +337,12 @@
     while (nextSpawnIndex < NOTES.length && t >= NOTES[nextSpawnIndex].time - NOTE_TRAVEL_TIME) {
       const note = NOTES[nextSpawnIndex];
       const el = document.createElement("div");
-      el.className = "rhythm-note" + (note.hold ? " rhythm-note-hold" : "");
+      let noteClass = "rhythm-note";
+      if (note.hold) noteClass += " rhythm-note-hold";
+      else if (note.flick) noteClass += " rhythm-note-flick";
+      else if (note.sync_id) noteClass += " rhythm-note-sync";
+      el.className = noteClass;
+      if (note.curve_to !== undefined) el.dataset.curve = "1";
       el.style.top = "-24px";
       if (note.hold) {
         // ノーツが1秒間に進む距離(px)を基準に、保持時間に応じた尻尾の長さをピクセルで正確に計算する
@@ -244,6 +352,15 @@
         el.style.setProperty("--tail-length", tailLengthPx + "px");
       }
       lanesEl.children[note.lane].appendChild(el);
+
+      if (note.curve_to !== undefined) {
+        // どのレーンへ曲げればいいかを、矢印付きのラベルでシンプルかつ確実に示す
+        const curveLabel = document.createElement("div");
+        curveLabel.className = "rhythm-curve-label";
+        curveLabel.textContent = (note.curve_to > note.lane ? "→" : "←") + (note.curve_to + 1);
+        el.appendChild(curveLabel);
+      }
+
       noteElements.push({ note, el, judged: false });
       nextSpawnIndex++;
     }
@@ -269,7 +386,16 @@
         // 長押し中は判定ラインに固定表示し、指を離さずに最後まで到達したら成功にする
         n.el.style.top = hitlineY + "px";
         if (t >= n.note.time + n.note.hold) {
-          resolveHit(n, n.note.lane, n.holdStartDiff);
+          if (n.note.curve_to !== undefined && n.curveCurrentLane !== n.note.curve_to) {
+            // カーブホールド: 最後まで正しいレーンに指を動かせていなければミス
+            n.judged = true;
+            n.el.remove();
+            combo = 0;
+            comboDisplay.textContent = "0";
+            showJudge(n.note.lane, "MISS", "var(--loss)");
+          } else {
+            resolveHit(n, n.note.lane, n.holdStartDiff);
+          }
           anyJudgedThisFrame = true;
         }
         continue;
@@ -347,18 +473,34 @@
     btn.classList.add(perfect ? "hit-perfect" : "hit-good");
   }
 
-  function resolveHit(n, lane, bestDiff) {
+  function resolveHit(n, lane, bestDiff, syncId) {
     n.judged = true;
     n.el.remove();
-    const perfect = bestDiff <= HIT_WINDOW * 0.4;
+    const t = currentTime();
+    let perfect = bestDiff <= HIT_WINDOW * 0.4;
+    let isSync = false;
+
+    if (syncId) {
+      // 同時押し: パートナー側が直前(0.15秒以内)に押されていれば「同時に押せた」とみなし、SYNCボーナスを付ける
+      const partnerTime = syncPartnerHitTime[syncId];
+      if (partnerTime !== undefined && Math.abs(t - partnerTime) <= 0.15) {
+        isSync = true;
+      }
+      syncPartnerHitTime[syncId] = t;
+    }
+
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
-    score += perfect ? 300 : 150;
+    score += isSync ? 400 : (perfect ? 300 : 150);
     scoreDisplay.textContent = String(score);
     comboDisplay.textContent = String(combo);
-    showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
+    if (isSync) {
+      showJudge(lane, "SYNC!", "#22d3ee");
+    } else {
+      showJudge(lane, perfect ? "PERFECT" : "GOOD", perfect ? "var(--gold)" : "var(--win)");
+    }
     spawnHitBurst(lane);
-    flashTapButton(lane, perfect);
+    flashTapButton(lane, perfect || isSync);
     if (combo > 0 && combo % 10 === 0) {
       comboDisplay.classList.remove("combo-milestone");
       void comboDisplay.offsetWidth;
@@ -387,22 +529,68 @@
       best.holding = true;
       best.holdStartDiff = bestDiff;
       best.el.classList.add("holding");
+      if (best.note.curve_to !== undefined) {
+        // カーブホールド: 今どのレーンまで指を動かせているかを追跡する(最初は出現したレーンにいる)
+        best.curveCurrentLane = lane;
+      }
+    } else if (best.note.flick) {
+      // フリックノーツ: タップしただけでは成立しない。上にスライドされるまで待つ
+      trackingFlick[lane] = { n: best, bestDiff };
     } else {
-      resolveHit(best, lane, bestDiff);
+      resolveHit(best, lane, bestDiff, best.note.sync_id);
+      noteElements = noteElements.filter((n) => !n.judged);
+    }
+  }
+
+  function updateCurveTracking(originLane, clientX) {
+    const held = noteElements.find((n) => n.holding && n.note.lane === originLane && n.note.curve_to !== undefined);
+    if (!held) return;
+    // 現在指がどのレーンの真上にあるかを、各ボタンの実際の画面上の位置から判定する
+    for (let i = 0; i < tapButtonsEl.children.length; i++) {
+      const rect = tapButtonsEl.children[i].getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right) {
+        held.curveCurrentLane = i;
+        break;
+      }
+    }
+  }
+
+  function checkFlickMove(lane, clientY) {
+    const tracked = trackingFlick[lane];
+    if (!tracked) return;
+    const movedUp = pointerStartY[lane] - clientY;
+    if (movedUp >= FLICK_THRESHOLD_PX) {
+      delete trackingFlick[lane];
+      resolveHit(tracked.n, lane, tracked.bestDiff, null);
       noteElements = noteElements.filter((n) => !n.judged);
     }
   }
 
   function releaseLane(lane) {
+    // フリック待ちだったのに上スライドされずに指が離れた場合はミス
+    if (trackingFlick[lane]) {
+      const tracked = trackingFlick[lane];
+      delete trackingFlick[lane];
+      if (!tracked.n.judged) {
+        tracked.n.judged = true;
+        tracked.n.el.remove();
+        combo = 0;
+        comboDisplay.textContent = "0";
+        showJudge(lane, "MISS", "var(--loss)");
+        noteElements = noteElements.filter((n) => !n.judged);
+      }
+    }
+
     const t = currentTime();
     const held = noteElements.find((n) => n.holding && n.note.lane === lane);
     if (!held) return;
 
     const heldRatio = (t - held.note.time) / held.note.hold;
-    if (heldRatio >= 0.7) {
+    const curveOk = held.note.curve_to === undefined || held.curveCurrentLane === held.note.curve_to;
+    if (heldRatio >= 0.7 && curveOk) {
       resolveHit(held, lane, held.holdStartDiff);
     } else {
-      // 早く離しすぎた場合はミス扱い
+      // 早く離しすぎた、またはカーブの目標レーンまで指を動かせていなかった場合はミス扱い
       held.judged = true;
       held.el.remove();
       combo = 0;
