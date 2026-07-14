@@ -15,9 +15,28 @@
     height: 22px;
   }
   .rhythm-note.rhythm-note-hold::before {
-    content: ""; position: absolute; left: 20%; right: 20%; bottom: 100%; height: var(--tail-length, 40%);
-    background: linear-gradient(180deg, rgba(232,89,12,0.15), rgba(232,89,12,0.55));
-    border-radius: 4px 4px 0 0;
+    content: ""; position: absolute; left: 25%; right: 25%; bottom: 100%; height: var(--tail-length, 40px);
+    background: repeating-linear-gradient(
+      180deg, rgba(212,162,78,0.85) 0px, rgba(212,162,78,0.85) 8px,
+      rgba(232,89,12,0.55) 8px, rgba(232,89,12,0.55) 16px
+    );
+    border-radius: 50% / 8px; box-shadow: 0 0 6px rgba(212,162,78,0.6);
+    transform-origin: bottom center;
+    animation: rhythm-tail-bend 1.4s ease-in-out infinite;
+  }
+  @keyframes rhythm-tail-bend {
+    0%, 100% { border-radius: 60% 40% / 8px 8px 4px 4px; transform: skewX(-3deg); }
+    50% { border-radius: 40% 60% / 8px 8px 4px 4px; transform: skewX(3deg); }
+  }
+  .rhythm-note.rhythm-note-hold::after {
+    content: "🔒"; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px;
+  }
+  .rhythm-note.holding::before {
+    background: repeating-linear-gradient(
+      180deg, rgba(76,175,109,0.9) 0px, rgba(76,175,109,0.9) 8px,
+      rgba(212,162,78,0.7) 8px, rgba(212,162,78,0.7) 16px
+    );
+    animation: rhythm-tail-bend 0.5s ease-in-out infinite; /* 押している間は少し速く波打たせて「効いている」感を出す */
   }
   .rhythm-note.holding {
     background: linear-gradient(180deg, var(--gold), var(--ember)); box-shadow: 0 0 14px rgba(212,162,78,0.8);
@@ -63,6 +82,18 @@
   }
   #combo-display.combo-milestone { display: inline-block; animation: rhythm-combo-pop 0.4s ease; color: var(--gold); }
   @keyframes rhythm-combo-pop { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+  .rhythm-combo-banner {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 22px; font-weight: 900;
+    color: var(--gold); text-shadow: 0 0 12px rgba(212,162,78,0.9), 0 2px 4px rgba(0,0,0,0.8);
+    animation: rhythm-combo-banner-pop 0.9s ease-out forwards; pointer-events: none; z-index: 20; white-space: nowrap;
+  }
+  @keyframes rhythm-combo-banner-pop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(-8deg); }
+    25% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(4deg); }
+    40% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+  }
   #yt-player-wrap { width: 100%; max-width: 320px; margin: 0 auto 12px; }
 
   #rhythm-game-container:fullscreen,
@@ -142,9 +173,10 @@
     btn.className = "rhythm-tap-btn";
     btn.textContent = "👆";
     btn.dataset.lane = i;
-    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); pressLane(i); });
-    btn.addEventListener("pointerup", (e) => { e.preventDefault(); releaseLane(i); });
-    btn.addEventListener("pointercancel", () => releaseLane(i));
+    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); laneIsPressed[i] = true; pressLane(i); });
+    btn.addEventListener("pointerup", (e) => { e.preventDefault(); laneIsPressed[i] = false; releaseLane(i); });
+    btn.addEventListener("pointercancel", () => { laneIsPressed[i] = false; releaseLane(i); });
+    btn.addEventListener("pointerleave", () => { laneIsPressed[i] = false; releaseLane(i); });
     tapButtonsEl.appendChild(btn);
   }
 
@@ -190,6 +222,7 @@
   const stageEl = document.getElementById("rhythm-stage"); // 毎フレームDOM検索しないようキャッシュしておく
   let nextSpawnIndex = 0; // まだ画面に出していないノーツの先頭位置(毎フレーム全件スキャンしないため)
   let cachedHitlineY = stageEl.offsetHeight - 50; // レイアウト再計算(reflow)を毎フレーム発生させないようキャッシュ
+  const laneIsPressed = {}; // 各レーンで、指が実際に押され続けているかどうか(離しイベントが取りこぼされても検知できるようにする)
   window.addEventListener("resize", () => { cachedHitlineY = stageEl.offsetHeight - 50; });
 
   function gameLoop() {
@@ -204,8 +237,11 @@
       el.className = "rhythm-note" + (note.hold ? " rhythm-note-hold" : "");
       el.style.top = "-24px";
       if (note.hold) {
-        const tailLength = (note.hold / NOTE_TRAVEL_TIME) * 100;
-        el.style.setProperty("--tail-length", tailLength + "%");
+        // ノーツが1秒間に進む距離(px)を基準に、保持時間に応じた尻尾の長さをピクセルで正確に計算する
+        // (CSSのパーセント指定だとノーツ本体の高さ(22px)基準になってしまい、ほぼ見えなくなるため)
+        const pxPerSecond = cachedHitlineY / NOTE_TRAVEL_TIME;
+        const tailLengthPx = Math.max(20, note.hold * pxPerSecond);
+        el.style.setProperty("--tail-length", tailLengthPx + "px");
       }
       lanesEl.children[note.lane].appendChild(el);
       noteElements.push({ note, el, judged: false });
@@ -219,7 +255,18 @@
       if (n.judged) continue;
 
       if (n.holding) {
-        // 長押し中は判定ラインに固定表示し、離さずに最後まで到達したら自動で成功にする
+        // 押しっぱなしイベントが取りこぼされていないか、毎フレーム実際の押下状態を確認する
+        // (これが無いと、指を離してもタイマーの時間経過だけで自動成功になってしまう)
+        if (!laneIsPressed[n.note.lane]) {
+          n.judged = true;
+          n.el.remove();
+          combo = 0;
+          comboDisplay.textContent = "0";
+          showJudge(n.note.lane, "MISS", "var(--loss)");
+          anyJudgedThisFrame = true;
+          continue;
+        }
+        // 長押し中は判定ラインに固定表示し、指を離さずに最後まで到達したら成功にする
         n.el.style.top = hitlineY + "px";
         if (t >= n.note.time + n.note.hold) {
           resolveHit(n, n.note.lane, n.holdStartDiff);
@@ -284,6 +331,14 @@
     setTimeout(() => laneEl.classList.remove("hit-flash"), 300);
   }
 
+  function showComboBanner(combo) {
+    const el = document.createElement("div");
+    el.className = "rhythm-combo-banner";
+    el.textContent = `🔥 ${combo} COMBO!`;
+    document.getElementById("rhythm-stage").appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
   function flashTapButton(lane, perfect) {
     const btn = tapButtonsEl.children[lane];
     if (!btn) return;
@@ -308,6 +363,9 @@
       comboDisplay.classList.remove("combo-milestone");
       void comboDisplay.offsetWidth;
       comboDisplay.classList.add("combo-milestone");
+    }
+    if (combo > 0 && combo % 50 === 0) {
+      showComboBanner(combo);
     }
     // 配列からの削除はここでは行わない(gameLoopのループ中に呼ばれる場合があり、
     // その場でfilterして配列を作り直すとループのインデックスと矛盾するため)。
@@ -407,12 +465,12 @@
 
   async function finishSong() {
     resultPanel.style.display = "block";
-    resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}</p>`;
+    resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}(10コンボごとに500pt)</p>`;
     try {
       const data = await EmberPlay.postJSON("/rhythm/submit-score", {
         song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo, play_seconds: PLAY_SECONDS, bpm: {{ song.bpm }},
       });
-      resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers</p>`;
+      resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers(最大コンボ${maxCombo}に基づく報酬)</p>`;
       EmberPlay.updateBalance(data.balance, "win");
     } catch (err) {
       resultPanel.innerHTML += `<p class="text-loss">${err.message}</p>`;
