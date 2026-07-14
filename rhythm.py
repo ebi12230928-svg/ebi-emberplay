@@ -67,18 +67,25 @@ QUICK_PLAY_BPM = 120  # ユーザーが自分のURLで遊ぶ時は、実際のBP
 def _generate_notes(bpm, offset, play_seconds, difficulty, seed=None):
     """
     レーンをしっかり全て使い、同じレーンが連続しすぎないように生成する。
-    難易度が高いほど、プロセカのような「長押し(ホールド)」ノーツも混ざるようにする。
+    難易度が高いほど、プロセカのような以下のノーツも混ざるようにする。
+    - ホールド(長押し)。一部は「カーブホールド」として、押している間に別のレーンまで曲がる
+    - フリック(上にスライド)
+    - 同時押し(2レーンに同時に出て、両方を同時にタップする必要がある)
     """
     rng = random.Random(seed)  # 同じ曲・難易度・区間なら毎回同じ譜面になるようにシードを固定する
     interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
     beat_seconds = 60 / bpm
     note_gap = beat_seconds * interval_beats
     hold_chance = {"easy": 0.0, "normal": 0.08, "hard": 0.15, "oni": 0.22}.get(difficulty, 0.1)
+    flick_chance = {"easy": 0.0, "normal": 0.06, "hard": 0.12, "oni": 0.18}.get(difficulty, 0.08)
+    sync_chance = {"easy": 0.0, "normal": 0.05, "hard": 0.10, "oni": 0.15}.get(difficulty, 0.06)
+    curve_hold_chance = {"easy": 0.0, "normal": 0.2, "hard": 0.35, "oni": 0.5}.get(difficulty, 0.2)  # ホールドの中でカーブになる割合
 
     notes = []
     t = max(2.0, offset)
     last_lane = -1
     recent_lanes = []
+    sync_counter = 0
     while t < play_seconds - 1:
         # 直近を含めて同じレーンばかりにならないよう、まんべんなく全レーンを使う
         candidates = [l for l in range(LANES) if l != last_lane and recent_lanes.count(l) < 2]
@@ -87,9 +94,25 @@ def _generate_notes(bpm, offset, play_seconds, difficulty, seed=None):
         lane = rng.choice(candidates)
 
         note = {"time": round(t, 2), "lane": lane}
-        if hold_chance > 0 and rng.random() < hold_chance:
+        roll = rng.random()
+        if hold_chance > 0 and roll < hold_chance:
             hold_beats = rng.choice([1, 1.5, 2])
             note["hold"] = round(beat_seconds * hold_beats, 2)
+            other_lanes = [l for l in range(LANES) if l != lane]
+            if other_lanes and rng.random() < curve_hold_chance:
+                # カーブホールド: 押している間に、指を別のレーンまで曲げて移動させる必要がある
+                # (例: 4番目のレーンから2番目のレーンまで曲がる、など)
+                note["curve_to"] = rng.choice(other_lanes)
+        elif flick_chance > 0 and roll < hold_chance + flick_chance:
+            note["flick"] = True
+        elif sync_chance > 0 and roll < hold_chance + flick_chance + sync_chance and len(candidates) > 1:
+            # 同時押し: 別のレーンにも同じ時刻でパートナーノーツを出す
+            partner_lane = rng.choice([l for l in candidates if l != lane])
+            sync_id = f"s{sync_counter}"
+            sync_counter += 1
+            note["sync_id"] = sync_id
+            notes.append({"time": round(t, 2), "lane": partner_lane, "sync_id": sync_id})
+            recent_lanes.append(partner_lane)
 
         notes.append(note)
         last_lane = lane
@@ -98,6 +121,7 @@ def _generate_notes(bpm, offset, play_seconds, difficulty, seed=None):
             recent_lanes.pop(0)
 
         t += note_gap + note.get("hold", 0)  # ロングノーツの分、次のノーツまでの間隔を空ける
+    notes.sort(key=lambda n: n["time"])
     return notes
 
 
@@ -216,7 +240,7 @@ def submit_score():
     beat_seconds = 60 / bpm
     note_gap = max(0.05, beat_seconds * interval_beats)
     theoretical_notes = int(play_seconds / note_gap) + 5
-    theoretical_max = theoretical_notes * 300 + 500
+    theoretical_max = theoretical_notes * 400 + 500  # SYNC(同時押し成功)は1ノーツ400ptになるため、それを基準に上限を計算する
     if score > theoretical_max:
         return jsonify({"error": "スコアが不正です。"}), 400
     if max_combo > theoretical_notes:
