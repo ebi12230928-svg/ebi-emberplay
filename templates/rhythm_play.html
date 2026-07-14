@@ -3,7 +3,7 @@
 
 {% block head %}
 <style>
-  #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: manipulation; }
+  #rhythm-stage { position: relative; width: 100%; height: 320px; background: #0d1410; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: none; }
   #rhythm-start-overlay {
     position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,0.6);
     display: flex; align-items: center; justify-content: center; flex-direction: column;
@@ -79,8 +79,8 @@
   }
   .rhythm-judge { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 800; animation: rhythm-judge-pop 0.4s ease forwards; white-space: nowrap; }
   @keyframes rhythm-judge-pop { 0% { opacity:1; transform: translateX(-50%) translateY(0); } 100% { opacity:0; transform: translateX(-50%) translateY(-20px); } }
-  #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; touch-action: manipulation; }
-  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; position: relative; overflow: visible; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  #rhythm-tap-buttons { display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); gap: 8px; margin-bottom: 12px; touch-action: none; }
+  .rhythm-tap-btn { height: 60px; border-radius: 12px; border: 2px solid var(--panel-border); background: var(--bg-raised); font-size: 22px; position: relative; overflow: visible; touch-action: none; -webkit-user-select: none; user-select: none; }
   .rhythm-tap-btn:active { background: var(--ember); }
   .rhythm-tap-btn.hit-perfect { animation: rhythm-btn-flash-perfect 0.3s ease; }
   .rhythm-tap-btn.hit-good { animation: rhythm-btn-flash-good 0.3s ease; }
@@ -219,12 +219,13 @@
       pointerStartY[i] = e.clientY;
       try { btn.setPointerCapture(e.pointerId); } catch (err) { /* 非対応環境では無視 */ }
       pressLane(i);
-    });
+    }, { passive: false });
     btn.addEventListener("pointermove", (e) => {
       if (!laneIsPressed[i]) return;
+      e.preventDefault(); // ページのスクロール(特に上方向)にジェスチャーが奪われないようにする保険
       checkFlickMove(i, e.clientY);
       updateCurveTracking(i, e.clientX);
-    });
+    }, { passive: false });
     btn.addEventListener("pointerup", (e) => { e.preventDefault(); laneIsPressed[i] = false; releaseLane(i); });
     btn.addEventListener("pointercancel", () => { laneIsPressed[i] = false; releaseLane(i); });
     btn.addEventListener("pointerleave", () => {
@@ -300,6 +301,13 @@
   }
 
   function beginCountdownThenPlay() {
+    // 自動再生は「ユーザー操作の直後」でないとブラウザ(特にスマホ)にブロックされることがある。
+    // カウントダウン後(setTimeoutの中)でplayVideo()を呼ぶと、クリックから時間が空いてしまい
+    // ブロックされる原因になっていたため、クリックした瞬間に一度だけ再生→即一時停止しておくことで、
+    // このプレイヤーが「再生してよいもの」だとブラウザに覚えさせておく
+    player.playVideo();
+    player.pauseVideo();
+
     startBtn.style.display = "none";
     countdownDisplay.style.display = "block";
     let remaining = COUNTDOWN_SECONDS;
@@ -324,7 +332,14 @@
         // 動画の再生開始とゲームの開始を、このタイミングで完全に同時に行う
         setTimeout(() => {
           startOverlay.style.display = "none";
-          player.playVideo();
+          const playResult = player.playVideo();
+          // 万が一それでも再生が始まらない場合に備えて、少し後に再生状態を確認し、
+          // 止まったままなら再度playVideo()を試みる保険をかけておく
+          setTimeout(() => {
+            if (player.getPlayerState && player.getPlayerState() !== 1) {
+              player.playVideo();
+            }
+          }, 800);
           started = true;
           resyncClock();
           requestAnimationFrame(gameLoop);
