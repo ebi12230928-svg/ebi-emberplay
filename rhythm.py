@@ -211,7 +211,7 @@ def submit_score():
             return jsonify({"error": "楽曲が見つかりません。"}), 400
         bpm = song.bpm
 
-    # 難易度が上がるほどノーツが増える(=理論上の最大スコアも増える)ことを考慮して不正防止の上限を計算する
+    # 難易度が上がるほどノーツが増える(=理論上の最大コンボ数も増える)ことを考慮して不正防止の上限を計算する
     interval_beats = DIFFICULTIES.get(difficulty, DIFFICULTIES["normal"])["note_interval_beats"]
     beat_seconds = 60 / bpm
     note_gap = max(0.05, beat_seconds * interval_beats)
@@ -219,15 +219,18 @@ def submit_score():
     theoretical_max = theoretical_notes * 300 + 500
     if score > theoretical_max:
         return jsonify({"error": "スコアが不正です。"}), 400
+    if max_combo > theoretical_notes:
+        return jsonify({"error": "コンボ数が不正です。"}), 400
 
     if not is_quick_play:
         db.session.add(RhythmScore(
             user_id=current_user.id, song_id=song_id, difficulty=difficulty, score=score, max_combo=max_combo
         ))
 
-    # 難易度が高いほど報酬も少し多くする
+    # 報酬は最大コンボ数のみを基準にする(10コンボにつき500ポイント)。曲の長さに関わらず一律この計算方式。
+    # スコアの多寡ではなくコンボ数で決めるため、短い曲を繰り返して稼ぐようなことができない。
     difficulty_mult = {"easy": 1.0, "normal": 1.3, "hard": 1.7, "oni": 2.2}.get(difficulty, 1.0)
-    reward = min(500, round(score / 20 * difficulty_mult))
+    reward = round((max_combo // 10) * 500 * difficulty_mult)
     from games.common import credit_reward
     credit_reward(current_user, reward)
     db.session.commit()
