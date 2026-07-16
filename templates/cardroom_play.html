@@ -61,16 +61,16 @@
 <h1>対局中</h1>
 <button type="button" class="btn btn-ghost" id="how-to-play-btn" style="margin-bottom: 10px;">📖 遊び方</button>
 
-<div id="player-turn-banner" class="panel" style="margin-bottom: 12px; text-align:center; font-weight:700;"></div>
+<div id="player-turn-banner" class="dokopa-card" style="margin-bottom: 12px; text-align:center; font-weight:700;"></div>
 
-<div class="panel" style="margin-bottom: 12px;">
+<div class="dokopa-card" style="margin-bottom: 12px;">
   <h3 style="font-size: 13px; margin-bottom: 6px;">場</h3>
   <div id="pile-display"></div>
   <div id="center-display"></div>
   <div id="board-display"></div>
 </div>
 
-<div class="panel" style="margin-bottom: 12px;">
+<div class="dokopa-card" style="margin-bottom: 12px;">
   <h3 style="font-size: 13px; margin-bottom: 6px;">あなたの手札</h3>
   <div id="card-hand"></div>
 </div>
@@ -82,11 +82,11 @@
   <button type="button" class="btn btn-ghost" id="resign-btn" style="flex:1; display:none;">投了</button>
 </div>
 
-<div id="players-status" class="panel" style="margin-bottom: 12px;"></div>
+<div id="players-status" class="dokopa-card" style="margin-bottom: 12px;"></div>
 
 <div id="game-log" class="panel mono text-muted" style="font-size: 12px; height: 100px; overflow-y:auto;"></div>
 
-<div class="panel" style="margin-top: 12px;">
+<div class="dokopa-card" style="margin-top: 12px;">
   <h3 style="font-size: 13px; margin-bottom: 6px;">💬 ルームチャット</h3>
   <div id="room-chat-log" style="height: 110px; overflow-y:auto; font-size: 13px; margin-bottom: 8px;"></div>
   <div style="display:flex; gap: 8px;">
@@ -95,10 +95,10 @@
   </div>
 </div>
 
-<div id="result-banner" class="panel" style="display:none; margin-top: 12px; text-align:center;"></div>
+<div id="result-banner" class="dokopa-card" style="display:none; margin-top: 12px; text-align:center;"></div>
 
 <div id="how-to-play-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding: 20px;">
-  <div class="panel" style="max-width: 420px; max-height: 80vh; overflow-y:auto;">
+  <div class="dokopa-card" style="max-width: 420px; max-height: 80vh; overflow-y:auto;">
     <h3 id="how-to-play-title" style="margin-bottom: 10px;"></h3>
     <p id="how-to-play-text" style="font-size: 14px; line-height: 1.7;"></p>
     <button type="button" class="btn btn-ghost btn-block" id="how-to-play-close" style="margin-top: 12px;">閉じる</button>

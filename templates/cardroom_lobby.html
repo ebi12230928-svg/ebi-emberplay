@@ -1,47 +1,87 @@
 {% extends "base.html" %}
 {% block title %}トランプ ・ EMBERPLAY{% endblock %}
 
+{% block head %}
+<style>
+  .dokopa-hero {
+    background: linear-gradient(135deg, #ff9ecb 0%, #ffc98a 50%, #9ed8ff 100%);
+    border-radius: 24px; padding: 20px; margin-bottom: 16px; color: #3a2145;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.1);
+  }
+  .dokopa-hero h1 { color: #3a2145; margin: 4px 0; }
+  .dokopa-hero p { color: #4a3155; font-size: 13px; }
+  .dokopa-game-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
+  .dokopa-game-tile {
+    border: 3px solid #fff; border-radius: 18px; padding: 14px 8px; text-align: center; cursor: pointer;
+    font-weight: 800; font-size: 13px; color: #3a2145; transition: transform 0.1s ease; background: #faf7fb;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.06), 0 4px 8px rgba(0,0,0,0.05);
+  }
+  .dokopa-game-tile:active { transform: translateY(2px) scale(0.97); box-shadow: 0 1px 0 rgba(0,0,0,0.06); }
+  .dokopa-game-tile.selected { border-color: #ff7fb0; background: linear-gradient(160deg, #fff0f6, #ffe0ee); box-shadow: 0 3px 0 #ff9ecb, 0 4px 10px rgba(255,127,176,0.3); }
+  .dokopa-game-tile .tile-icon { font-size: 30px; display:block; margin-bottom: 6px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.15)); }
+  .dokopa-input {
+    width: 100%; padding: 12px; border-radius: 100px; border: 2px solid #ffd6e8; background: #fff8fb;
+    color: #3a2145; font-size: 14px; text-align: center; letter-spacing: 2px;
+  }
+  .dokopa-input:focus { outline: none; border-color: #ff9ecb; }
+</style>
+{% endblock %}
+
 {% block content %}
-<span class="eyebrow">🃏 Card Room</span>
-<h1>トランプ</h1>
-<p>フレンドと部屋を作って、大富豪・ババ抜き・スピードで遊べます。参加コードを教え合えば誰でも入室できます。</p>
+<div class="dokopa-hero">
+  <span class="eyebrow" style="color:#3a2145;">🃏 Card Room</span>
+  <h1>トランプ・ボードゲーム</h1>
+  <p>フレンドと部屋を作って、みんなで遊ぼう!参加コードを教え合えば誰でも入室できます。</p>
+</div>
 
 {% if my_rooms %}
-<h2>参加中の部屋</h2>
+<h2 style="margin-bottom:8px;">🎮 参加中の部屋</h2>
 {% for r in my_rooms %}
-<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center;">
+<div class="dokopa-card" style="display:flex; justify-content: space-between; align-items:center;">
   <div>
     <strong>{{ game_labels[r.game_type] }}</strong>
     <p class="mono text-muted" style="font-size: 12px; margin: 2px 0 0;">コード: {{ r.code }} ・ {{ "待機中" if r.status == "waiting" else "対局中" }}</p>
   </div>
-  <a href="{{ url_for('cardroom.room', code=r.code) }}" class="btn btn-ember" style="padding: 8px 16px; font-size: 13px;">入る</a>
+  <a href="{{ url_for('cardroom.room', code=r.code) }}" class="dokopa-btn" style="text-decoration:none; font-size:12px; padding: 8px 16px;">入る</a>
 </div>
 {% endfor %}
 {% endif %}
 
-<div class="panel" style="margin-bottom: 16px;">
-  <h3>新しく部屋を作る</h3>
-  <form method="POST" action="{{ url_for('cardroom.create') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
-    <div class="field" style="margin:0;">
-      <label for="game-type">遊ぶゲーム</label>
-      <select id="game-type" name="game_type" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
-        {% for key, label in game_labels.items() %}
-        <option value="{{ key }}">{{ label }}</option>
-        {% endfor %}
-      </select>
+<div class="dokopa-card">
+  <h3>✨ 新しく部屋を作る</h3>
+  <form method="POST" action="{{ url_for('cardroom.create') }}">
+    <input type="hidden" id="game-type-hidden" name="game_type" value="{{ (game_labels.keys() | list)[0] }}">
+    <div class="dokopa-game-grid">
+      {% set icons = {"daifugo": "🃏", "babanuki": "🃏", "speed": "⚡", "uno": "🎨", "sevens": "7️⃣", "concentration": "🧠",
+                       "gomoku": "⚫", "othello": "⚪", "checkers": "♟️", "morris": "🔵", "shogi": "🏯",
+                       "tictactoe": "❌", "connect4": "🔴", "chess": "♛"} %}
+      {% for key, label in game_labels.items() %}
+      <div class="dokopa-game-tile {{ 'selected' if loop.first }}" data-game="{{ key }}">
+        <span class="tile-icon">{{ icons.get(key, "🎲") }}</span>{{ label }}
+      </div>
+      {% endfor %}
     </div>
-    <button type="submit" class="btn btn-ember">部屋を作る</button>
+    <button type="submit" class="dokopa-btn" style="width:100%; margin-top: 8px;">この部屋で作る!</button>
   </form>
 </div>
 
-<div class="panel">
-  <h3>コードで参加する</h3>
-  <form method="POST" action="{{ url_for('cardroom.join') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
-    <div class="field" style="margin:0;">
-      <label for="join-code">参加コード(6文字)</label>
-      <input type="text" id="join-code" name="code" maxlength="6" placeholder="例: A1B2C3" style="text-transform: uppercase;" required>
-    </div>
-    <button type="submit" class="btn btn-ghost">参加する</button>
+<div class="dokopa-card">
+  <h3>🔑 コードで参加する</h3>
+  <form method="POST" action="{{ url_for('cardroom.join') }}">
+    <input type="text" id="join-code" name="code" maxlength="6" placeholder="コードを入力" class="dokopa-input" style="margin-bottom: 10px;" required>
+    <button type="submit" class="dokopa-btn dokopa-btn-blue" style="width:100%;">参加する</button>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".dokopa-game-tile").forEach((tile) => {
+    tile.addEventListener("click", () => {
+      document.querySelectorAll(".dokopa-game-tile").forEach((t) => t.classList.remove("selected"));
+      tile.classList.add("selected");
+      document.getElementById("game-type-hidden").value = tile.dataset.game;
+    });
+  });
+</script>
 {% endblock %}

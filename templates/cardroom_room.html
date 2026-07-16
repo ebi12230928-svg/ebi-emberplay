@@ -7,7 +7,7 @@
 <p>このコードをフレンドに伝えれば、「コードで参加する」から入室できます。</p>
 <button type="button" class="btn btn-ghost" id="how-to-play-btn" style="margin-bottom: 12px;">📖 遊び方</button>
 
-<div class="panel" style="margin-bottom: 16px;">
+<div class="dokopa-card" style="margin-bottom: 16px;">
   <h3 id="game-type-display">ゲーム: {{ game_labels[room.game_type] }}</h3>
   {% if is_owner %}
   <div style="margin-top: 10px;">
@@ -25,7 +25,7 @@
   {% endif %}
 </div>
 
-<div class="panel" style="margin-bottom: 16px;">
+<div class="dokopa-card" style="margin-bottom: 16px;">
   <h3 style="margin-bottom: 8px;">参加者(<span id="player-count">0</span>)</h3>
   <div id="player-list"></div>
   {% if is_owner %}
@@ -48,7 +48,7 @@
   <button type="submit" class="btn btn-ghost">退出する</button>
 </form>
 
-<div class="panel" style="margin-top: 16px;">
+<div class="dokopa-card" style="margin-top: 16px;">
   <h3 style="font-size: 13px; margin-bottom: 6px;">💬 ルームチャット</h3>
   <div id="room-chat-log" style="height: 140px; overflow-y:auto; font-size: 13px; margin-bottom: 8px;"></div>
   <div style="display:flex; gap: 8px;">
@@ -58,7 +58,7 @@
 </div>
 
 <div id="how-to-play-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding: 20px;">
-  <div class="panel" style="max-width: 420px; max-height: 80vh; overflow-y:auto;">
+  <div class="dokopa-card" style="max-width: 420px; max-height: 80vh; overflow-y:auto;">
     <h3 id="how-to-play-title" style="margin-bottom: 10px;"></h3>
     <p id="how-to-play-text" style="font-size: 14px; line-height: 1.7;"></p>
     <button type="button" class="btn btn-ghost btn-block" id="how-to-play-close" style="margin-top: 12px;">閉じる</button>
