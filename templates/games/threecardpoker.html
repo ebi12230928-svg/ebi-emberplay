@@ -8,10 +8,20 @@
 <p>Ante(基本ベット)を賭けて3枚配られたら、Play(同額を追加してディーラーと勝負)かFold(降参)を選びます。ディーラーはQハイ以上でクオリファイ。役がStraight以上なら、勝敗に関係なくAnteボーナスも付きます。</p>
 
 <div class="game-layout">
-  <div class="panel">
-    <div class="field">
-      <label for="ante">Ante</label>
+  <div class="stake-bet-panel">
+    <div class="stake-bet-label"><span>Ante</span><span>💰 Embers</span></div>
+    <div class="stake-bet-row">
       <input type="number" id="ante" value="100" min="1">
+      <div class="stake-bet-adjust">
+        <button type="button" id="wager-half">½</button>
+        <button type="button" id="wager-double">2×</button>
+      </div>
+    </div>
+    <div class="stake-chip-row">
+      <button type="button" class="wager-chip" data-amount="50">50</button>
+      <button type="button" class="wager-chip" data-amount="100">100</button>
+      <button type="button" class="wager-chip" data-amount="500">500</button>
+      <button type="button" class="wager-chip" data-amount="1000">1000</button>
     </div>
     <button class="btn btn-ember btn-block" id="deal-btn">配る</button>
     <div style="display:flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;">

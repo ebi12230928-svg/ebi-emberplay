@@ -7,10 +7,20 @@
 <p>16マス中に8ペアが隠れています。2マス選んで、同じ絵柄なら絵柄に応じた配当を獲得できます。</p>
 
 <div class="game-layout">
-  <div class="panel">
-    <div class="field">
-      <label for="wager">プレイ料</label>
+  <div class="stake-bet-panel">
+    <div class="stake-bet-label"><span>プレイ料</span><span>💰 Embers</span></div>
+    <div class="stake-bet-row">
       <input type="number" id="wager" value="100" min="1">
+      <div class="stake-bet-adjust">
+        <button type="button" id="wager-half">½</button>
+        <button type="button" id="wager-double">2×</button>
+      </div>
+    </div>
+    <div class="stake-chip-row">
+      <button type="button" class="wager-chip" data-amount="50">50</button>
+      <button type="button" class="wager-chip" data-amount="100">100</button>
+      <button type="button" class="wager-chip" data-amount="500">500</button>
+      <button type="button" class="wager-chip" data-amount="1000">1000</button>
     </div>
     <p class="text-muted" style="font-size: 12px;">2マス選んでください(<span id="pick-count">0</span>/2)</p>
     <button class="btn btn-ember btn-block" id="play-btn" disabled>めくる</button>

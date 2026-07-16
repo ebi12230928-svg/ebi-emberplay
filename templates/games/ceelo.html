@@ -7,10 +7,20 @@
 <p>3つのサイコロを振って、4-5-6の目かゾロ目が出れば勝ち({{ payout }}倍)の中国の伝統ゲームです。</p>
 
 <div class="game-layout">
-  <div class="panel">
-    <div class="field">
-      <label for="wager">プレイ料</label>
+  <div class="stake-bet-panel">
+    <div class="stake-bet-label"><span>プレイ料</span><span>💰 Embers</span></div>
+    <div class="stake-bet-row">
       <input type="number" id="wager" value="100" min="1">
+      <div class="stake-bet-adjust">
+        <button type="button" id="wager-half">½</button>
+        <button type="button" id="wager-double">2×</button>
+      </div>
+    </div>
+    <div class="stake-chip-row">
+      <button type="button" class="wager-chip" data-amount="50">50</button>
+      <button type="button" class="wager-chip" data-amount="100">100</button>
+      <button type="button" class="wager-chip" data-amount="500">500</button>
+      <button type="button" class="wager-chip" data-amount="1000">1000</button>
     </div>
     <button class="btn btn-ember btn-block" id="roll-btn">振る</button>
   </div>

@@ -7,10 +7,20 @@
 <p style="margin: -8px 0 12px;"><button type="button" data-cancel-url="/games/war/cancel" class="btn btn-ghost" style="font-size: 11px; padding: 4px 10px;">動かなくなった場合はこちら(強制リセット・全額返金)</button></p>
 
 <div class="game-layout">
-  <div class="panel">
-    <div class="field">
-      <label for="wager">プレイ料</label>
+  <div class="stake-bet-panel">
+    <div class="stake-bet-label"><span>プレイ料</span><span>💰 Embers</span></div>
+    <div class="stake-bet-row">
       <input type="number" id="wager" value="100" min="1">
+      <div class="stake-bet-adjust">
+        <button type="button" id="wager-half">½</button>
+        <button type="button" id="wager-double">2×</button>
+      </div>
+    </div>
+    <div class="stake-chip-row">
+      <button type="button" class="wager-chip" data-amount="50">50</button>
+      <button type="button" class="wager-chip" data-amount="100">100</button>
+      <button type="button" class="wager-chip" data-amount="500">500</button>
+      <button type="button" class="wager-chip" data-amount="1000">1000</button>
     </div>
     <button class="btn btn-ember btn-block" id="start-btn">配る</button>
     <div style="display:flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;">

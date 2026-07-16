@@ -6,20 +6,42 @@
 <h1>Baccarat</h1>
 
 <div class="game-layout">
-  <div class="panel">
-    <div class="field">
-      <label for="wager">プレイ料</label>
+  <div class="stake-bet-panel">
+    <div class="stake-bet-label"><span>プレイ料</span><span>💰 Embers</span></div>
+    <div class="stake-bet-row">
       <input type="number" id="wager" value="100" min="1">
+      <div class="stake-bet-adjust">
+        <button type="button" id="wager-half">½</button>
+        <button type="button" id="wager-double">2×</button>
+      </div>
     </div>
-    <div class="field">
-      <label for="bet-on">選択対象</label>
-      <select id="bet-on">
-        <option value="player">Player(2倍)</option>
-        <option value="banker">Banker(1.95倍・5%コミッション)</option>
-        <option value="tie">Tie(9倍)</option>
-      </select>
+    <div class="stake-chip-row">
+      <button type="button" class="wager-chip" data-amount="50">50</button>
+      <button type="button" class="wager-chip" data-amount="100">100</button>
+      <button type="button" class="wager-chip" data-amount="500">500</button>
+      <button type="button" class="wager-chip" data-amount="1000">1000</button>
     </div>
-    <button class="btn btn-ember btn-block" id="play-btn">プレイ</button>
+
+    <input type="hidden" id="bet-on" value="player">
+    <div class="stake-betarea-group">
+      <button type="button" class="stake-betarea selected" data-bet="player">
+        <span class="betarea-check">✓</span>
+        <div class="betarea-name">Player</div>
+        <div class="betarea-payout">2倍配当</div>
+      </button>
+      <button type="button" class="stake-betarea" data-bet="banker">
+        <span class="betarea-check">✓</span>
+        <div class="betarea-name">Banker</div>
+        <div class="betarea-payout">1.95倍配当(5%コミッション)</div>
+      </button>
+      <button type="button" class="stake-betarea" data-bet="tie">
+        <span class="betarea-check">✓</span>
+        <div class="betarea-name">Tie</div>
+        <div class="betarea-payout">9倍配当</div>
+      </button>
+    </div>
+
+    <button class="btn btn-ember btn-block" id="play-btn" style="margin-top: 14px;">プレイ</button>
   </div>
 
   <div>
@@ -43,4 +65,14 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/baccarat.js') }}"></script>
+<script>
+  // ベットエリアをクリックすると選択状態になり、隠しinput(#bet-on)の値も更新する
+  document.querySelectorAll(".stake-betarea").forEach((el) => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll(".stake-betarea").forEach((e) => e.classList.remove("selected"));
+      el.classList.add("selected");
+      document.getElementById("bet-on").value = el.dataset.bet;
+    });
+  });
+</script>
 {% endblock %}
