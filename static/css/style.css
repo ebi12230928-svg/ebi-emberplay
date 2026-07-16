@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-  --bg: #12141c;
-  --bg-raised: #191c27;
-  --panel: #1e2230;
-  --panel-border: #2c3143;
-  --ember: #e8590c;
-  --ember-bright: #ff7a33;
-  --gold: #d4a24e;
+  --bg: #0f1219;
+  --bg-raised: #171b26;
+  --panel: #1a1e2c;
+  --panel-border: #2a2f3f;
+  --ember: #00e701;
+  --ember-bright: #4dff4d;
+  --gold: #00e701;
   --plum: #372948;
-  --text: #f2ede4;
-  --text-muted: #9a94a6;
-  --win: #4caf6d;
-  --loss: #d64545;
+  --text: #ffffff;
+  --text-muted: #8a94a3;
+  --win: #00e701;
+  --loss: #ff4d4d;
 
-  --font-display: 'Bebas Neue', sans-serif;
+  --font-display: 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
@@ -40,14 +40,14 @@ pre, code { white-space: pre-wrap; word-break: break-word; }
 
 body {
   background-image:
-    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232, 89, 12, 0.14), transparent),
-    radial-gradient(ellipse 700px 400px at 100% 0%, rgba(212, 162, 78, 0.10), transparent);
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(0, 231, 1, 0.08), transparent),
+    radial-gradient(ellipse 700px 400px at 100% 0%, rgba(0, 231, 1, 0.06), transparent);
   background-attachment: fixed;
 }
 
 a { color: inherit; text-decoration: none; }
 
-::selection { background: var(--ember); color: #fff; }
+::selection { background: var(--ember); color: #0a0e14; }
 
 /* ── layout ── */
 .wrap {
@@ -91,8 +91,9 @@ a { color: inherit; text-decoration: none; }
 
 .brand {
   font-family: var(--font-display);
-  font-size: 30px;
-  letter-spacing: 0.04em;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -138,7 +139,7 @@ a { color: inherit; text-decoration: none; }
   top: -4px;
   right: -4px;
   background: var(--ember);
-  color: #fff;
+  color: #0a0e14;
   font-size: 10px;
   font-weight: 700;
   border-radius: 100px;
@@ -225,11 +226,14 @@ a { color: inherit; text-decoration: none; }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-ember { background: var(--ember); color: #fff; }
-.btn-ember:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-ember {
+  background: var(--ember); color: #0a0e14; font-weight: 800; font-size: 15px;
+  padding: 14px 20px; box-shadow: 0 0 0 rgba(0,231,1,0); letter-spacing: 0.01em;
+}
+.btn-ember:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 0 16px rgba(0,231,1,0.35); }
 
 .btn-ghost { background: transparent; border-color: var(--panel-border); color: var(--text); }
-.btn-ghost:hover { border-color: var(--gold); }
+.btn-ghost:hover { border-color: var(--ember); }
 
 .btn-block { width: 100%; }
 
@@ -273,8 +277,8 @@ a { color: inherit; text-decoration: none; }
 
 h1, h2, h3 {
   font-family: var(--font-display);
-  letter-spacing: 0.02em;
-  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-weight: 800;
   margin: 0 0 8px;
 }
 
@@ -343,7 +347,7 @@ p { line-height: 1.6; color: var(--text-muted); }
 }
 
 .category-pill:hover { border-color: var(--ember); transform: translateY(-1px); }
-.category-pill.active { background: var(--ember); border-color: var(--ember); color: #fff; }
+.category-pill.active { background: var(--ember); border-color: var(--ember); color: #0a0e14; font-weight: 700; }
 
 html { scroll-behavior: smooth; }
 [data-carousel-section] { scroll-margin-top: 84px; }
@@ -440,7 +444,7 @@ html { scroll-behavior: smooth; }
 .gacha-card-icon { font-size: 30px; }
 .gacha-card-new {
   position: absolute; top: 4px; right: 4px;
-  font-size: 8px; background: var(--ember); color: #fff; padding: 1px 5px; border-radius: 100px;
+  font-size: 8px; background: var(--ember); color: #0a0e14; padding: 1px 5px; border-radius: 100px; font-weight: 700;
 }
 
 /* ── search bar ── */
@@ -940,3 +944,74 @@ th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform
 .text-muted { color: var(--text-muted); }
 
 .divider { height: 1px; background: var(--panel-border); margin: 28px 0; border: none; }
+
+/* ───────── Stake風のベットコントロール(全ゲーム共通) ───────── */
+.stake-bet-panel { background: var(--bg-raised); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px; }
+.stake-bet-label { display:flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.stake-bet-row { display:flex; align-items:center; background: var(--bg); border: 1px solid var(--panel-border); border-radius: 8px; overflow: hidden; }
+.stake-bet-row input { flex:1; border:none; background:transparent; padding: 12px; font-size: 15px; color: var(--text); font-family: var(--font-mono, monospace); min-width: 0; }
+.stake-bet-row input:focus { outline: none; }
+.stake-bet-adjust { display:flex; border-left: 1px solid var(--panel-border); flex-shrink: 0; }
+.stake-bet-adjust button {
+  background: transparent; border: none; border-left: 1px solid var(--panel-border); color: var(--text-muted);
+  padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.stake-bet-adjust button:first-child { border-left: none; }
+.stake-bet-adjust button:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.stake-chip-row { display:flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+.stake-chip-row button {
+  width: 52px; height: 52px; border-radius: 50%; cursor: pointer; font-family: var(--font-mono, monospace);
+  font-size: 11px; font-weight: 700; color: #fff; position: relative; flex-shrink: 0;
+  background: repeating-conic-gradient(var(--chip-color, var(--ember)) 0deg 15deg, #fff 15deg 30deg);
+  border: 3px solid var(--chip-color, var(--ember));
+  box-shadow: 0 3px 0 rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.3);
+  transition: transform 0.1s ease;
+}
+.stake-chip-row button::before {
+  content: attr(data-amount); position: absolute; inset: 6px; border-radius: 50%; background: var(--bg-raised);
+  display:flex; align-items:center; justify-content:center; color: var(--text); font-size: 10px; font-weight: 800;
+}
+.stake-chip-row button:nth-child(1) { --chip-color: #6fb8ff; }
+.stake-chip-row button:nth-child(2) { --chip-color: #ff4d4d; }
+.stake-chip-row button:nth-child(3) { --chip-color: #00e701; }
+.stake-chip-row button:nth-child(4) { --chip-color: #ffb020; }
+.stake-chip-row button:hover { transform: translateY(-3px); }
+.stake-chip-row button:active { transform: translateY(1px); }
+.stake-betarea-group { display:flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.stake-betarea-group.stake-betarea-grid { display:grid; grid-template-columns: 1fr 1fr; }
+.stake-betarea {
+  position: relative; border: 2px solid var(--panel-border); border-radius: 10px; padding: 12px 14px;
+  background: var(--bg); cursor: pointer; text-align: left; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stake-betarea:hover { border-color: rgba(232,89,12,0.5); }
+.stake-betarea.selected { border-color: var(--ember); background: rgba(232,89,12,0.1); }
+.stake-betarea .betarea-name { font-weight: 700; font-size: 14px; }
+.stake-betarea .betarea-payout { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.stake-betarea.selected .betarea-payout { color: var(--gold); }
+.stake-betarea .betarea-check { position:absolute; top:10px; right:12px; font-size: 16px; color: var(--ember); display:none; }
+.stake-betarea.selected .betarea-check { display:block; }
+.stake-action-bar { display:flex; gap: 8px; margin-top: 14px; }
+.stake-action-bar .btn { flex:1; }
+
+/* ───────── どこパ風のポップなカードルームデザイン(共通) ───────── */
+.dokopa-card {
+  background: #fff; border-radius: 22px; padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.08), 0 6px 16px rgba(0,0,0,0.08); color: #3a2145;
+  border: 2px solid #ffe8f3;
+}
+.dokopa-card h2, .dokopa-card h3 { color: #3a2145; }
+.dokopa-card .text-muted, .dokopa-card p { color: #8a7a95; }
+.dokopa-btn {
+  background: linear-gradient(180deg, #ffb0d9, #ff6fa8); color: #fff !important; border: 3px solid #fff; border-radius: 100px;
+  padding: 14px 22px; font-weight: 900; font-size: 15px; box-shadow: 0 4px 0 #d94f85, 0 6px 12px rgba(217,79,133,0.3); cursor: pointer;
+  text-decoration: none; display: inline-block; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: transform 0.1s ease;
+}
+.dokopa-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d94f85; }
+.dokopa-btn-blue { background: linear-gradient(180deg, #b0e0ff, #6fb8ff); box-shadow: 0 4px 0 #4a8fd9, 0 6px 12px rgba(74,143,217,0.3); }
+.dokopa-btn-green { background: linear-gradient(180deg, #c0f5cc, #7fd898); box-shadow: 0 4px 0 #4fae6c, 0 6px 12px rgba(79,174,108,0.3); }
+
+/* ───────── 全ゲーム共通で、少し丸く・可愛くする調整 ───────── */
+.panel, .stake-bet-panel { border-radius: 16px; }
+.btn { border-radius: 12px; }
+.btn-block { border-radius: 12px; }
