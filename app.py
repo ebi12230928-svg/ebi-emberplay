@@ -13,8 +13,30 @@ def _auto_migrate(app):
     新しいテーブル・列を自動的に追加する簡易マイグレーション。
     (列の削除やリネームには対応しないが、「追加」だけなら安全に自動対応できる。
     これにより、モデルに新しい列を増やすたびにデータベースを作り直す必要がなくなる)
+
+    起動のたびに全テーブルをスキャンすると、テーブル数が増えるにつれて起動が遅くなっていくため、
+    「モデル定義に変更が無ければスキャン自体をスキップする」キャッシュを設けている。
+    これにより、モデルを変更しない限り、2回目以降の起動はほぼ瞬時になる。
     """
+    import hashlib
     from sqlalchemy import inspect, text
+
+    # 現在のモデル定義(テーブル名・列名・型)からハッシュ値を計算する
+    schema_fingerprint_parts = []
+    for table in sorted(db.metadata.sorted_tables, key=lambda t: t.name):
+        col_sig = ",".join(f"{c.name}:{c.type}" for c in table.columns)
+        schema_fingerprint_parts.append(f"{table.name}[{col_sig}]")
+    schema_fingerprint = hashlib.sha256("|".join(schema_fingerprint_parts).encode()).hexdigest()
+
+    marker_path = os.path.join(app.instance_path, ".schema_fingerprint")
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+        if os.path.exists(marker_path):
+            with open(marker_path, "r", encoding="utf-8") as f:
+                if f.read().strip() == schema_fingerprint:
+                    return  # 前回起動時からモデル定義が変わっていないため、スキャンを省略する
+    except OSError:
+        pass  # 書き込み不可な環境では、キャッシュを使わず毎回スキャンする(安全側に倒す)
 
     with app.app_context():
         inspector = inspect(db.engine)
@@ -49,6 +71,12 @@ def _auto_migrate(app):
                 except Exception as e:
                     db.session.rollback()
                     print(f"[auto-migrate] {table.name}.{column.name} の追加に失敗しました: {e}")
+
+    try:
+        with open(marker_path, "w", encoding="utf-8") as f:
+            f.write(schema_fingerprint)
+    except OSError:
+        pass
 
 
 def create_app():
