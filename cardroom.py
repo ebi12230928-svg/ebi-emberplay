@@ -104,15 +104,96 @@ def _resolve_new_log_lines(state, actor_id, start_idx, names_by_id):
         log_list[i] = line
 
 
+def _daifugo_has_legal_play(module, state, user_id):
+    """手札のどれかの組み合わせで、今の場に出せるものが1つでもあるかを判定する(ジョーカーの代用も考慮)"""
+    hand = state["hands"].get(str(user_id), [])
+    if not hand:
+        return False
+    if not state["pile"]:
+        return True  # 場が空なら何かしら出せる
+
+    pile_size = len(state["pile"])
+    by_rank = {}
+    jokers = []
+    for c in hand:
+        if c == 52:
+            jokers.append(c)
+        else:
+            by_rank.setdefault(cc.rank_of(c), []).append(c)
+
+    for cards_of_rank in by_rank.values():
+        combined = cards_of_rank + jokers
+        if len(combined) >= pile_size:
+            if module.legal_play(state, user_id, combined[:pile_size]) is None:
+                return True
+    if len(jokers) >= pile_size and module.legal_play(state, user_id, jokers[:pile_size]) is None:
+        return True
+    return False
+
+
+def _auto_pass_daifugo(state, names_by_id):
+    """
+    出せるカードが無いのにパスを忘れている(操作を待っている)プレイヤーがいると、ゲームが
+    止まってしまうため、大富豪・ボードゲーム類で「出せる手が無い」時は自動的にパスする。
+    人間・ボット問わず適用する。
+    """
+    module = GAME_MODULES["daifugo"]
+    safety = 0
+    while safety < 50:
+        safety += 1
+        if state.get("phase") != "playing":
+            break
+        if state.get("winner") is not None or len(state.get("finished_order", [])) >= len(state.get("turn_order", [])) - 1:
+            break
+        cur = module.current_turn_player(state)
+        if cur is None or not state.get("pile"):
+            break  # 場が空の時は「出せない」が無いのでパス強制はしない
+        if _daifugo_has_legal_play(module, state, cur):
+            break
+        before_len = len(state.get("log", []))
+        if module.apply_pass(state, cur) is not None:
+            break
+        _resolve_new_log_lines(state, cur, before_len, names_by_id)
+
+
 def _process_bot_turns(room_obj, state, names_by_id=None):
     """ボットの手番が続く限り自動で打ち続け、それぞれの行動ログも名前解決する"""
     module = GAME_MODULES[room_obj.game_type]
     players = _room_players(room_obj.id)
     if names_by_id is None:
         names_by_id = {p.user_id: p.user.username for p in players}
+
+    if room_obj.game_type == "daifugo":
+        # 出せる手が無いプレイヤーは、ボット・人間を問わず自動でパスさせる
+        _auto_pass_daifugo(state, names_by_id)
+
     bot_ids = {p.user_id: p.user.bot_difficulty for p in players if p.user.is_bot}
     if not bot_ids:
         return
+
+    if room_obj.game_type == "daifugo" and state.get("phase") == "exchange":
+        # カード交換フェーズで、献上されたカードを返す側がボットの場合、誰も操作しないと
+        # ずっと交換待ちのまま止まってしまうため、ボットは自動的に「最も弱いカード」を選んで返す
+        for entry in list(state.get("exchange_pending", [])):
+            if entry["from"] not in bot_ids:
+                continue
+            hand = state["hands"].get(str(entry["from"]), [])
+            if len(hand) < entry["count"]:
+                continue
+            hand_sorted = sorted(hand, key=lambda c: module._strength(cc.rank_of(c)))
+            module.apply_exchange_return(state, entry["from"], hand_sorted[:entry["count"]])
+        if state.get("phase") == "exchange":
+            return  # まだ人間側の返却待ちが残っている場合は、ここで終える
+
+    if room_obj.game_type == "daifugo" and state.get("phase") == "discard":
+        # 10捨てで捨てる側がボットの場合も、同様に自動で最も弱いカードを最大枚数まで捨てる
+        pending = state.get("discard_pending")
+        if pending and pending["user_id"] in bot_ids:
+            hand = state["hands"].get(str(pending["user_id"]), [])
+            hand_sorted = sorted(hand, key=lambda c: module._strength(cc.rank_of(c)))
+            module.apply_discard(state, pending["user_id"], hand_sorted[:pending["count"]])
+        if state.get("phase") == "discard":
+            return
 
     if room_obj.game_type == "speed":
         # スピードには手番の概念が無いため、出せるボットがいなくなるまで順番に打たせる
@@ -309,6 +390,8 @@ def set_game(code):
     room_obj.rules_json = json.dumps({
         "eight_giri": bool(rules.get("eight_giri")),
         "revolution": bool(rules.get("revolution")),
+        "joker": bool(rules.get("joker", True)),  # 大富豪: ジョーカーあり(デフォルトでオン)
+        "ten_sute": bool(rules.get("ten_sute")),  # 大富豪: 10捨て
     })
     db.session.commit()
     return jsonify({"ok": True})
@@ -386,6 +469,8 @@ def _build_public_state(room_obj, state, viewer_id, names_by_id):
             public.update({
                 "pile": state.get("pile", []), "finished_order": state.get("finished_order", []),
                 "current_turn": module.current_turn_player(state), "revolution": state.get("revolution", False),
+                "phase": state.get("phase", "playing"), "exchange_pending": state.get("exchange_pending", []),
+                "prev_ranks": state.get("prev_ranks", {}), "discard_pending": state.get("discard_pending"),
             })
         elif game_type == "babanuki":
             public.update({
@@ -530,6 +615,12 @@ def action(code):
             err = module.apply_play(state, current_user.id, cards)
         elif action_type == "pass":
             err = module.apply_pass(state, current_user.id)
+        elif action_type == "exchange_return":
+            cards = data.get("cards") or []
+            err = module.apply_exchange_return(state, current_user.id, cards)
+        elif action_type == "discard":
+            cards = data.get("cards") or []
+            err = module.apply_discard(state, current_user.id, cards)
         else:
             err = "不正な操作です。"
     elif room_obj.game_type == "babanuki":
@@ -643,6 +734,44 @@ def action(code):
     if finished:
         room_obj.status = "finished"
 
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@cardroom_bp.route("/cards/room/<code>/continue", methods=["POST"])
+@login_required
+def continue_round(code):
+    """
+    ゲーム終了後の「続ける」ボタン。大富豪の場合は、直前の順位に応じたカード交換
+    (大貧民→大富豪に2枚・貧民→富豪に1枚、それぞれ最も強いカードを強制的に献上する)を行った上で、
+    新しいラウンドを開始する。それ以外のゲームは通常通り新しいゲームを開始する。
+    """
+    room_obj = CardRoom.query.filter_by(code=code.upper()).first()
+    if not room_obj or room_obj.owner_id != current_user.id:
+        return jsonify({"error": "オーナーのみ操作できます。"}), 403
+    if room_obj.status != "finished":
+        return jsonify({"error": "まだゲームが終わっていません。"}), 400
+
+    players = _room_players(room_obj.id)
+    module = GAME_MODULES[room_obj.game_type]
+    rules = json.loads(room_obj.rules_json)
+    player_ids = [p.user_id for p in players]
+
+    state_row = CardGameState.query.get(room_obj.id)
+    prev_state = json.loads(state_row.state_json) if state_row else {}
+
+    if room_obj.game_type == "daifugo" and hasattr(module, "start_new_round_with_exchange"):
+        state = module.start_new_round_with_exchange(prev_state, player_ids, rules)
+    else:
+        state = module.new_game(player_ids, rules)
+
+    _process_bot_turns(room_obj, state)
+
+    if state_row:
+        state_row.state_json = json.dumps(state)
+    else:
+        db.session.add(CardGameState(room_id=room_obj.id, state_json=json.dumps(state)))
+    room_obj.status = "playing"
     db.session.commit()
     return jsonify({"ok": True})
 
