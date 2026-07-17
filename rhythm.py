@@ -12,7 +12,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import RhythmSong, RhythmScore
+from models import RhythmSong, RhythmScore, User
 
 rhythm_bp = Blueprint("rhythm", __name__)
 
@@ -262,11 +262,58 @@ def submit_score():
     return jsonify({"ok": True, "reward": reward, "balance": current_user.balance})
 
 
+@rhythm_bp.route("/rhythm/ranking")
+@login_required
+def ranking():
+    """
+    スコアランキング・最大コンボ数ランキングのページ。
+    曲・難易度を選ぶと、その組み合わせでの上位10件が表示される(未選択なら全曲合算のランキング)。
+    """
+    songs = RhythmSong.query.filter_by(is_active=True).order_by(RhythmSong.created_at.desc()).all()
+
+    song_id = request.args.get("song_id", type=int)
+    difficulty = request.args.get("difficulty", "")
+    if difficulty not in DIFFICULTIES:
+        difficulty = ""
+
+    def build_query(order_column):
+        q = db.session.query(RhythmScore, User.username).join(User, RhythmScore.user_id == User.id)
+        if song_id:
+            q = q.filter(RhythmScore.song_id == song_id)
+        if difficulty:
+            q = q.filter(RhythmScore.difficulty == difficulty)
+        return q.order_by(order_column.desc()).limit(20).all()
+
+    score_rows = build_query(RhythmScore.score)
+    combo_rows = build_query(RhythmScore.max_combo)
+
+    song_titles = {s.id: s.title for s in songs}
+
+    def to_rows(rows, is_combo):
+        result = []
+        for score_row, username in rows:
+            result.append({
+                "username": username,
+                "value": score_row.max_combo if is_combo else score_row.score,
+                "song_title": song_titles.get(score_row.song_id, "?"),
+                "difficulty": DIFFICULTIES.get(score_row.difficulty, {}).get("label", score_row.difficulty),
+                "created_at": score_row.created_at,
+            })
+        return result
+
+    return render_template(
+        "rhythm_ranking.html", songs=songs, difficulties=DIFFICULTIES,
+        selected_song_id=song_id, selected_difficulty=difficulty,
+        score_ranking=to_rows(score_rows, False), combo_ranking=to_rows(combo_rows, True),
+    )
+
+
 @rhythm_bp.route("/rhythm/leaderboard/<int:song_id>")
 @login_required
 def leaderboard(song_id):
     top = (
-        RhythmScore.query.filter_by(song_id=song_id)
+        db.session.query(RhythmScore, User.username).join(User, RhythmScore.user_id == User.id)
+        .filter(RhythmScore.song_id == song_id)
         .order_by(RhythmScore.score.desc()).limit(10).all()
     )
-    return jsonify({"scores": [{"username": s.user_id, "score": s.score, "difficulty": s.difficulty} for s in top]})
+    return jsonify({"scores": [{"username": name, "score": s.score, "difficulty": s.difficulty} for s, name in top]})
