@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-  --bg: #0f1219;
-  --bg-raised: #171b26;
-  --panel: #1a1e2c;
-  --panel-border: #2a2f3f;
-  --ember: #00e701;
-  --ember-bright: #4dff4d;
-  --gold: #00e701;
+  --bg: #171225;
+  --bg-raised: #221c35;
+  --panel: #241e3a;
+  --panel-border: #382f52;
+  --ember: #ff6fb0;
+  --ember-bright: #ff9ecb;
+  --gold: #5fd0ff;
   --plum: #372948;
   --text: #ffffff;
-  --text-muted: #8a94a3;
-  --win: #00e701;
-  --loss: #ff4d4d;
+  --text-muted: #a89bc0;
+  --win: #4de6a8;
+  --loss: #ff5d7a;
 
   --font-display: 'Inter', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -40,8 +40,8 @@ pre, code { white-space: pre-wrap; word-break: break-word; }
 
 body {
   background-image:
-    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(0, 231, 1, 0.08), transparent),
-    radial-gradient(ellipse 700px 400px at 100% 0%, rgba(0, 231, 1, 0.06), transparent);
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255, 111, 176, 0.12), transparent),
+    radial-gradient(ellipse 700px 400px at 100% 0%, rgba(95, 208, 255, 0.10), transparent);
   background-attachment: fixed;
 }
 
@@ -114,6 +114,34 @@ a { color: inherit; text-decoration: none; }
 }
 
 .nav-links a:hover { color: var(--text); }
+
+/* ───────── 下部の横スクロールナビゲーションバー ───────── */
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
+  background: var(--bg-raised); border-top: 1px solid var(--panel-border);
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+}
+.bottom-nav-wrap { position: relative; }
+.bottom-nav-wrap::before, .bottom-nav-wrap::after {
+  content: ""; position: absolute; top:0; bottom:0; width: 24px; z-index: 2; pointer-events: none;
+}
+.bottom-nav-wrap::before { left: 0; background: linear-gradient(90deg, var(--bg-raised), transparent); }
+.bottom-nav-wrap::after { right: 0; background: linear-gradient(270deg, var(--bg-raised), transparent); }
+.bottom-nav-scroll {
+  display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  padding: 8px 10px; gap: 4px;
+}
+.bottom-nav-scroll::-webkit-scrollbar { display: none; }
+.bottom-nav-scroll a {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 6px 12px; border-radius: 10px; font-size: 10px; font-weight: 600;
+  color: var(--text-muted); white-space: nowrap; scroll-snap-align: start; transition: color 0.15s ease, background 0.15s ease;
+}
+.bottom-nav-scroll a:hover, .bottom-nav-scroll a:active { color: var(--text); background: rgba(255,255,255,0.06); }
+.bottom-nav-scroll a.active { color: var(--ember); background: rgba(0,231,1,0.12); font-weight: 800; }
+.bottom-nav-scroll .bn-icon { font-size: 18px; line-height: 1; }
+.bottom-nav-scroll { scroll-snap-type: x proximity; }
+body { padding-bottom: 78px; } /* 固定表示される下部ナビの分だけ、コンテンツが隠れないように余白を確保 */
 
 .nav-right {
   display: flex;
