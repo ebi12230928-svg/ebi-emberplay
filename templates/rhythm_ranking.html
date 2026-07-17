@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}ランキング ・ リズムゲーム ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🏆 Ranking</span>
+<h1>リズムゲーム ランキング</h1>
+
+<div class="panel" style="margin-bottom: 16px;">
+  <form method="GET" action="{{ url_for('rhythm.ranking') }}" style="display:flex; gap: 10px; flex-wrap: wrap; align-items:flex-end;">
+    <div class="field" style="margin:0; flex:1; min-width: 140px;">
+      <label for="song-filter">曲(未選択で全曲合算)</label>
+      <select id="song-filter" name="song_id" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+        <option value="">全曲合算</option>
+        {% for song in songs %}
+        <option value="{{ song.id }}" {{ "selected" if selected_song_id == song.id }}>{{ song.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0; flex:1; min-width: 120px;">
+      <label for="difficulty-filter">難易度(未選択で全難易度)</label>
+      <select id="difficulty-filter" name="difficulty" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);">
+        <option value="">すべて</option>
+        {% for key, d in difficulties.items() %}
+        <option value="{{ key }}" {{ "selected" if selected_difficulty == key }}>{{ d.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-ember">絞り込む</button>
+  </form>
+</div>
+
+<div style="display:flex; gap: 8px; margin-bottom: 12px;">
+  <button type="button" class="btn btn-ghost ranking-tab active" data-tab="score" style="flex:1;">💯 スコア</button>
+  <button type="button" class="btn btn-ghost ranking-tab" data-tab="combo" style="flex:1;">🔥 最大コンボ</button>
+</div>
+
+<div id="ranking-score" class="ranking-panel">
+  {% if not score_ranking %}
+  <div class="panel"><p style="margin:0;">まだ記録がありません。</p></div>
+  {% endif %}
+  {% for row in score_ranking %}
+  <div class="panel" style="margin-bottom: 8px; display:flex; justify-content: space-between; align-items:center;">
+    <div>
+      <span style="font-weight:800; margin-right:8px;">
+        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}位{% endif %}
+      </span>
+      <strong>{{ row.username }}</strong>
+      <p class="text-muted" style="font-size: 11px; margin: 2px 0 0 24px;">{{ row.song_title }} ・ {{ row.difficulty }}</p>
+    </div>
+    <span class="mono" style="color: var(--gold); font-weight:700;">{{ "{:,}".format(row.value) }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="ranking-combo" class="ranking-panel" style="display:none;">
+  {% if not combo_ranking %}
+  <div class="panel"><p style="margin:0;">まだ記録がありません。</p></div>
+  {% endif %}
+  {% for row in combo_ranking %}
+  <div class="panel" style="margin-bottom: 8px; display:flex; justify-content: space-between; align-items:center;">
+    <div>
+      <span style="font-weight:800; margin-right:8px;">
+        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}位{% endif %}
+      </span>
+      <strong>{{ row.username }}</strong>
+      <p class="text-muted" style="font-size: 11px; margin: 2px 0 0 24px;">{{ row.song_title }} ・ {{ row.difficulty }}</p>
+    </div>
+    <span class="mono" style="color: var(--ember); font-weight:700;">{{ row.value }} combo</span>
+  </div>
+  {% endfor %}
+</div>
+
+<a href="{{ url_for('rhythm.index') }}" class="btn btn-ghost btn-block" style="margin-top: 16px;">曲選択に戻る</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".ranking-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".ranking-tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".ranking-panel").forEach((p) => p.style.display = "none");
+      document.getElementById(`ranking-${btn.dataset.tab}`).style.display = "block";
+    });
+  });
+</script>
+<style>
+  .ranking-tab.active { border-color: var(--ember); color: var(--ember); }
+</style>
+{% endblock %}
