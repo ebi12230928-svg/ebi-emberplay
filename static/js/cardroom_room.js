@@ -11,6 +11,8 @@
   const daifugoRules = document.getElementById("daifugo-rules");
   const eightGiriCheck = document.getElementById("rule-eight-giri");
   const revolutionCheck = document.getElementById("rule-revolution");
+  const jokerCheck = document.getElementById("rule-joker");
+  const tenSuteCheck = document.getElementById("rule-ten-sute");
   const howToPlayBtn = document.getElementById("how-to-play-btn");
   const howToPlayModal = document.getElementById("how-to-play-modal");
   const howToPlayTitle = document.getElementById("how-to-play-title");
@@ -33,6 +35,8 @@
   }
   if (eightGiriCheck) eightGiriCheck.addEventListener("change", saveGameSettings);
   if (revolutionCheck) revolutionCheck.addEventListener("change", saveGameSettings);
+  if (jokerCheck) jokerCheck.addEventListener("change", saveGameSettings);
+  if (tenSuteCheck) tenSuteCheck.addEventListener("change", saveGameSettings);
 
   async function saveGameSettings() {
     try {
@@ -41,6 +45,8 @@
         rules: {
           eight_giri: eightGiriCheck ? eightGiriCheck.checked : false,
           revolution: revolutionCheck ? revolutionCheck.checked : false,
+          joker: jokerCheck ? jokerCheck.checked : false,
+          ten_sute: tenSuteCheck ? tenSuteCheck.checked : false,
         },
       });
     } catch (err) {
@@ -108,13 +114,20 @@
       pollChat();
     } catch (err) { /* noop */ }
   }
+  const CHAT_NAME_COLORS = ["#ff6fa8", "#3fa9dc", "#7a5fd6", "#e08a2e", "#2ba86a", "#d6455f"];
+  function chatColorFor(username) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
+    return CHAT_NAME_COLORS[hash % CHAT_NAME_COLORS.length];
+  }
+
   async function pollChat() {
     try {
       const res = await fetch(`/cards/room/${CODE}/chat`);
       const data = await res.json();
       if (!chatLog || !data.messages) return;
       chatLog.innerHTML = data.messages.map((m) =>
-        `<div style="margin-bottom:4px;"><strong style="color:${m.is_me ? 'var(--gold)' : 'var(--text)'};">${m.username}:</strong> ${m.message}</div>`
+        `<div style="margin-bottom:4px; color:#3a2145;"><strong style="color:${m.is_me ? '#ff4fa0' : chatColorFor(m.username)};">${m.username}${m.is_me ? "(あなた)" : ""}:</strong> ${m.message}</div>`
       ).join("");
       chatLog.scrollTop = chatLog.scrollHeight;
     } catch (err) { /* noop */ }

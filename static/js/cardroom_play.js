@@ -88,7 +88,13 @@
       lastLogLen = (data.log || []).length;
     }
 
-    if (data.status === "finished") showResult(data);
+    if (data.status === "finished") {
+      showResult(data);
+    } else {
+      resultBanner.style.display = "none";
+      resultBanner.innerHTML = "";
+      resultShown = false;
+    }
 
     if (GAME_TYPE === "daifugo") renderDaifugo(data, uidKey, myHand);
     else if (GAME_TYPE === "babanuki") renderBabanuki(data, uidKey, myHand);
@@ -99,8 +105,36 @@
     else renderBoardGame(data, uidKey);
   }
 
+  const DAIFUGO_RANK_LABELS = { daifugo: "🥇大富豪", fugo: "🥈富豪", heimin: "平民", hinmin: "🥉貧民", daihinmin: "😢大貧民" };
+
+  let resultShown = false;
+  function spawnVictoryConfetti() {
+    const colors = ["#ff6fa8", "#5fd0ff", "#ffe66f", "#a78bfa", "#6fe6a8"];
+    for (let i = 0; i < 24; i++) {
+      const el = document.createElement("div");
+      el.textContent = ["🎉", "🎊", "✨", "⭐"][i % 4];
+      el.style.cssText = `position:fixed; z-index:999; left:${Math.random() * 100}vw; top:-30px; font-size:${16 + Math.random() * 16}px; pointer-events:none;`;
+      document.body.appendChild(el);
+      const duration = 1400 + Math.random() * 900;
+      const drift = (Math.random() - 0.5) * 120;
+      el.animate(
+        [
+          { transform: "translate(0,0) rotate(0deg)", opacity: 1 },
+          { transform: `translate(${drift}px, 100vh) rotate(${360 + Math.random() * 360}deg)`, opacity: 0.9 },
+        ],
+        { duration, easing: "ease-in" }
+      );
+      setTimeout(() => el.remove(), duration + 100);
+    }
+  }
+
   function showResult(data) {
     resultBanner.style.display = "block";
+    if (!resultShown) {
+      resultShown = true;
+      spawnVictoryConfetti();
+      if (window.EmberSound) window.EmberSound.playBigWin();
+    }
     if (GAME_TYPE === "daifugo") {
       const order = (data.finished_order || []).map((uid, i) => `${i + 1}位: ${data.names[uid]}`).join(" / ");
       resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>${order}`;
@@ -114,6 +148,21 @@
     } else if (data.is_draw) {
       resultBanner.innerHTML = `<strong>🏁 ゲーム終了!</strong><br>引き分けです。`;
     }
+    if (window.IS_ROOM_OWNER) {
+      const continueBtn = document.createElement("button");
+      continueBtn.type = "button";
+      continueBtn.className = "dokopa-btn dokopa-btn-green";
+      continueBtn.style.cssText = "margin-top: 10px; width: 100%;";
+      continueBtn.textContent = GAME_TYPE === "daifugo" ? "続ける(カード交換して次のラウンドへ)" : "続ける(もう一度)";
+      continueBtn.addEventListener("click", async () => {
+        continueBtn.disabled = true;
+        try {
+          await EmberPlay.postJSON(`/cards/room/${CODE}/continue`, {});
+          fetchState();
+        } catch (err) { alert(err.message); continueBtn.disabled = false; }
+      });
+      resultBanner.appendChild(continueBtn);
+    }
     playBtn.style.display = "none";
     passBtn.style.display = "none";
     drawBtn.style.display = "none";
@@ -122,12 +171,26 @@
 
   // ───────── 大富豪 ─────────
   function renderDaifugo(data, uidKey, myHand) {
+    boardDisplay.style.display = "none";
+    cardHand.style.display = "flex";
+
+    if (data.phase === "exchange") {
+      renderDaifugoExchange(data, uidKey, myHand);
+      return;
+    }
+    if (data.phase === "discard") {
+      renderDaifugoDiscard(data, uidKey, myHand);
+      return;
+    }
+
     playBtn.style.display = "inline-block";
     passBtn.style.display = "inline-block";
     drawBtn.style.display = "none";
     resignBtn.style.display = "none";
-    boardDisplay.style.display = "none";
-    cardHand.style.display = "flex";
+    const staleExchangeBtn = document.getElementById("exchange-send-btn");
+    if (staleExchangeBtn) staleExchangeBtn.remove();
+    const staleDiscardBtn = document.getElementById("discard-send-btn");
+    if (staleDiscardBtn) staleDiscardBtn.remove();
 
     pileDisplay.innerHTML = "";
     if (data.pile.length) data.pile.forEach((c) => pileDisplay.appendChild(renderCardChip(c)));
@@ -171,8 +234,116 @@
       const finishedIdx = data.finished_order.indexOf(uid);
       const status = finishedIdx >= 0 ? `🏁${finishedIdx + 1}位` : (String(uid) === String(data.current_turn) ? "🎯手番" : "");
       const cnt = data.hands[uid] ? data.hands[uid].length : 0;
-      return `<div style="display:flex; justify-content:space-between; padding:4px 0;"><span>${data.names[uid]}</span><span class="mono text-muted">${status} ${cnt}枚</span></div>`;
+      const rank = data.prev_ranks && data.prev_ranks[uid] ? `<span style="font-size:10px;">${DAIFUGO_RANK_LABELS[data.prev_ranks[uid]] || ""}</span> ` : "";
+      return `<div style="display:flex; justify-content:space-between; padding:4px 0;"><span>${rank}${data.names[uid]}</span><span class="mono text-muted">${status} ${cnt}枚</span></div>`;
     }).join("");
+  }
+
+  function renderDaifugoExchange(data, uidKey, myHand) {
+    playBtn.style.display = "none";
+    passBtn.style.display = "none";
+    drawBtn.style.display = "none";
+    resignBtn.style.display = "none";
+
+    const myEntry = (data.exchange_pending || []).find((e) => String(e.from) === uidKey);
+
+    if (!myEntry) {
+      turnBanner.textContent = "🔄 カード交換中…他のプレイヤーがカードを選んでいます。";
+      turnBanner.style.color = "";
+      cardHand.innerHTML = "";
+      myHand.forEach((c) => cardHand.appendChild(renderCardChip(c)));
+      pileDisplay.innerHTML = '<span class="text-muted" style="font-size:12px;">カード交換フェーズです。もうしばらくお待ちください。</span>';
+      return;
+    }
+
+    turnBanner.textContent = `🎁 ${data.names[myEntry.to]}に、カードを${myEntry.count}枚選んで渡してください`;
+    turnBanner.style.color = "var(--gold)";
+    pileDisplay.innerHTML = `<span class="text-muted" style="font-size:12px;">献上されたカードを含む、今の手札から自由に${myEntry.count}枚選べます。</span>`;
+
+    cardHand.innerHTML = "";
+    myHand.forEach((c) => {
+      const chip = renderCardChip(c, { selected: selectedCards.includes(c) });
+      chip.addEventListener("click", () => {
+        const idx = selectedCards.indexOf(c);
+        if (idx >= 0) { selectedCards.splice(idx, 1); }
+        else if (selectedCards.length < myEntry.count) { selectedCards.push(c); }
+        renderDaifugoExchange(data, uidKey, myHand);
+      });
+      cardHand.appendChild(chip);
+    });
+
+    let sendBtn = document.getElementById("exchange-send-btn");
+    if (!sendBtn) {
+      sendBtn = document.createElement("button");
+      sendBtn.type = "button";
+      sendBtn.id = "exchange-send-btn";
+      sendBtn.className = "dokopa-btn dokopa-btn-blue";
+      sendBtn.style.cssText = "width:100%; margin-top: 10px;";
+      cardHand.parentElement.appendChild(sendBtn);
+    }
+    sendBtn.textContent = `この${selectedCards.length}/${myEntry.count}枚を渡す`;
+    sendBtn.disabled = selectedCards.length !== myEntry.count;
+    sendBtn.onclick = async () => {
+      try {
+        await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "exchange_return", cards: selectedCards });
+        selectedCards = [];
+        sendBtn.remove();
+        fetchState();
+      } catch (err) { alert(err.message); }
+    };
+  }
+
+  function renderDaifugoDiscard(data, uidKey, myHand) {
+    playBtn.style.display = "none";
+    passBtn.style.display = "none";
+    drawBtn.style.display = "none";
+    resignBtn.style.display = "none";
+
+    const pending = data.discard_pending;
+    const isMe = pending && String(pending.user_id) === uidKey;
+
+    if (!isMe) {
+      turnBanner.textContent = "🔟 10捨て中…相手が捨てるカードを選んでいます。";
+      turnBanner.style.color = "";
+      cardHand.innerHTML = "";
+      myHand.forEach((c) => cardHand.appendChild(renderCardChip(c)));
+      pileDisplay.innerHTML = '<span class="text-muted" style="font-size:12px;">もうしばらくお待ちください。</span>';
+      return;
+    }
+
+    turnBanner.textContent = `🔟 10捨て!最大${pending.count}枚まで、手札から好きなカードを捨てられます(0枚でもOK)`;
+    turnBanner.style.color = "var(--gold)";
+
+    cardHand.innerHTML = "";
+    myHand.forEach((c) => {
+      const chip = renderCardChip(c, { selected: selectedCards.includes(c) });
+      chip.addEventListener("click", () => {
+        const idx = selectedCards.indexOf(c);
+        if (idx >= 0) { selectedCards.splice(idx, 1); }
+        else if (selectedCards.length < pending.count) { selectedCards.push(c); }
+        renderDaifugoDiscard(data, uidKey, myHand);
+      });
+      cardHand.appendChild(chip);
+    });
+
+    let discardBtn = document.getElementById("discard-send-btn");
+    if (!discardBtn) {
+      discardBtn = document.createElement("button");
+      discardBtn.type = "button";
+      discardBtn.id = "discard-send-btn";
+      discardBtn.className = "dokopa-btn dokopa-btn-blue";
+      discardBtn.style.cssText = "width:100%; margin-top: 10px;";
+      cardHand.parentElement.appendChild(discardBtn);
+    }
+    discardBtn.textContent = selectedCards.length > 0 ? `この${selectedCards.length}枚を捨てる` : "何も捨てずに続ける";
+    discardBtn.onclick = async () => {
+      try {
+        await EmberPlay.postJSON(`/cards/room/${CODE}/action`, { type: "discard", cards: selectedCards });
+        selectedCards = [];
+        discardBtn.remove();
+        fetchState();
+      } catch (err) { alert(err.message); }
+    };
   }
 
   // ───────── ババ抜き ─────────
@@ -745,13 +916,20 @@
     try { await EmberPlay.postJSON(`/cards/room/${CODE}/chat/send`, { message: text }); pollChat(); }
     catch (err) { /* noop */ }
   }
+  const CHAT_NAME_COLORS = ["#ff6fa8", "#3fa9dc", "#7a5fd6", "#e08a2e", "#2ba86a", "#d6455f"];
+  function chatColorFor(username) {
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
+    return CHAT_NAME_COLORS[hash % CHAT_NAME_COLORS.length];
+  }
+
   async function pollChat() {
     try {
       const res = await fetch(`/cards/room/${CODE}/chat`);
       const data = await res.json();
       if (!chatLog || !data.messages) return;
       chatLog.innerHTML = data.messages.map((m) =>
-        `<div style="margin-bottom:4px;"><strong style="color:${m.is_me ? 'var(--gold)' : 'var(--text)'};">${m.username}:</strong> ${m.message}</div>`
+        `<div style="margin-bottom:4px; color:#3a2145;"><strong style="color:${m.is_me ? '#ff4fa0' : chatColorFor(m.username)};">${m.username}${m.is_me ? "(あなた)" : ""}:</strong> ${m.message}</div>`
       ).join("");
       chatLog.scrollTop = chatLog.scrollHeight;
     } catch (err) { /* noop */ }
