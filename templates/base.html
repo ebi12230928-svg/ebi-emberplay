@@ -15,42 +15,6 @@
     </a>
 
     {% if nav_user.is_authenticated %}
-    <div class="nav-links">
-      <a href="{{ url_for('lobby.index') }}">ロビー</a>
-      <a href="{{ url_for('profile.index') }}">プロフィール</a>
-      <a href="{{ url_for('sportsbook.index') }}">スポーツ</a>
-      {% if nav_user.is_vip or nav_user.is_admin %}<a href="{{ url_for('vip.lounge') }}" style="color: var(--gold);">VIPラウンジ</a>{% endif %}
-      <a href="{{ url_for('chat.index') }}">チャット</a>
-      <a href="{{ url_for('lobby.announcements') }}">掲示板</a>
-      <a href="{{ url_for('giveaway.index') }}">プレゼント</a>
-      <a href="{{ url_for('events.index') }}">イベント</a>
-      <a href="{{ url_for('support.index') }}">サポート</a>
-      <a href="{{ url_for('demo.index') }}">デモ</a>
-      <a href="{{ url_for('stream.index') }}">📺 配信</a>
-      <a href="{{ url_for('rewards.wallet') }}">ウォレット</a>
-      <a href="{{ url_for('challenges.index') }}">📋 チャレンジ</a>
-      <a href="{{ url_for('friends.index') }}">👥 フレンド</a>
-      <a href="{{ url_for('dm.index') }}">✉️ DM</a>
-      <a href="{{ url_for('gacha.index') }}">🎴 ガチャ</a>
-      <a href="{{ url_for('collection.index') }}">📖 図鑑</a>
-      <a href="{{ url_for('towerdefense.index') }}">🏰 タワーディフェンス</a>
-      <a href="{{ url_for('rpgboss.index') }}">⚔️ RPGボス討伐</a>
-      <a href="{{ url_for('seasons.index') }}">🏆 シーズン</a>
-      <a href="{{ url_for('polls.index') }}">📊 アンケート</a>
-      <a href="{{ url_for('cardroom.index') }}">🃏 トランプ</a>
-      <a href="{{ url_for('pets.index') }}">🐾 相棒</a>
-      <a href="{{ url_for('trade.index') }}">🔄 トレード</a>
-      <a href="{{ url_for('fishing.index') }}">🎣 釣り</a>
-      <a href="{{ url_for('rhythm.index') }}">🎵 リズムゲーム</a>
-      <a href="{{ url_for('fortune.index') }}">🎋 おみくじ</a>
-      <a href="{{ url_for('guild.index') }}">🛡️ ギルド</a>
-      <a href="{{ url_for('titles.index') }}">🎖️ 称号</a>
-      <a href="{{ url_for('tournament.index') }}">🏆 トーナメント</a>
-      <a href="{{ url_for('lobby.history') }}">履歴</a>
-      <a href="{{ url_for('leaderboard.index') }}">ランキング</a>
-      <a href="{{ url_for('rewards.fairness_settings') }}">フェアネス</a>
-      {% if nav_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">管理者</a>{% endif %}
-    </div>
     <div class="nav-right">
       <button type="button" id="sound-toggle" class="bell-icon" title="効果音のON/OFF" style="border:none; background:none; cursor:pointer;">🔊</button>
       <a href="{{ url_for('notifications.list_notifications') }}" class="bell-icon" title="お知らせ">
@@ -68,6 +32,49 @@
     {% endif %}
   </nav>
 
+  {% if nav_user.is_authenticated %}
+  <nav class="bottom-nav">
+    <div class="bottom-nav-wrap">
+    <div class="bottom-nav-scroll" id="bottom-nav-scroll">
+      <a href="{{ url_for('lobby.index') }}" class="{{ 'active' if request.endpoint == 'lobby.index' else '' }}"><span class="bn-icon">🏠</span>ロビー</a>
+      <a href="{{ url_for('profile.index') }}" class="{{ 'active' if request.endpoint == 'profile.index' else '' }}"><span class="bn-icon">👤</span>プロフィール</a>
+      <a href="{{ url_for('sportsbook.index') }}" class="{{ 'active' if request.endpoint == 'sportsbook.index' else '' }}"><span class="bn-icon">⚽</span>スポーツ</a>
+      {% if nav_user.is_vip or nav_user.is_admin %}<a href="{{ url_for('vip.lounge') }}" class="{{ 'active' if request.endpoint == 'vip.lounge' else '' }}" style="color: var(--gold);"><span class="bn-icon">👑</span>VIPラウンジ</a>{% endif %}
+      <a href="{{ url_for('chat.index') }}" class="{{ 'active' if request.endpoint == 'chat.index' else '' }}"><span class="bn-icon">💬</span>チャット</a>
+      <a href="{{ url_for('lobby.announcements') }}" class="{{ 'active' if request.endpoint == 'lobby.announcements' else '' }}"><span class="bn-icon">📌</span>掲示板</a>
+      <a href="{{ url_for('giveaway.index') }}" class="{{ 'active' if request.endpoint == 'giveaway.index' else '' }}"><span class="bn-icon">🎁</span>プレゼント</a>
+      <a href="{{ url_for('events.index') }}" class="{{ 'active' if request.endpoint == 'events.index' else '' }}"><span class="bn-icon">🎉</span>イベント</a>
+      <a href="{{ url_for('support.index') }}" class="{{ 'active' if request.endpoint == 'support.index' else '' }}"><span class="bn-icon">🎧</span>サポート</a>
+      <a href="{{ url_for('demo.index') }}" class="{{ 'active' if request.endpoint == 'demo.index' else '' }}"><span class="bn-icon">🧪</span>デモ</a>
+      <a href="{{ url_for('stream.index') }}" class="{{ 'active' if request.endpoint == 'stream.index' else '' }}"><span class="bn-icon">📺</span>配信</a>
+      <a href="{{ url_for('rewards.wallet') }}" class="{{ 'active' if request.endpoint == 'rewards.wallet' else '' }}"><span class="bn-icon">💰</span>ウォレット</a>
+      <a href="{{ url_for('challenges.index') }}" class="{{ 'active' if request.endpoint == 'challenges.index' else '' }}"><span class="bn-icon">📋</span>チャレンジ</a>
+      <a href="{{ url_for('friends.index') }}" class="{{ 'active' if request.endpoint == 'friends.index' else '' }}"><span class="bn-icon">👥</span>フレンド</a>
+      <a href="{{ url_for('dm.index') }}" class="{{ 'active' if request.endpoint == 'dm.index' else '' }}"><span class="bn-icon">✉️</span>DM</a>
+      <a href="{{ url_for('gacha.index') }}" class="{{ 'active' if request.endpoint == 'gacha.index' else '' }}"><span class="bn-icon">🎴</span>ガチャ</a>
+      <a href="{{ url_for('collection.index') }}" class="{{ 'active' if request.endpoint == 'collection.index' else '' }}"><span class="bn-icon">📖</span>図鑑</a>
+      <a href="{{ url_for('towerdefense.index') }}" class="{{ 'active' if request.endpoint == 'towerdefense.index' else '' }}"><span class="bn-icon">🏰</span>タワーディフェンス</a>
+      <a href="{{ url_for('rpgboss.index') }}" class="{{ 'active' if request.endpoint == 'rpgboss.index' else '' }}"><span class="bn-icon">⚔️</span>RPGボス討伐</a>
+      <a href="{{ url_for('seasons.index') }}" class="{{ 'active' if request.endpoint == 'seasons.index' else '' }}"><span class="bn-icon">🏆</span>シーズン</a>
+      <a href="{{ url_for('polls.index') }}" class="{{ 'active' if request.endpoint == 'polls.index' else '' }}"><span class="bn-icon">📊</span>アンケート</a>
+      <a href="{{ url_for('cardroom.index') }}" class="{{ 'active' if request.endpoint == 'cardroom.index' else '' }}"><span class="bn-icon">🃏</span>トランプ</a>
+      <a href="{{ url_for('pets.index') }}" class="{{ 'active' if request.endpoint == 'pets.index' else '' }}"><span class="bn-icon">🐾</span>相棒</a>
+      <a href="{{ url_for('trade.index') }}" class="{{ 'active' if request.endpoint == 'trade.index' else '' }}"><span class="bn-icon">🔄</span>トレード</a>
+      <a href="{{ url_for('fishing.index') }}" class="{{ 'active' if request.endpoint == 'fishing.index' else '' }}"><span class="bn-icon">🎣</span>釣り</a>
+      <a href="{{ url_for('rhythm.index') }}" class="{{ 'active' if request.endpoint == 'rhythm.index' else '' }}"><span class="bn-icon">🎵</span>リズムゲーム</a>
+      <a href="{{ url_for('fortune.index') }}" class="{{ 'active' if request.endpoint == 'fortune.index' else '' }}"><span class="bn-icon">🎋</span>おみくじ</a>
+      <a href="{{ url_for('guild.index') }}" class="{{ 'active' if request.endpoint == 'guild.index' else '' }}"><span class="bn-icon">🛡️</span>ギルド</a>
+      <a href="{{ url_for('titles.index') }}" class="{{ 'active' if request.endpoint == 'titles.index' else '' }}"><span class="bn-icon">🎖️</span>称号</a>
+      <a href="{{ url_for('tournament.index') }}" class="{{ 'active' if request.endpoint == 'tournament.index' else '' }}"><span class="bn-icon">🏆</span>トーナメント</a>
+      <a href="{{ url_for('lobby.history') }}" class="{{ 'active' if request.endpoint == 'lobby.history' else '' }}"><span class="bn-icon">🕘</span>履歴</a>
+      <a href="{{ url_for('leaderboard.index') }}" class="{{ 'active' if request.endpoint == 'leaderboard.index' else '' }}"><span class="bn-icon">📈</span>ランキング</a>
+      <a href="{{ url_for('rewards.fairness_settings') }}" class="{{ 'active' if request.endpoint == 'rewards.fairness_settings' else '' }}"><span class="bn-icon">🔍</span>フェアネス</a>
+      {% if nav_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if request.endpoint == 'admin.dashboard' else '' }}"><span class="bn-icon">🛠️</span>管理者</a>{% endif %}
+    </div>
+    </div>
+  </nav>
+  {% endif %}
+
   <div class="wrap">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -83,6 +90,17 @@
   <script src="{{ url_for('static', filename='js/sound.js') }}"></script>
   <script src="{{ url_for('static', filename='js/balance.js') }}"></script>
   <script src="{{ url_for('static', filename='js/stake_bet_controls.js') }}"></script>
+  <script>
+    // 下部ナビの「現在地」タブを、横スクロール一覧の中で見やすい位置まで自動スクロールしておく
+    (function () {
+      const scrollEl = document.getElementById("bottom-nav-scroll");
+      if (!scrollEl) return;
+      const activeEl = scrollEl.querySelector("a.active");
+      if (!activeEl) return;
+      const target = activeEl.offsetLeft - (scrollEl.clientWidth / 2) + (activeEl.clientWidth / 2);
+      scrollEl.scrollTo({ left: Math.max(0, target), behavior: "instant" });
+    })();
+  </script>
   {% if nav_user.is_authenticated %}<script src="{{ url_for('static', filename='js/dm_notify.js') }}"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>

@@ -110,6 +110,7 @@
 <script>
   window.CARD_ROOM_CODE = "{{ room.code }}";
   window.CARD_GAME_TYPE = "{{ room.game_type }}";
+  window.IS_ROOM_OWNER = {{ (room.owner_id == current_user.id) | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/cardroom_play.js') }}"></script>
 {% endblock %}
