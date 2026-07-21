@@ -1043,3 +1043,41 @@ th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform
 .panel, .stake-bet-panel { border-radius: 16px; }
 .btn { border-radius: 12px; }
 .btn-block { border-radius: 12px; }
+
+/* ───────── カジノのリアリティ向上: 本物のトランプ風カード ───────── */
+.playing-card {
+  position: relative; width: 64px; height: 90px; border-radius: 8px; background: #fdfdfb;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(0,0,0,0.06);
+  display: inline-block; color: #1a1a1a; font-weight: 800; flex-shrink: 0;
+}
+.playing-card.playing-card-small { width: 44px; height: 62px; }
+.playing-card.playing-card-red { color: #d32f2f; }
+.playing-card .pc-corner { position: absolute; font-size: 13px; line-height: 1.05; text-align: center; }
+.playing-card.playing-card-small .pc-corner { font-size: 9px; }
+.playing-card .pc-corner-top { top: 4px; left: 5px; }
+.playing-card .pc-corner-bottom { bottom: 4px; right: 5px; transform: rotate(180deg); }
+.playing-card .pc-center { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; font-size: 30px; }
+.playing-card.playing-card-small .pc-center { font-size: 20px; }
+.playing-card.playing-card-back {
+  background: repeating-linear-gradient(45deg, var(--ember) 0 6px, #b03a80 6px 12px);
+  border: 3px solid #fff; box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+}
+.playing-card-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.playing-card-deal-in { animation: playing-card-deal 0.35s cubic-bezier(0.2,0.8,0.3,1) backwards; }
+@keyframes playing-card-deal {
+  0% { transform: translateY(-40px) rotate(-8deg) scale(0.7); opacity: 0; }
+  100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+}
+
+/* カジノのグリーンフェルトテーブル風の背景(カードゲームの卓面に使う) */
+.casino-felt-table {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(160deg, #0d4a35, #0a3626 60%, #072a1c);
+  border: 6px solid #3d2415; border-radius: 24px;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 6px 16px rgba(0,0,0,0.4);
+  padding: 18px; position: relative;
+}
+.casino-felt-table::before {
+  content: ""; position: absolute; inset: 8px; border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; pointer-events: none;
+}
