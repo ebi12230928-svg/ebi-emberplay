@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}ショップ ・ リズムゲーム ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">🛍️ Shop</span>
+<h1>ノーツスキン ショップ</h1>
+<p>Embersを使って、ノーツ・レーンの色テーマを購入できます。購入したスキンはいつでも切り替えられます。</p>
+
+{% for key, item in catalog.items() %}
+<div class="panel" style="margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center;">
+  <div style="display:flex; align-items:center; gap: 12px;">
+    <div style="display:flex; gap: 4px;">
+      {% for color in item.colors %}
+      <div style="width: 18px; height: 18px; border-radius: 6px; background: {{ color }}; box-shadow: 0 2px 4px rgba(0,0,0,0.4);"></div>
+      {% endfor %}
+    </div>
+    <div>
+      <strong>{{ item.name }}</strong>
+      <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">{{ "無料" if item.price == 0 else "💰" ~ item.price }}</p>
+    </div>
+  </div>
+
+  {% if key == active_skin %}
+  <span class="btn btn-ghost" style="padding: 8px 14px; font-size: 12px; border-color: var(--gold); color: var(--gold);">使用中</span>
+  {% elif key in owned %}
+  <form method="POST" action="{{ url_for('rhythm.shop_equip') }}">
+    <input type="hidden" name="skin_key" value="{{ key }}">
+    <button type="submit" class="btn btn-ghost" style="padding: 8px 14px; font-size: 12px;">使用する</button>
+  </form>
+  {% else %}
+  <form method="POST" action="{{ url_for('rhythm.shop_buy') }}">
+    <input type="hidden" name="skin_key" value="{{ key }}">
+    <button type="submit" class="btn btn-ember" style="padding: 8px 14px; font-size: 12px;">購入する</button>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+
+<a href="{{ url_for('rhythm.index') }}" class="btn btn-ghost btn-block" style="margin-top: 16px;">曲選択に戻る</a>
+{% endblock %}

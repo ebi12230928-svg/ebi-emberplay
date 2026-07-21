@@ -2,6 +2,7 @@
 {% block title %}{{ song.title }} ・ EMBERPLAY{% endblock %}
 
 {% block head %}
+{% set skin_colors = skin_colors or ["#ff6fbd", "#4fb8ff", "#a563ff", "#ffc84f"] %}
 <style>
   #rhythm-stage {
     position: relative; width: 100%; height: 320px; border-radius: 20px; overflow: hidden; margin-bottom: 12px; touch-action: none;
@@ -13,6 +14,11 @@
     background: radial-gradient(circle at 20% 10%, rgba(255,120,220,0.25), transparent 40%),
                 radial-gradient(circle at 80% 90%, rgba(100,200,255,0.25), transparent 40%);
   }
+  #rhythm-stage { transition: box-shadow 0.5s ease; }
+  #rhythm-stage.combo-tier-1 { box-shadow: inset 0 0 60px rgba(150, 80, 255, 0.15), 0 0 20px rgba(255,111,176,0.35), 0 4px 20px rgba(0,0,0,0.4); }
+  #rhythm-stage.combo-tier-2 { box-shadow: inset 0 0 70px rgba(255, 111, 176, 0.25), 0 0 32px rgba(95,208,255,0.5), 0 4px 20px rgba(0,0,0,0.4); animation: rhythm-stage-pulse 1.2s ease-in-out infinite; }
+  #rhythm-stage.combo-tier-3 { box-shadow: inset 0 0 90px rgba(255, 215, 0, 0.3), 0 0 44px rgba(255,215,0,0.6), 0 4px 20px rgba(0,0,0,0.4); animation: rhythm-stage-pulse 0.7s ease-in-out infinite; }
+  @keyframes rhythm-stage-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.15); } }
   #rhythm-start-overlay {
     position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,0.6);
     display: flex; align-items: center; justify-content: center; flex-direction: column;
@@ -28,6 +34,11 @@
     100% { transform: scale(1); opacity: 1; }
   }
   #rhythm-lanes { position: absolute; inset: 0; display: grid; grid-template-columns: repeat({{ lanes }}, 1fr); }
+  .rhythm-curve-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 3; overflow: visible; }
+  .rhythm-curve-path {
+    fill: none; stroke: #67e8f9; stroke-width: 10; stroke-linecap: round;
+    opacity: 0.55; filter: drop-shadow(0 0 6px rgba(103,232,249,0.8));
+  }
   .rhythm-lane { position: relative; border-left: 1px solid rgba(255,255,255,0.06); }
   .rhythm-lane:nth-child(1) { background: linear-gradient(180deg, rgba(255,120,180,0.06), transparent 60%); }
   .rhythm-lane:nth-child(2) { background: linear-gradient(180deg, rgba(120,200,255,0.06), transparent 60%); }
@@ -43,10 +54,9 @@
     box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 2px 3px rgba(255,255,255,0.6), inset 0 -4px 6px rgba(0,0,0,0.15);
     border: 1.5px solid rgba(255,255,255,0.5);
   }
-  .rhythm-lane:nth-child(1) .rhythm-note { background: linear-gradient(160deg, #ffe0f0, #ff6fbd 60%, #ff4098); }
-  .rhythm-lane:nth-child(2) .rhythm-note { background: linear-gradient(160deg, #dcf6ff, #4fb8ff 60%, #1f8fff); }
-  .rhythm-lane:nth-child(3) .rhythm-note { background: linear-gradient(160deg, #f2e6ff, #a563ff 60%, #7a2fff); }
-  .rhythm-lane:nth-child(4) .rhythm-note { background: linear-gradient(160deg, #fff8dc, #ffc84f 60%, #ff9f1f); }
+  {% for color in skin_colors %}
+  .rhythm-lane:nth-child({{ loop.index }}) .rhythm-note { background: linear-gradient(160deg, #fff, {{ color }} 60%, {{ color }}); }
+  {% endfor %}
   .rhythm-note.rhythm-note-hold {
     height: 22px;
   }
@@ -126,10 +136,9 @@
     content: ""; position: absolute; inset: 0; border-radius: 16px; border: 2px solid rgba(255,255,255,0.4); pointer-events: none;
   }
   .rhythm-tap-btn:active { transform: translateY(3px) scale(0.97); box-shadow: 0 1px 0 rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.2); }
-  #rhythm-tap-buttons > .rhythm-tap-btn:nth-child(1) { background: linear-gradient(160deg, #ffd0ea, #ff6fbd 55%, #ff4fa8); }
-  #rhythm-tap-buttons > .rhythm-tap-btn:nth-child(2) { background: linear-gradient(160deg, #c8f0ff, #4fb8ff 55%, #2f9dff); }
-  #rhythm-tap-buttons > .rhythm-tap-btn:nth-child(3) { background: linear-gradient(160deg, #ecd8ff, #a563ff 55%, #8c3fff); }
-  #rhythm-tap-buttons > .rhythm-tap-btn:nth-child(4) { background: linear-gradient(160deg, #fff3c8, #ffc84f 55%, #ffaf2f); }
+  {% for color in skin_colors %}
+  #rhythm-tap-buttons > .rhythm-tap-btn:nth-child({{ loop.index }}) { background: linear-gradient(160deg, #fff, {{ color }} 55%, {{ color }}); }
+  {% endfor %}
   .rhythm-tap-btn:active { background: var(--ember); }
   .rhythm-tap-btn.hit-perfect { animation: rhythm-btn-flash-perfect 0.3s ease; }
   .rhythm-tap-btn.hit-good { animation: rhythm-btn-flash-good 0.3s ease; }
@@ -219,6 +228,12 @@
     <div id="rhythm-lanes"></div>
     <div id="rhythm-start-overlay" style="display:none;">
       <button type="button" class="btn btn-ember" id="rhythm-start-btn">▶ スタート</button>
+      <div id="rhythm-timing-adjust" style="margin-top: 14px; text-align:center; width: 90%;">
+        <label for="rhythm-offset-input" style="font-size: 11px; color: #ccc; display:block; margin-bottom: 4px;">
+          🎯 判定タイミング調整(ズレを感じる場合に): <span id="rhythm-offset-value">0</span>ms
+        </label>
+        <input type="range" id="rhythm-offset-input" min="-300" max="300" step="10" value="0" style="width:100%;">
+      </div>
       <div id="rhythm-countdown-display" style="display:none;"></div>
     </div>
   </div>
@@ -288,6 +303,7 @@
   }
 
   let score = 0, combo = 0, maxCombo = 0;
+  let perfectCount = 0, goodCount = 0, missCount = 0, syncCount = 0;
   let player = null;
   let started = false;
   let noteElements = [];
@@ -342,6 +358,18 @@
   const startOverlay = document.getElementById("rhythm-start-overlay");
   const startBtn = document.getElementById("rhythm-start-btn");
   const countdownDisplay = document.getElementById("rhythm-countdown-display");
+
+  const offsetInput = document.getElementById("rhythm-offset-input");
+  const offsetValueLabel = document.getElementById("rhythm-offset-value");
+  if (offsetInput) {
+    offsetInput.value = String(timingOffsetMs);
+    offsetValueLabel.textContent = String(timingOffsetMs);
+    offsetInput.addEventListener("input", () => {
+      timingOffsetMs = parseInt(offsetInput.value, 10);
+      offsetValueLabel.textContent = String(timingOffsetMs);
+      localStorage.setItem("emberplay_rhythm_offset_ms", String(timingOffsetMs));
+    });
+  }
 
   function showStartButton() {
     startOverlay.style.display = "flex";
@@ -418,12 +446,21 @@
     setTimeout(() => setInterval(resyncClock, 2000), 4000);
   }
 
+  let timingOffsetMs = parseInt(localStorage.getItem("emberplay_rhythm_offset_ms") || "0", 10);
+
   function currentTime() {
     if (!player) return 0;
-    return syncBaseVideoTime + (performance.now() - syncBaseWallClock) / 1000;
+    return syncBaseVideoTime + (performance.now() - syncBaseWallClock) / 1000 + (timingOffsetMs / 1000);
   }
 
   const stageEl = document.getElementById("rhythm-stage"); // 毎フレームDOM検索しないようキャッシュしておく
+
+  function updateComboVisual() {
+    stageEl.classList.remove("combo-tier-1", "combo-tier-2", "combo-tier-3");
+    if (combo >= 50) stageEl.classList.add("combo-tier-3");
+    else if (combo >= 30) stageEl.classList.add("combo-tier-2");
+    else if (combo >= 10) stageEl.classList.add("combo-tier-1");
+  }
   let nextSpawnIndex = 0; // まだ画面に出していないノーツの先頭位置(毎フレーム全件スキャンしないため)
   let cachedHitlineY = stageEl.offsetHeight - 50; // レイアウト再計算(reflow)を毎フレーム発生させないようキャッシュ
   const laneIsPressed = {}; // 各レーンで、指が実際に押され続けているかどうか(離しイベントが取りこぼされても検知できるようにする)
@@ -459,7 +496,29 @@
       lanesEl.children[note.lane].appendChild(el);
 
       if (note.curve_to !== undefined) {
-        // どのレーンへ曲げればいいかを、矢印付きのラベルでシンプルかつ確実に示す
+        // プロセカのスライドノーツのように、実際に曲がる軌道をSVGで描画する
+        const laneWidth = lanesEl.offsetWidth / LANES;
+        const fromX = note.lane * laneWidth + laneWidth / 2;
+        const toX = note.curve_to * laneWidth + laneWidth / 2;
+        const stageHeightNow = cachedHitlineY;
+        const svgNs = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNs, "svg");
+        svg.setAttribute("class", "rhythm-curve-svg");
+        svg.setAttribute("width", lanesEl.offsetWidth);
+        svg.setAttribute("height", stageHeightNow + 30);
+        // 出現位置(画面上端)から、判定ラインの目標レーン位置まで、なめらかなS字カーブを描く
+        const startY = -24;
+        const endY = stageHeightNow;
+        const midY = (startY + endY) / 2;
+        const pathData = `M ${fromX} ${startY} C ${fromX} ${midY}, ${toX} ${midY}, ${toX} ${endY}`;
+        const path = document.createElementNS(svgNs, "path");
+        path.setAttribute("d", pathData);
+        path.setAttribute("class", "rhythm-curve-path");
+        svg.appendChild(path);
+        lanesEl.appendChild(svg);
+        setTimeout(() => svg.remove(), NOTE_TRAVEL_TIME * 1000 + 400); // ノーツが通り過ぎたら消す
+
+        // どのレーンへ曲げればいいかを、矢印付きのラベルでも念のため示す
         const curveLabel = document.createElement("div");
         curveLabel.className = "rhythm-curve-label";
         curveLabel.textContent = (note.curve_to > note.lane ? "→" : "←") + (note.curve_to + 1);
@@ -482,8 +541,10 @@
         if (!laneIsPressed[n.note.lane]) {
           n.judged = true;
           n.el.remove();
+          missCount += 1;
           combo = 0;
           comboDisplay.textContent = "0";
+          updateComboVisual();
           showJudge(n.note.lane, "MISS", "var(--loss)");
           anyJudgedThisFrame = true;
           continue;
@@ -495,8 +556,10 @@
             // カーブホールド: 最後まで正しいレーンに指を動かせていなければミス
             n.judged = true;
             n.el.remove();
+            missCount += 1;
             combo = 0;
             comboDisplay.textContent = "0";
+            updateComboVisual();
             showJudge(n.note.lane, "MISS", "var(--loss)");
           } else {
             resolveHit(n, n.note.lane, n.holdStartDiff);
@@ -510,8 +573,10 @@
       n.el.style.top = (progress * hitlineY) + "px";
       if (t > n.note.time + HIT_WINDOW + 0.15) {
         n.judged = true;
+        missCount += 1;
         combo = 0;
         comboDisplay.textContent = "0";
+        updateComboVisual();
         showJudge(n.note.lane, "MISS", "var(--loss)");
         n.el.remove();
         anyJudgedThisFrame = true;
@@ -597,8 +662,10 @@
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
     score += isSync ? 400 : (perfect ? 300 : 150);
+    if (isSync) { syncCount += 1; } else if (perfect) { perfectCount += 1; } else { goodCount += 1; }
     scoreDisplay.textContent = String(score);
     comboDisplay.textContent = String(combo);
+    updateComboVisual();
     if (isSync) {
       showJudge(lane, "SYNC!", "#22d3ee");
     } else {
@@ -679,8 +746,10 @@
       if (!tracked.n.judged) {
         tracked.n.judged = true;
         tracked.n.el.remove();
+        missCount += 1;
         combo = 0;
         comboDisplay.textContent = "0";
+        updateComboVisual();
         showJudge(lane, "MISS", "var(--loss)");
         noteElements = noteElements.filter((n) => !n.judged);
       }
@@ -698,8 +767,10 @@
       // 早く離しすぎた、またはカーブの目標レーンまで指を動かせていなかった場合はミス扱い
       held.judged = true;
       held.el.remove();
+      missCount += 1;
       combo = 0;
       comboDisplay.textContent = "0";
+      updateComboVisual();
       showJudge(lane, "MISS", "var(--loss)");
     }
     noteElements = noteElements.filter((n) => !n.judged);
@@ -756,14 +827,42 @@
     });
   }
 
+  function calcGrade() {
+    const totalNotes = perfectCount + goodCount + missCount + syncCount;
+    if (totalNotes === 0) return { grade: "-", accuracy: 0 };
+    const accuracy = ((perfectCount + syncCount) * 1.0 + goodCount * 0.6) / totalNotes * 100;
+    let grade = "D";
+    if (accuracy >= 98) grade = "S";
+    else if (accuracy >= 92) grade = "A";
+    else if (accuracy >= 80) grade = "B";
+    else if (accuracy >= 60) grade = "C";
+    return { grade, accuracy };
+  }
+
+  const GRADE_COLORS = { S: "#ffd700", A: "#ff6fa8", B: "#5fd0ff", C: "#4de6a8", D: "#a89bc0", "-": "#a89bc0" };
+
   async function finishSong() {
     resultPanel.style.display = "block";
-    resultPanel.innerHTML = `<h3>🎉 リザルト</h3><p>スコア: ${score}<br>最大コンボ: ${maxCombo}(10コンボごとに500pt)</p>`;
+    const { grade, accuracy } = calcGrade();
+    resultPanel.innerHTML = `
+      <div style="text-align:center; margin-bottom: 10px;">
+        <div style="font-size: 48px; font-weight: 900; color: ${GRADE_COLORS[grade]}; text-shadow: 0 0 16px ${GRADE_COLORS[grade]}88;">${grade}</div>
+        <div class="text-muted" style="font-size: 12px;">正答率 ${accuracy.toFixed(1)}%</div>
+      </div>
+      <h3>🎉 リザルト</h3>
+      <p>スコア: ${score}<br>最大コンボ: ${maxCombo}(10コンボごとに500pt)</p>
+      <div style="display:flex; justify-content:space-around; font-size: 12px; margin: 8px 0; text-align:center;">
+        <div><div style="color:#ffd700; font-weight:800;">${perfectCount}</div>PERFECT</div>
+        <div><div style="color:#5fd0ff; font-weight:800;">${goodCount}</div>GOOD</div>
+        ${syncCount > 0 ? `<div><div style="color:#22d3ee; font-weight:800;">${syncCount}</div>SYNC</div>` : ""}
+        <div><div style="color:var(--loss); font-weight:800;">${missCount}</div>MISS</div>
+      </div>
+    `;
     try {
       const data = await EmberPlay.postJSON("/rhythm/submit-score", {
         song_id: SONG_ID, difficulty: DIFFICULTY, score, max_combo: maxCombo, play_seconds: PLAY_SECONDS, bpm: {{ song.bpm }},
       });
-      resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700;">+${data.reward} Embers(最大コンボ${maxCombo}に基づく報酬)</p>`;
+      resultPanel.innerHTML += `<p style="color: var(--win); font-weight:700; text-align:center;">+${data.reward} Embers(最大コンボ${maxCombo}に基づく報酬)</p>`;
       EmberPlay.updateBalance(data.balance, "win");
     } catch (err) {
       resultPanel.innerHTML += `<p class="text-loss">${err.message}</p>`;
