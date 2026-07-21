@@ -30,15 +30,15 @@
   </div>
 
   <div>
-    <div class="game-stage" style="flex-direction: column; gap: 24px;">
-      <div style="display:flex; gap: 40px; flex-wrap: wrap;">
+    <div class="game-stage casino-felt-table" style="flex-direction: column; gap: 24px;">
+      <div style="display:flex; gap: 40px; flex-wrap: wrap; justify-content:center;">
         <div style="text-align:center;">
-          <div class="eyebrow">Dealer</div>
-          <div class="mono" id="dealer-card" style="font-size: 40px;">--</div>
+          <div class="eyebrow" style="color:#fff;">Dealer</div>
+          <div id="dealer-card" style="min-height:90px;">--</div>
         </div>
         <div style="text-align:center;">
-          <div class="eyebrow">You</div>
-          <div class="mono" id="player-card" style="font-size: 40px;">--</div>
+          <div class="eyebrow" style="color:#fff;">You</div>
+          <div id="player-card" style="min-height:90px;">--</div>
         </div>
       </div>
       <div class="result-readout" id="result-readout"></div>
@@ -48,5 +48,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/card_visuals.js') }}"></script>
 <script src="{{ url_for('static', filename='js/war.js') }}"></script>
 {% endblock %}

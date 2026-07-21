@@ -45,17 +45,17 @@
   </div>
 
   <div>
-    <div class="game-stage" style="flex-direction: column; gap: 24px; align-items: stretch;">
+    <div class="game-stage casino-felt-table" style="flex-direction: column; gap: 24px; align-items: stretch;">
       <div>
-        <div class="eyebrow">Banker</div>
-        <div class="mono" id="banker-hand" style="font-size: 28px;">--</div>
-        <div class="mono text-muted" id="banker-total"></div>
+        <div class="eyebrow" style="color: #fff;">Banker</div>
+        <div id="banker-hand" style="min-height: 90px;">--</div>
+        <div class="mono" id="banker-total" style="color: #fff; margin-top: 6px;"></div>
       </div>
-      <hr class="divider" style="margin: 0;">
+      <hr class="divider" style="margin: 0; background: rgba(255,255,255,0.15);">
       <div>
-        <div class="eyebrow">Player</div>
-        <div class="mono" id="player-hand" style="font-size: 28px;">--</div>
-        <div class="mono text-muted" id="player-total"></div>
+        <div class="eyebrow" style="color: #fff;">Player</div>
+        <div id="player-hand" style="min-height: 90px;">--</div>
+        <div class="mono" id="player-total" style="color: #fff; margin-top: 6px;"></div>
       </div>
       <div class="result-readout" id="result-readout"></div>
     </div>
@@ -64,6 +64,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/card_visuals.js') }}"></script>
 <script src="{{ url_for('static', filename='js/baccarat.js') }}"></script>
 <script>
   // ベットエリアをクリックすると選択状態になり、隠しinput(#bet-on)の値も更新する

@@ -38,13 +38,15 @@
   </div>
 
   <div>
-    <div class="game-stage">
-      <div class="result-readout" id="card-readout">--</div>
+    <div class="game-stage casino-felt-table" style="flex-direction: column; align-items: center; gap: 12px;">
+      <div id="card-display" style="min-height: 130px; display:flex; align-items:center; justify-content:center;"></div>
+      <div class="result-readout" id="card-readout" style="color:#fff;">--</div>
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/card_visuals.js') }}"></script>
 <script src="{{ url_for('static', filename='js/hilo.js') }}"></script>
 {% endblock %}
