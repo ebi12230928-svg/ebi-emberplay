@@ -8,11 +8,11 @@ import json
 import re
 import random
 
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import RhythmSong, RhythmScore, User
+from models import RhythmSong, RhythmScore, User, RhythmSkin
 
 rhythm_bp = Blueprint("rhythm", __name__)
 
@@ -20,11 +20,83 @@ rhythm_bp = Blueprint("rhythm", __name__)
 DIFFICULTIES = {
     "easy": {"label": "かんたん", "color": "#4caf6d", "note_interval_beats": 2},
     "normal": {"label": "ふつう", "color": "#3b82f6", "note_interval_beats": 1},
-    "hard": {"label": "むずかしい", "color": "#f59e0b", "note_interval_beats": 0.5},
-    "oni": {"label": "おに", "color": "#dc2626", "note_interval_beats": 0.25},
+    "hard": {"label": "むずかしい", "color": "#f59e0b", "note_interval_beats": 0.6},
+    "oni": {"label": "おに", "color": "#dc2626", "note_interval_beats": 0.4},
 }
 DIFFICULTY_ORDER = ["easy", "normal", "hard", "oni"]
 LANES = 4
+
+# ───────── ショップ(ノーツ・レーンの見た目スキン) ─────────
+SKIN_CATALOG = {
+    "sekai_default": {
+        "name": "スタンダード(無料)", "price": 0,
+        "colors": ["#ff6fbd", "#4fb8ff", "#a563ff", "#ffc84f"],
+    },
+    "sunset": {
+        "name": "サンセット", "price": 500,
+        "colors": ["#ff7f50", "#ff4d6d", "#ff9e6d", "#ffd166"],
+    },
+    "ocean": {
+        "name": "オーシャン", "price": 500,
+        "colors": ["#4fd6ff", "#3fa0ff", "#5fffe0", "#7fc8ff"],
+    },
+    "monochrome": {
+        "name": "モノクローム", "price": 300,
+        "colors": ["#e0e0e0", "#b0b0b0", "#ffffff", "#8a8a8a"],
+    },
+    "neon": {
+        "name": "ネオン", "price": 800,
+        "colors": ["#ff2fd0", "#2fffea", "#c8ff2f", "#ff2f5f"],
+    },
+}
+
+
+@rhythm_bp.route("/rhythm/shop")
+@login_required
+def shop():
+    owned = {s.skin_key for s in RhythmSkin.query.filter_by(user_id=current_user.id).all()}
+    owned.add("sekai_default")  # 無料スキンは常に所持扱い
+    return render_template(
+        "rhythm_shop.html", catalog=SKIN_CATALOG, owned=owned,
+        active_skin=current_user.active_rhythm_skin or "sekai_default",
+    )
+
+
+@rhythm_bp.route("/rhythm/shop/buy", methods=["POST"])
+@login_required
+def shop_buy():
+    skin_key = request.form.get("skin_key")
+    item = SKIN_CATALOG.get(skin_key)
+    if not item:
+        flash("そのスキンは見つかりません。", "error")
+        return redirect(url_for("rhythm.shop"))
+    if RhythmSkin.query.filter_by(user_id=current_user.id, skin_key=skin_key).first():
+        flash("すでに購入済みです。", "error")
+        return redirect(url_for("rhythm.shop"))
+    if current_user.balance < item["price"]:
+        flash("Embersが足りません。", "error")
+        return redirect(url_for("rhythm.shop"))
+
+    current_user.balance -= item["price"]
+    db.session.add(RhythmSkin(user_id=current_user.id, skin_key=skin_key))
+    db.session.commit()
+    flash(f"「{item['name']}」を購入しました!", "success")
+    return redirect(url_for("rhythm.shop"))
+
+
+@rhythm_bp.route("/rhythm/shop/equip", methods=["POST"])
+@login_required
+def shop_equip():
+    skin_key = request.form.get("skin_key")
+    owned = {s.skin_key for s in RhythmSkin.query.filter_by(user_id=current_user.id).all()}
+    owned.add("sekai_default")
+    if skin_key not in owned:
+        flash("まだ購入していないスキンです。", "error")
+        return redirect(url_for("rhythm.shop"))
+    current_user.active_rhythm_skin = skin_key
+    db.session.commit()
+    flash("スキンを変更しました!", "success")
+    return redirect(url_for("rhythm.shop"))
 
 
 def _song_difficulties(song):
@@ -76,10 +148,10 @@ def _generate_notes(bpm, offset, play_seconds, difficulty, seed=None):
     interval_beats = DIFFICULTIES[difficulty]["note_interval_beats"]
     beat_seconds = 60 / bpm
     note_gap = beat_seconds * interval_beats
-    hold_chance = {"easy": 0.0, "normal": 0.08, "hard": 0.15, "oni": 0.22}.get(difficulty, 0.1)
-    flick_chance = {"easy": 0.0, "normal": 0.06, "hard": 0.12, "oni": 0.18}.get(difficulty, 0.08)
-    sync_chance = {"easy": 0.0, "normal": 0.05, "hard": 0.10, "oni": 0.15}.get(difficulty, 0.06)
-    curve_hold_chance = {"easy": 0.0, "normal": 0.2, "hard": 0.35, "oni": 0.5}.get(difficulty, 0.2)  # ホールドの中でカーブになる割合
+    hold_chance = {"easy": 0.0, "normal": 0.08, "hard": 0.13, "oni": 0.16}.get(difficulty, 0.1)
+    flick_chance = {"easy": 0.0, "normal": 0.06, "hard": 0.10, "oni": 0.13}.get(difficulty, 0.08)
+    sync_chance = {"easy": 0.0, "normal": 0.05, "hard": 0.08, "oni": 0.10}.get(difficulty, 0.06)
+    curve_hold_chance = {"easy": 0.0, "normal": 0.2, "hard": 0.3, "oni": 0.35}.get(difficulty, 0.2)  # ホールドの中でカーブになる割合
 
     notes = []
     t = max(2.0, offset)
@@ -172,6 +244,7 @@ def quick_play():
     return render_template(
         "rhythm_play.html", song=fake_song, difficulty=difficulty, difficulty_label=DIFFICULTIES[difficulty]["label"],
         notes_json=notes, lanes=LANES, play_seconds=duration, length_key="full", is_quick_play=True,
+        skin_colors=SKIN_CATALOG.get(current_user.active_rhythm_skin or "sekai_default", SKIN_CATALOG["sekai_default"])["colors"],
     )
 
 
@@ -207,6 +280,7 @@ def play(song_id):
     return render_template(
         "rhythm_play.html", song=song, difficulty=difficulty, difficulty_label=DIFFICULTIES[difficulty]["label"],
         notes_json=notes, lanes=LANES, play_seconds=play_seconds, length_key=length_key,
+        skin_colors=SKIN_CATALOG.get(current_user.active_rhythm_skin or "sekai_default", SKIN_CATALOG["sekai_default"])["colors"],
     )
 
 

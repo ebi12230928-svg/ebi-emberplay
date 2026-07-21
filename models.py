@@ -33,6 +33,7 @@ class User(UserMixin, db.Model):
     is_bot = db.Column(db.Boolean, default=False, nullable=False)  # トランプ・ボードゲームのCPUプレイヤー
     bot_difficulty = db.Column(db.String(16), nullable=True)  # easy / normal / hard(is_bot=Trueの時のみ意味を持つ)
     active_title = db.Column(db.String(32), nullable=True)  # 現在表示中の称号キー
+    active_rhythm_skin = db.Column(db.String(32), nullable=True)  # リズムゲームで使用中のノーツスキン
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -911,6 +912,16 @@ class RhythmScore(db.Model):
     score = db.Column(db.Integer, default=0, nullable=False)
     max_combo = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class RhythmSkin(db.Model):
+    """リズムゲームのショップで購入した、ノーツ・レーンの見た目スキンの所持記録"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    skin_key = db.Column(db.String(32), nullable=False)
+    purchased_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "skin_key", name="uq_user_rhythm_skin"),)
 
 
 # ───────── おみくじ ─────────
