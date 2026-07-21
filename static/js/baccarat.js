@@ -2,6 +2,14 @@
   const RANK_NAMES = { 1: "A", 11: "J", 12: "Q", 13: "K" };
   function rankLabel(r) { return RANK_NAMES[r] || String(r); }
 
+  // バカラは役の判定にスート(絵柄)を使わないため、サーバー側はランクしか持っていない。
+  // 見た目のリアリティのため、演出用としてスートをクライアント側で割り当てて表示する
+  // (役の判定やフェアネスには一切影響しない、純粋に見た目だけの処理)
+  const DISPLAY_SUITS = ["♠", "♥", "♦", "♣"];
+  function toDisplayCard(rank, index) {
+    return rankLabel(rank) + DISPLAY_SUITS[index % DISPLAY_SUITS.length];
+  }
+
   const wagerInput = document.getElementById("wager");
   const betOnSelect = document.getElementById("bet-on");
   const playBtn = document.getElementById("play-btn");
@@ -20,9 +28,9 @@
       };
       const data = await EmberPlay.postJSON("/games/baccarat/play", payload);
 
-      playerHandEl.textContent = data.player.map(rankLabel).join(" ");
+      CardVisuals.renderHand(playerHandEl, data.player.map((r, i) => toDisplayCard(r, i)));
       playerTotalEl.textContent = "合計: " + data.player_total;
-      bankerHandEl.textContent = data.banker.map(rankLabel).join(" ");
+      CardVisuals.renderHand(bankerHandEl, data.banker.map((r, i) => toDisplayCard(r, i + 10)));
       bankerTotalEl.textContent = "合計: " + data.banker_total;
 
       const winnerLabel = { player: "Player", banker: "Banker", tie: "Tie" }[data.winner];

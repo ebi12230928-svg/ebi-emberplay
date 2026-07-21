@@ -64,6 +64,37 @@ window.EmberSound = (function () {
     tone(880, audioCtx.currentTime, 0.05, "square", 0.05);
   }
 
+  function playCardFlip() {
+    if (!enabled) return;
+    const audioCtx = getCtx();
+    if (!audioCtx) return;
+    // カードをめくる時の「シュッ」というノイズ風の音を、短いホワイトノイズ風のバーストで再現する
+    const bufferSize = audioCtx.sampleRate * 0.06;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 1200;
+    noise.connect(filter).connect(gain).connect(audioCtx.destination);
+    noise.start();
+  }
+
+  function playChip() {
+    if (!enabled) return;
+    const audioCtx = getCtx();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    tone(1800, now, 0.04, "square", 0.04);
+    tone(2200, now + 0.03, 0.04, "square", 0.03);
+  }
+
   function playNotify() {
     if (!enabled) return;
     const audioCtx = getCtx();
@@ -88,7 +119,7 @@ window.EmberSound = (function () {
     return enabled;
   }
 
-  return { playWin, playBigWin, playLose, playClick, playNotify, isEnabled, setEnabled, toggle };
+  return { playWin, playBigWin, playLose, playClick, playNotify, playCardFlip, playChip, isEnabled, setEnabled, toggle };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {

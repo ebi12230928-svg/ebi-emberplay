@@ -7,6 +7,21 @@
   const playerCardEl = document.getElementById("player-card");
   const resultReadout = document.getElementById("result-readout");
 
+  // War(戦争)はランクの高低だけで勝敗が決まりスートは使わないため、サーバー側はランクのみ管理している。
+  // 見た目のリアリティのため、演出用としてスートをクライアント側で割り当てる(勝敗判定には影響しない)
+  const DISPLAY_SUITS = ["♠", "♥", "♦", "♣"];
+  let suitCounter = 0;
+  function showCards(dealerRank, playerRank) {
+    if (!window.CardVisuals) {
+      dealerCardEl.textContent = dealerRank;
+      playerCardEl.textContent = playerRank;
+      return;
+    }
+    CardVisuals.renderHand(dealerCardEl, [dealerRank + DISPLAY_SUITS[suitCounter % 4]]);
+    CardVisuals.renderHand(playerCardEl, [playerRank + DISPLAY_SUITS[(suitCounter + 1) % 4]]);
+    suitCounter += 2;
+  }
+
   function setTieActive(active) {
     startBtn.disabled = active;
     wagerInput.disabled = active;
@@ -17,8 +32,7 @@
   startBtn.addEventListener("click", async () => {
     try {
       const data = await EmberPlay.postJSON("/games/war/start", { wager: parseInt(wagerInput.value, 10) });
-      dealerCardEl.textContent = data.dealer_rank;
-      playerCardEl.textContent = data.player_rank;
+      showCards(data.dealer_rank, data.player_rank);
       EmberPlay.updateBalance(data.balance, data.tie ? null : (data.won ? "win" : "loss"));
 
       if (data.tie) {
@@ -38,8 +52,7 @@
   warBtn.addEventListener("click", async () => {
     try {
       const data = await EmberPlay.postJSON("/games/war/go-to-war", {});
-      dealerCardEl.textContent = data.dealer_rank;
-      playerCardEl.textContent = data.player_rank;
+      showCards(data.dealer_rank, data.player_rank);
 
       const labels = { win: "WIN", lose: "LOSE", push: "PUSH" };
       resultReadout.textContent = labels[data.result] || data.result;

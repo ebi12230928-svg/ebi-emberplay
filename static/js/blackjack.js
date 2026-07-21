@@ -19,10 +19,10 @@
   }
 
   function renderInProgress(data) {
-    playerHandEl.textContent = data.player.join(" ");
+    CardVisuals.renderHand(playerHandEl, data.player);
     playerTotalEl.textContent = "合計: " + data.player_total;
     if (data.dealer_upcard) {
-      dealerHandEl.textContent = data.dealer_upcard + " ??";
+      CardVisuals.renderHand(dealerHandEl, [data.dealer_upcard, "??"]);
       dealerTotalEl.textContent = "";
     }
     resultReadout.textContent = "";
@@ -30,9 +30,9 @@
   }
 
   function renderFinished(data) {
-    playerHandEl.textContent = data.player.join(" ");
+    CardVisuals.renderHand(playerHandEl, data.player);
     playerTotalEl.textContent = "合計: " + data.player_total;
-    dealerHandEl.textContent = data.dealer.join(" ");
+    CardVisuals.renderHand(dealerHandEl, data.dealer);
     dealerTotalEl.textContent = "合計: " + data.dealer_total;
 
     let text;
