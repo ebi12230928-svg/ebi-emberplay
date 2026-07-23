@@ -64,18 +64,36 @@
     }
 
     startBtn.addEventListener("click", async () => {
+      // スマホのブラウザの多くは、パソコンの「画面共有」機能(getDisplayMedia)に対応していない。
+      // 対応していない場合は、代わりにカメラ映像での配信にフォールバックすることで、
+      // スマホからでも配信できるようにする。
+      const supportsScreenShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
       try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        if (supportsScreenShare) {
+          try {
+            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            statusEl.textContent = "配信中です(画面共有)。視聴者が来るとここに接続状況が表示されます。";
+          } catch (screenShareErr) {
+            // ユーザーが画面共有をキャンセルした場合など。カメラでの配信を試すか確認する
+            if (!confirm("画面共有を開始できませんでした。代わりにカメラで配信しますか?")) throw screenShareErr;
+            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+            statusEl.textContent = "配信中です(カメラ)。視聴者が来るとここに接続状況が表示されます。";
+          }
+        } else {
+          // スマホなど、画面共有に対応していない端末は、最初からカメラでの配信になる
+          localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+          statusEl.textContent = "📱 お使いの端末は画面共有に対応していないため、カメラでの配信になっています。視聴者が来るとここに接続状況が表示されます。";
+        }
+
         localVideo.srcObject = localStream;
-        statusEl.textContent = "配信中です。視聴者が来るとここに接続状況が表示されます。";
         startBtn.disabled = true;
 
         localStream.getVideoTracks()[0].addEventListener("ended", () => {
-          statusEl.textContent = "画面共有が停止されました。「画面共有を開始」で再開できます。";
+          statusEl.textContent = "配信が停止されました。「配信を開始」で再開できます。";
           startBtn.disabled = false;
         });
       } catch (err) {
-        statusEl.textContent = "画面共有を開始できませんでした(許可されなかった可能性があります)。";
+        statusEl.textContent = "配信を開始できませんでした(カメラ・画面共有のどちらも許可されなかった可能性があります)。";
       }
     });
 
