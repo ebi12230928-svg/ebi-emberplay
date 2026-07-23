@@ -323,6 +323,35 @@ p { line-height: 1.6; color: var(--text-muted); }
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 8px;
+  position: relative;
+  padding: 24px 20px;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 30% 0%, rgba(255,111,176,0.14), transparent 55%),
+              radial-gradient(ellipse at 90% 100%, rgba(95,208,255,0.12), transparent 55%),
+              var(--bg-raised);
+  border: 2px solid var(--panel-border);
+  overflow: hidden;
+}
+.lobby-hero::before {
+  /* カジノの電光看板のように、外周を光る電球が流れる演出 */
+  content: ""; position: absolute; inset: 4px; border-radius: 16px; pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,224,130,0.9) 0 4px, transparent 4px 22px) top / 100% 4px no-repeat,
+    repeating-linear-gradient(90deg, rgba(255,224,130,0.9) 0 4px, transparent 4px 22px) bottom / 100% 4px no-repeat,
+    repeating-linear-gradient(0deg, rgba(255,224,130,0.9) 0 4px, transparent 4px 22px) left / 4px 100% no-repeat,
+    repeating-linear-gradient(0deg, rgba(255,224,130,0.9) 0 4px, transparent 4px 22px) right / 4px 100% no-repeat;
+  animation: casino-marquee-lights 1s steps(2) infinite;
+  opacity: 0.7;
+}
+@keyframes casino-marquee-lights { 0% { filter: brightness(1); } 50% { filter: brightness(0.4); } 100% { filter: brightness(1); } }
+.lobby-hero h1 {
+  text-shadow: 0 0 18px rgba(255,111,176,0.5), 0 0 6px rgba(255,255,255,0.3);
+}
+
+.casino-chip-decor {
+  position: absolute; border-radius: 50%; opacity: 0.5; pointer-events: none;
+  background: repeating-conic-gradient(var(--chip-c, var(--ember)) 0deg 15deg, #fff 15deg 30deg);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
 .lobby-hero-text { flex: 1; min-width: 0; }
