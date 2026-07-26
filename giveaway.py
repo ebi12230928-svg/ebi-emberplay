@@ -37,11 +37,11 @@ def index():
     for g in closed_giveaways:
         winner_entries = g.entries.filter_by(is_winner=True).all()
         if g.source_type == "referral_ranking":
-            # 招待ランキング型は、順位(=倍率が大きい順)で並び替えて、順位・紹介人数・倍率も見せる
-            winner_entries = sorted(winner_entries, key=lambda e: -(e.reward_multiplier or 0))
+            # 招待ランキング型は、紹介人数の多い順に並べて、紹介人数・当選時の確率の重みも見せる
+            winner_entries = sorted(winner_entries, key=lambda e: -(e.referral_count or 0))
             winners = [
-                f"{i + 1}位 {e.user.username}({e.referral_count}人紹介・{e.reward_multiplier}倍)"
-                for i, e in enumerate(winner_entries)
+                f"{e.user.username}({e.referral_count}人紹介・当選確率の重み{e.reward_multiplier}倍)"
+                for e in winner_entries
             ]
         else:
             winners = [e.user.username for e in winner_entries]
@@ -103,17 +103,14 @@ def create():
         flash("タイトルを入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    # 招待ランキング型は、常に上位3名(1位=5倍・2位=3倍・3位=2倍)固定の仕組みなので、当選人数は3に固定する
-    winner_count = 3 if source_type == "referral_ranking" else None
-    if winner_count is None:
-        try:
-            winner_count = int(request.form.get("winner_count", "1"))
-        except ValueError:
-            flash("当選人数は数値で入力してください。", "error")
-            return redirect(url_for("admin.dashboard"))
-        if winner_count <= 0:
-            flash("当選人数を正しく入力してください。", "error")
-            return redirect(url_for("admin.dashboard"))
+    try:
+        winner_count = int(request.form.get("winner_count", "1"))
+    except ValueError:
+        flash("当選人数は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if winner_count <= 0:
+        flash("当選人数を正しく入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
 
     min_referral_count = 1
     if source_type == "referral_ranking":
@@ -238,14 +235,31 @@ def _draw_manual(giveaway):
 RANK_MULTIPLIERS = {0: 5, 1: 3, 2: 2}  # 1位=5倍・2位=3倍・3位=2倍
 
 
+def _weighted_sample_without_replacement(population, weights, k):
+    """
+    重み付きの抽選を、同じ人が重複して選ばれないように(=抽選対象から除きながら)k人選ぶ。
+    """
+    pool = list(population)
+    pool_weights = list(weights)
+    chosen = []
+    for _ in range(min(k, len(pool))):
+        picked = random.choices(pool, weights=pool_weights, k=1)[0]
+        idx = pool.index(picked)
+        chosen.append(pool.pop(idx))
+        pool_weights.pop(idx)
+    return chosen
+
+
 def _draw_referral_ranking(giveaway):
     """
     招待ランキング型: 指定人数以上を紹介しているユーザーだけがエントリーできる(参加条件)。
-    当選者の決め方は、エントリーした人全員が平等な確率(1倍)で対象になる抽選方式。
-    つまり、紹介人数の多さで機械的に決まるのではなく、エントリーしてさえいれば誰にでも
-    当たるチャンスがある。当選した3名には、順に1位=5倍・2位=3倍・3位=2倍の報酬倍率を適用する
-    (倍率の並び自体はこれまで通り変えていない)。
+    当選者数は管理者が指定した人数(giveaway.winner_count)。
+    5倍・3倍・2倍は「当選のしやすさ(抽選の重み)」であり、当選者数や報酬額を増やすものではない。
+    エントリーした人の中で、紹介人数が1位の人は当選確率5倍、2位は3倍、3位は2倍、
+    それ以外は通常(1倍)の重みで抽選に参加し、指定人数がランダムに選ばれる。
+    当選者は全員、同じ賞品(prize_amount、またはPayPayリンク)を受け取る。
     """
+    from sqlalchemy import func
     from models import utcnow, User
 
     entries = giveaway.entries.all()
@@ -253,39 +267,52 @@ def _draw_referral_ranking(giveaway):
         flash("エントリーした人が1人もいないため抽選できません。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    # エントリーした人全員から、平等な確率(1人1票)でランダムに3名を選ぶ
-    winner_count = min(3, len(entries))
-    ranked = random.sample(entries, winner_count)
+    # エントリーした人それぞれの、現時点での紹介人数を数える
+    entrant_ids = [e.user_id for e in entries]
+    counts_by_user = dict(
+        db.session.query(User.referred_by_id, func.count(User.id))
+        .filter(User.referred_by_id.in_(entrant_ids))
+        .group_by(User.referred_by_id)
+        .all()
+    )
+
+    # 紹介人数の多い順に並べ、上位3名にだけ当選確率の重み(5倍・3倍・2倍)を付ける。
+    # それ以外の全員は通常の重み(1倍)のまま抽選に参加できる。
+    by_referral_desc = sorted(entries, key=lambda e: counts_by_user.get(e.user_id, 0), reverse=True)
+    weight_by_entry_id = {e.id: 1 for e in entries}
+    for rank, e in enumerate(by_referral_desc[:3]):
+        weight_by_entry_id[e.id] = RANK_MULTIPLIERS[rank]
+
+    winner_count = min(giveaway.winner_count, len(entries))
+    winners = _weighted_sample_without_replacement(
+        entries, [weight_by_entry_id[e.id] for e in entries], winner_count
+    )
 
     paypay_links = json.loads(giveaway.paypay_links_json) if giveaway.prize_type == "paypay" and giveaway.paypay_links_json else []
 
-    from sqlalchemy import func
-
     results = []
-    for rank, entry in enumerate(ranked):
+    for i, entry in enumerate(winners):
         user = entry.user
-        # 参考情報として、抽選時点での紹介人数も記録しておく(当落の判定には使わない)
-        count = db.session.query(func.count(User.id)).filter(User.referred_by_id == user.id).scalar() or 0
-        multiplier = RANK_MULTIPLIERS[rank]
+        count = counts_by_user.get(entry.user_id, 0)
+        weight = weight_by_entry_id[entry.id]
 
         entry.is_winner = True
         entry.referral_count = count
-        entry.reward_multiplier = multiplier
+        entry.reward_multiplier = weight  # 当選確率の重み(参考記録・報酬額には使わない)
 
         if giveaway.prize_type == "paypay":
-            link = paypay_links[rank] if rank < len(paypay_links) else None
+            link = paypay_links[i] if i < len(paypay_links) else None
             entry.paypay_link_sent = link
-            notify(user.id, f"🏆 招待ランキング{rank + 1}位おめでとうございます!({count}人紹介・{multiplier}倍)DMでPayPayの受け取りリンクをお送りしました。")
+            notify(user.id, f"🎉 おめでとうございます!「{giveaway.title}」の招待人数ランキング企画に当選しました。DMでPayPayの受け取りリンクをお送りしました。")
             if link:
-                _send_admin_dm(user.id, f"🏆「{giveaway.title}」招待ランキング{rank + 1}位、おめでとうございます!({count}人紹介・{multiplier}倍)以下のリンクからPayPayを受け取ってください: {link}")
+                _send_admin_dm(user.id, f"🎉「{giveaway.title}」当選おめでとうございます!以下のリンクからPayPayを受け取ってください: {link}")
         else:
-            reward = giveaway.prize_amount * multiplier
-            user.balance += reward
+            user.balance += giveaway.prize_amount
             db.session.add(Transaction(
-                user_id=user.id, amount=reward, kind="referral_ranking",
-                description=f"「{giveaway.title}」招待ランキング{rank + 1}位ボーナス(紹介{count}人・{multiplier}倍)"
+                user_id=user.id, amount=giveaway.prize_amount, kind="referral_ranking",
+                description=f"「{giveaway.title}」招待人数ランキング企画 当選"
             ))
-            notify(user.id, f"🏆 招待ランキング{rank + 1}位おめでとうございます!({count}人紹介・{multiplier}倍ボーナス){reward:,} Embersを獲得しました。")
+            notify(user.id, f"おめでとうございます!「{giveaway.title}」の招待人数ランキング企画に当選し、{giveaway.prize_amount:,} Embersを獲得しました。")
 
         try:
             from achievements import check_achievements
@@ -293,14 +320,14 @@ def _draw_referral_ranking(giveaway):
         except Exception:
             pass
 
-        results.append(f"{rank + 1}位 {user.username}({count}人・{multiplier}倍)")
+        results.append(f"{user.username}({count}人紹介・当選重み{weight}倍)")
 
     giveaway.status = "closed"
     giveaway.drawn_at = utcnow()
     db.session.commit()
 
     winner_summary = " / ".join(results)
-    notify_all(f"🏆「{giveaway.title}」招待ランキングの結果: {winner_summary}")
+    notify_all(f"🏆「{giveaway.title}」招待人数ランキングの結果: {winner_summary}")
     db.session.commit()
 
     flash(f"招待ランキング報酬を配布しました: {winner_summary}", "success")
