@@ -367,8 +367,12 @@ class ChatMessage(db.Model):
 
 class Giveaway(db.Model):
     """
-    管理者が作成するプレゼント企画。参加者の中から抽選で当選者にEmbersを付与する。
-    カジノゲームの勝敗とは完全に無関係の、単純な抽選企画専用の仕組み。
+    管理者が作成するプレゼント企画。
+    source_type="manual"(通常): 参加者の中から抽選でランダムに当選者を選ぶ、通常の抽選企画。
+    source_type="referral_ranking"(招待ランキング型): 参加エントリー不要で、招待(紹介)人数が
+    多い順にランキングし、上位3名に「基本報酬×倍率」(1位=5倍・2位=3倍・3位=2倍)を自動で配布する。
+    指定した人数(min_referral_count)以上を紹介していないと対象にならない(参加条件)。
+    いずれの場合も、カジノゲームの勝敗とは完全に無関係の仕組み。
     prize_type="paypay" の場合、Embersの代わりに、管理者が事前に用意したPayPay送金リンクを
     当選者へDMで自動送付する(実際の送金操作自体は、リンクを作成した時点で管理者がPayPayアプリ側で
     既に完了させている前提。このサイトは「誰にどのリンクを届けるか」を抽選するだけで、
@@ -385,6 +389,8 @@ class Giveaway(db.Model):
     drawn_at = db.Column(db.DateTime, nullable=True)
     prize_type = db.Column(db.String(16), default="embers", nullable=False)  # embers / paypay
     paypay_links_json = db.Column(db.Text, nullable=True)  # 当選者数分のPayPay送金リンク(1行1リンク→JSON配列で保存)
+    source_type = db.Column(db.String(24), default="manual", nullable=False)  # manual / referral_ranking
+    min_referral_count = db.Column(db.Integer, default=1, nullable=False)  # 招待ランキング型のみ使う参加条件
 
 
 class GiveawayEntry(db.Model):
@@ -395,6 +401,8 @@ class GiveawayEntry(db.Model):
     is_winner = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
     paypay_link_sent = db.Column(db.String(500), nullable=True)  # 当選者に実際に送ったPayPayリンク(記録用)
+    referral_count = db.Column(db.Integer, nullable=True)  # 招待ランキング型のみ: 抽選時点の紹介人数(記録用)
+    reward_multiplier = db.Column(db.Integer, nullable=True)  # 招待ランキング型のみ: 実際に適用された倍率(記録用)
 
     giveaway = db.relationship("Giveaway", backref=db.backref("entries", lazy="dynamic"))
     user = db.relationship("User", backref=db.backref("giveaway_entries", lazy="dynamic"))
