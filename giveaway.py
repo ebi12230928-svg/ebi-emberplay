@@ -240,11 +240,12 @@ RANK_MULTIPLIERS = {0: 5, 1: 3, 2: 2}  # 1位=5倍・2位=3倍・3位=2倍
 
 def _draw_referral_ranking(giveaway):
     """
-    招待ランキング型: 指定人数以上を紹介しているユーザーだけがエントリーできる。
-    エントリーした人たちの中で、招待(紹介)人数が多い順にランキングし、上位3名に
-    「基本報酬(またはPayPayリンク)×倍率」(1位=5倍・2位=3倍・3位=2倍)を自動配布する。
+    招待ランキング型: 指定人数以上を紹介しているユーザーだけがエントリーできる(参加条件)。
+    当選者の決め方は、エントリーした人全員が平等な確率(1倍)で対象になる抽選方式。
+    つまり、紹介人数の多さで機械的に決まるのではなく、エントリーしてさえいれば誰にでも
+    当たるチャンスがある。当選した3名には、順に1位=5倍・2位=3倍・3位=2倍の報酬倍率を適用する
+    (倍率の並び自体はこれまで通り変えていない)。
     """
-    from sqlalchemy import func
     from models import utcnow, User
 
     entries = giveaway.entries.all()
@@ -252,25 +253,19 @@ def _draw_referral_ranking(giveaway):
         flash("エントリーした人が1人もいないため抽選できません。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    # エントリーした人それぞれの、現時点での紹介人数を数える
-    entrant_ids = [e.user_id for e in entries]
-    counts_by_user = dict(
-        db.session.query(User.referred_by_id, func.count(User.id))
-        .filter(User.referred_by_id.in_(entrant_ids))
-        .group_by(User.referred_by_id)
-        .all()
-    )
-
-    ranked = sorted(
-        entries, key=lambda e: counts_by_user.get(e.user_id, 0), reverse=True
-    )[:3]
+    # エントリーした人全員から、平等な確率(1人1票)でランダムに3名を選ぶ
+    winner_count = min(3, len(entries))
+    ranked = random.sample(entries, winner_count)
 
     paypay_links = json.loads(giveaway.paypay_links_json) if giveaway.prize_type == "paypay" and giveaway.paypay_links_json else []
+
+    from sqlalchemy import func
 
     results = []
     for rank, entry in enumerate(ranked):
         user = entry.user
-        count = counts_by_user.get(entry.user_id, 0)
+        # 参考情報として、抽選時点での紹介人数も記録しておく(当落の判定には使わない)
+        count = db.session.query(func.count(User.id)).filter(User.referred_by_id == user.id).scalar() or 0
         multiplier = RANK_MULTIPLIERS[rank]
 
         entry.is_winner = True
