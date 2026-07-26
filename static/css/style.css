@@ -719,6 +719,11 @@ html { scroll-behavior: smooth; }
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 15px;
+  text-align: left; /* type="number" などがブラウザ既定で右寄せになってしまうのを防ぐ */
+}
+
+.field textarea {
+  text-align: left;
 }
 
 .field input:focus, .field select:focus {
@@ -1006,7 +1011,7 @@ th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform
 .stake-bet-panel { background: var(--bg-raised); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px; }
 .stake-bet-label { display:flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
 .stake-bet-row { display:flex; align-items:center; background: var(--bg); border: 1px solid var(--panel-border); border-radius: 8px; overflow: hidden; }
-.stake-bet-row input { flex:1; border:none; background:transparent; padding: 12px; font-size: 15px; color: var(--text); font-family: var(--font-mono, monospace); min-width: 0; }
+.stake-bet-row input { flex:1; border:none; background:transparent; padding: 12px; font-size: 15px; color: var(--text); font-family: var(--font-mono, monospace); min-width: 0; text-align: left; }
 .stake-bet-row input:focus { outline: none; }
 .stake-bet-adjust { display:flex; border-left: 1px solid var(--panel-border); flex-shrink: 0; }
 .stake-bet-adjust button {
