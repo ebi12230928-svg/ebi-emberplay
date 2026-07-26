@@ -63,6 +63,22 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>🎁 招待ランキング報酬配布</h3>
+  <p style="font-size: 13px;">招待(紹介)人数が多い上位3名に、通常の紹介ボーナスとは別のボーナスを配布します。<strong>指定した人数以上を紹介していないと対象外</strong>になります(参加条件)。倍率は固定で、1位=5倍・2位=3倍・3位=2倍です。</p>
+  <form method="POST" action="{{ url_for('admin.referral_ranking_distribute') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;" onsubmit="return confirm('招待ランキング上位3名にボーナスを配布します。よろしいですか?');">
+    <div class="field" style="margin:0;">
+      <label for="ref-min-count">参加条件(最低招待人数)</label>
+      <input type="number" id="ref-min-count" name="min_count" value="3" min="1">
+    </div>
+    <div class="field" style="margin:0;">
+      <label for="ref-base-reward">基本報酬額(1位はこの5倍)</label>
+      <input type="number" id="ref-base-reward" name="base_reward" value="1000" min="1">
+    </div>
+    <button type="submit" class="btn btn-ember">配布する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>🏆 トーナメント開催</h3>
   <p style="font-size: 13px;">対象ゲームのキー(例: blackjack, roulette, towerdefense など)を指定すると、そのゲームでの勝利額合計を集計してランキング化します。</p>
   <form method="POST" action="{{ url_for('admin.tournament_create') }}" style="display:flex; gap: 10px; align-items:flex-end; flex-wrap: wrap;">
@@ -351,7 +367,8 @@
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3>プレゼント企画(Giveaway)</h3>
-  <form method="POST" action="{{ url_for('giveaway.create') }}" style="margin-bottom: 20px;">
+  <p style="font-size: 13px;">⚠️ この企画は、カジノゲームの勝敗とは完全に無関係の、通常の抽選(参加→ランダム抽選)専用の仕組みです。</p>
+  <form method="POST" action="{{ url_for('giveaway.create') }}" style="margin-bottom: 20px;" id="giveaway-create-form">
     <div class="field">
       <label for="gw-title">タイトル</label>
       <input type="text" id="gw-title" name="title" placeholder="例: 週末スペシャル抽選会">
@@ -360,9 +377,22 @@
       <label for="gw-description">説明(任意)</label>
       <input type="text" id="gw-description" name="description" placeholder="例: 参加するだけで抽選に応募できます">
     </div>
+
+    <div class="field">
+      <label>賞品タイプ</label>
+      <div style="display:flex; gap: 14px; margin-top: 6px;">
+        <label style="font-size: 13px; display:flex; align-items:center; gap: 6px;">
+          <input type="radio" name="prize_type" value="embers" id="gw-type-embers" checked> Embers(サイト内ポイント)
+        </label>
+        <label style="font-size: 13px; display:flex; align-items:center; gap: 6px;">
+          <input type="radio" name="prize_type" value="paypay" id="gw-type-paypay"> PayPay送金リンク
+        </label>
+      </div>
+    </div>
+
     <div style="display:flex; gap: 10px; flex-wrap: wrap;">
-      <div class="field" style="flex:1;">
-        <label for="gw-prize">賞金額(1人あたり)</label>
+      <div class="field" style="flex:1;" id="gw-prize-field">
+        <label for="gw-prize">賞金額(1人あたり・Embersの場合のみ)</label>
         <input type="number" id="gw-prize" name="prize_amount" value="1000" min="1">
       </div>
       <div class="field" style="flex:1;">
@@ -370,6 +400,16 @@
         <input type="number" id="gw-winners" name="winner_count" value="1" min="1">
       </div>
     </div>
+
+    <div class="field" id="gw-paypay-field" style="display:none;">
+      <label for="gw-paypay-links">PayPay送金リンク(1行に1つずつ・当選人数分)</label>
+      <textarea id="gw-paypay-links" name="paypay_links" rows="3" placeholder="https://pay.paypay.ne.jp/xxxxxxx&#10;https://pay.paypay.ne.jp/yyyyyyy" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text); font-family: monospace; font-size: 12px;"></textarea>
+      <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">
+        PayPayアプリの「送る」→「個人間送金リンクを作成」で、当選人数分のリンクを事前に作成し、1行ずつ貼り付けてください。
+        抽選が確定すると、各当選者に別々のリンクが自動でDM送信されます(実際の送金操作は、リンク作成時に完了しています)。
+      </p>
+    </div>
+
     <button type="submit" class="btn btn-ember">企画を作成</button>
   </form>
 
@@ -378,7 +418,11 @@
     <div>
       <strong>{{ g.title }}</strong>
       <span class="mono text-muted" style="font-size: 12px;">
+        {% if g.prize_type == "paypay" %}
+        ・ 💰PayPay × {{ g.winner_count }}名 ・
+        {% else %}
         ・ {{ "{:,}".format(g.prize_amount) }} Embers × {{ g.winner_count }}名 ・
+        {% endif %}
         参加者{{ g.entries.count() }}人 ・
         {{ "開催中" if g.status == "open" else "抽選済み" }}
       </span>
@@ -759,6 +803,25 @@
         if (videoId) fetchDuration(videoId);
       }, 700);
     });
+  })();
+</script>
+<script>
+  // ギブアウェイの賞品タイプ(Embers / PayPay)によって、入力フォームを切り替える
+  (function () {
+    const embersRadio = document.getElementById("gw-type-embers");
+    const paypayRadio = document.getElementById("gw-type-paypay");
+    const prizeField = document.getElementById("gw-prize-field");
+    const paypayField = document.getElementById("gw-paypay-field");
+    if (!embersRadio || !paypayRadio) return;
+
+    function refresh() {
+      const isPaypay = paypayRadio.checked;
+      prizeField.style.display = isPaypay ? "none" : "block";
+      paypayField.style.display = isPaypay ? "block" : "none";
+    }
+    embersRadio.addEventListener("change", refresh);
+    paypayRadio.addEventListener("change", refresh);
+    refresh();
   })();
 </script>
 {% endblock %}

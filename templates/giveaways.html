@@ -4,7 +4,7 @@
 {% block content %}
 <span class="eyebrow">Giveaway</span>
 <h1>プレゼント企画</h1>
-<p>参加は無料です。抽選で当選すると自動的にEmbersが付与され、お知らせが届きます。</p>
+<p>参加は無料です。抽選で当選すると、賞品の種類に応じて自動的にEmbersが付与されるか、PayPay受け取りリンクがDMに届きます。</p>
 
 <h2>開催中</h2>
 {% if not open_giveaways %}
@@ -17,7 +17,11 @@
   <h3 style="margin-bottom: 4px;">{{ g.title }}</h3>
   {% if g.description %}<p>{{ g.description }}</p>{% endif %}
   <p class="mono" style="font-size: 13px;">
+    {% if g.prize_type == "paypay" %}
+    賞金: 💰 PayPay送金リンク ・ 当選人数: {{ g.winner_count }}名 ・
+    {% else %}
     賞金: {{ "{:,}".format(g.prize_amount) }} Embers ・ 当選人数: {{ g.winner_count }}名 ・
+    {% endif %}
     現在の参加者数: {{ g.entries.count() }}人
   </p>
   {% if g.id in my_entry_ids %}
@@ -36,7 +40,11 @@
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--panel-border);">
     <strong>{{ info.giveaway.title }}</strong>
     <div class="text-muted" style="font-size: 13px; margin-top: 4px;">
+      {% if info.giveaway.prize_type == "paypay" %}
+      賞金: 💰 PayPay送金リンク ・
+      {% else %}
       賞金: {{ "{:,}".format(info.giveaway.prize_amount) }} Embers ・
+      {% endif %}
       当選者: {{ info.winners | join(", ") if info.winners else "(該当者なし)" }}
     </div>
   </div>

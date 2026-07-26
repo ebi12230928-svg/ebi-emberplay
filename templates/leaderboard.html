@@ -49,10 +49,14 @@
   </div>
 
   <div class="panel">
-    <h3 style="margin-bottom: 16px;">🎁 紹介者ランキング</h3>
+    <h3 style="margin-bottom: 8px;">🎁 紹介者ランキング</h3>
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">上位3名には、運営が招待ランキング報酬を配布することがあります(1位=5倍・2位=3倍・3位=2倍のボーナス。一定人数以上の紹介が参加条件です)。</p>
     {% for r in top_referrers %}
     <div style="display:flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-border); flex-wrap: wrap;">
-      <span>{{ loop.index }}. {{ r.username }}</span>
+      <span>
+        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}.{% endif %}
+        {{ r.username }}
+      </span>
       <span class="mono" style="color: var(--gold);">{{ r.count }}人紹介</span>
     </div>
     {% else %}
