@@ -369,7 +369,7 @@
           <input type="radio" name="source_type" value="manual" id="gw-source-manual" checked> 通常の抽選(参加→ランダム抽選)
         </label>
         <label style="font-size: 13px; display:flex; align-items:center; gap: 6px;">
-          <input type="radio" name="source_type" value="referral_ranking" id="gw-source-referral"> 招待人数ランキング(条件を満たす人だけエントリー可・その中の上位3名が当選)
+          <input type="radio" name="source_type" value="referral_ranking" id="gw-source-referral"> 招待人数ランキング(条件を満たす人だけエントリー可・全員平等な確率で3名抽選)
         </label>
       </div>
     </div>
@@ -377,7 +377,7 @@
     <div class="field" id="gw-referral-field" style="display:none;">
       <label for="gw-min-referral">参加条件(最低招待人数)</label>
       <input type="number" id="gw-min-referral" name="min_referral_count" value="3" min="1">
-      <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">指定した人数以上を紹介していないとエントリーできません。エントリーした人の中で、紹介人数が多い順の上位3名(1位=5倍・2位=3倍・3位=2倍)が当選します。</p>
+      <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">指定した人数以上を紹介していないとエントリーできません。エントリーした人は全員平等な確率(1人1票)で抽選され、当選した3名に順に1位=5倍・2位=3倍・3位=2倍の報酬倍率が適用されます。</p>
     </div>
 
     <div class="field">

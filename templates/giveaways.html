@@ -18,7 +18,7 @@
   {% if g.description %}<p>{{ g.description }}</p>{% endif %}
   <p class="mono" style="font-size: 13px;">
     {% if g.source_type == "referral_ranking" %}
-    🏆 招待人数ランキング形式 ・ 参加条件: {{ g.min_referral_count }}人以上を紹介 ・
+    🏆 招待人数ランキング形式(エントリー者全員平等な確率で抽選) ・ 参加条件: {{ g.min_referral_count }}人以上を紹介 ・
     {% if g.prize_type == "paypay" %}
     賞品: 💰 PayPay(1位=5倍・2位=3倍・3位=2倍)
     {% else %}
