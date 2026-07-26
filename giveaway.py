@@ -1,10 +1,11 @@
 import random
+import json
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import Giveaway, GiveawayEntry, Transaction
+from models import Giveaway, GiveawayEntry, Transaction, DirectMessage
 from games.common import credit_winnings
 from notifications import notify, notify_all
 
@@ -68,25 +69,53 @@ def enter(giveaway_id):
 def create():
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
+    prize_type = request.form.get("prize_type", "embers")
+    if prize_type not in ("embers", "paypay"):
+        prize_type = "embers"
+
     try:
-        prize_amount = int(request.form.get("prize_amount", "0"))
         winner_count = int(request.form.get("winner_count", "1"))
     except ValueError:
-        flash("賞金額・当選人数は数値で入力してください。", "error")
+        flash("当選人数は数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    if not title or prize_amount <= 0 or winner_count <= 0:
-        flash("タイトル・賞金額・当選人数を正しく入力してください。", "error")
+    if not title or winner_count <= 0:
+        flash("タイトル・当選人数を正しく入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
+
+    paypay_links_json = None
+    prize_amount = 0
+
+    if prize_type == "paypay":
+        # PayPayの場合、賞金は「Embersの自動付与」ではなく、管理者が事前にPayPayアプリ側で
+        # 作成した送金リンクを当選者へ届けるだけの仕組みにする(このサイトは送金処理そのものには
+        # 一切関与しない。カジノゲームの勝敗とも完全に無関係の、通常の抽選企画として扱う)
+        raw_links = request.form.get("paypay_links", "")
+        links = [line.strip() for line in raw_links.splitlines() if line.strip()]
+        if len(links) < winner_count:
+            flash(f"当選人数({winner_count}名)分のPayPay送金リンクを、1行に1つずつ入力してください。", "error")
+            return redirect(url_for("admin.dashboard"))
+        paypay_links_json = json.dumps(links)
+    else:
+        try:
+            prize_amount = int(request.form.get("prize_amount", "0"))
+        except ValueError:
+            flash("賞金額は数値で入力してください。", "error")
+            return redirect(url_for("admin.dashboard"))
+        if prize_amount <= 0:
+            flash("賞金額を正しく入力してください。", "error")
+            return redirect(url_for("admin.dashboard"))
 
     giveaway = Giveaway(
         title=title, description=description, prize_amount=prize_amount,
-        winner_count=winner_count, created_by=current_user.username
+        winner_count=winner_count, created_by=current_user.username,
+        prize_type=prize_type, paypay_links_json=paypay_links_json,
     )
     db.session.add(giveaway)
     db.session.commit()
 
-    notify_all(f"新しいプレゼント企画「{title}」が始まりました。{prize_amount:,} Embersが{winner_count}名に当たります。/giveawaysから参加できます。")
+    prize_desc = f"{prize_amount:,} Embers" if prize_type == "embers" else "PayPay送金リンク"
+    notify_all(f"新しいプレゼント企画「{title}」が始まりました。{prize_desc}が{winner_count}名に当たります。/giveawaysから参加できます。")
     db.session.commit()
 
     flash(f"「{title}」を作成しました。", "success")
@@ -112,14 +141,30 @@ def draw(giveaway_id):
     winner_count = min(giveaway.winner_count, len(entries))
     winners = random.sample(entries, winner_count)
 
-    for entry in winners:
+    paypay_links = json.loads(giveaway.paypay_links_json) if giveaway.prize_type == "paypay" and giveaway.paypay_links_json else []
+
+    for i, entry in enumerate(winners):
         entry.is_winner = True
-        credit_winnings(entry.user, giveaway.prize_amount)
-        db.session.add(Transaction(
-            user_id=entry.user_id, amount=giveaway.prize_amount, kind="giveaway_win",
-            description=f"「{giveaway.title}」当選"
-        ))
-        notify(entry.user_id, f"おめでとうございます!「{giveaway.title}」に当選し、{giveaway.prize_amount:,} Embersを獲得しました。")
+
+        if giveaway.prize_type == "paypay":
+            link = paypay_links[i] if i < len(paypay_links) else None
+            entry.paypay_link_sent = link
+            notify(entry.user_id, f"🎉 おめでとうございます!「{giveaway.title}」に当選しました。DMでPayPayの受け取りリンクをお送りしました。")
+            if link:
+                # 管理者からのお知らせとして、当選者のDMに直接メッセージを作成する
+                # (通常のDM機能はフレンド間限定だが、これは運営からの当選連絡なのでフレンド制限の対象外とする)
+                db.session.add(DirectMessage(
+                    from_user_id=current_user.id, to_user_id=entry.user_id,
+                    message=f"🎉「{giveaway.title}」当選おめでとうございます!以下のリンクからPayPayを受け取ってください: {link}",
+                ))
+        else:
+            credit_winnings(entry.user, giveaway.prize_amount)
+            db.session.add(Transaction(
+                user_id=entry.user_id, amount=giveaway.prize_amount, kind="giveaway_win",
+                description=f"「{giveaway.title}」当選"
+            ))
+            notify(entry.user_id, f"おめでとうございます!「{giveaway.title}」に当選し、{giveaway.prize_amount:,} Embersを獲得しました。")
+
         try:
             from achievements import check_achievements
             check_achievements(entry.user)

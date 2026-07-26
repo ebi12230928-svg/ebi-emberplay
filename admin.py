@@ -888,6 +888,68 @@ def rhythm_add_song():
     return redirect(url_for("admin.dashboard"))
 
 
+@admin_bp.route("/admin/referral-ranking/distribute", methods=["POST"])
+@login_required
+@admin_required
+def referral_ranking_distribute():
+    """
+    招待(紹介)ランキングの報酬配布。上位3名に、通常の紹介ボーナスとは別に
+    「基本報酬×倍率」のボーナスを追加で付与する(3位=2倍・2位=3倍・1位=5倍)。
+    「参加条件」として、指定した人数以上を紹介していないと対象にならない。
+    """
+    from sqlalchemy import func
+
+    try:
+        min_count = int(request.form.get("min_count", "3"))
+        base_reward = int(request.form.get("base_reward", "1000"))
+    except ValueError:
+        flash("参加条件の人数・基本報酬額は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if min_count < 1 or base_reward <= 0:
+        flash("参加条件の人数は1以上、基本報酬額は正の数で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    referral_counts = (
+        db.session.query(User.referred_by_id, func.count(User.id))
+        .filter(User.referred_by_id.isnot(None))
+        .group_by(User.referred_by_id)
+        .having(func.count(User.id) >= min_count)  # 参加条件: 指定人数以上を紹介していること
+        .order_by(func.count(User.id).desc())
+        .limit(3)
+        .all()
+    )
+
+    if not referral_counts:
+        flash(f"参加条件({min_count}人以上を紹介)を満たすユーザーがいませんでした。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    RANK_MULTIPLIERS = {0: 5, 1: 3, 2: 2}  # 1位=5倍・2位=3倍・3位=2倍
+    results = []
+    for rank, (referrer_id, count) in enumerate(referral_counts):
+        user = User.query.get(referrer_id)
+        if not user:
+            continue
+        multiplier = RANK_MULTIPLIERS[rank]
+        reward = base_reward * multiplier
+        user.balance += reward
+        db.session.add(Transaction(
+            user_id=user.id, amount=reward, kind="referral_ranking",
+            description=f"招待ランキング{rank + 1}位ボーナス(紹介{count}人・{multiplier}倍)"
+        ))
+        notify(user.id, f"🏆 招待ランキング{rank + 1}位おめでとうございます!({count}人紹介・{multiplier}倍ボーナス){reward:,} Embersを獲得しました。")
+        results.append(f"{rank + 1}位 {user.username}({count}人・{multiplier}倍・{reward:,}Embers)")
+
+    db.session.commit()
+
+    winner_summary = " / ".join(results)
+    notify_all(f"🏆 招待ランキングの報酬配布が行われました: {winner_summary}")
+    db.session.commit()
+
+    flash(f"招待ランキング報酬を配布しました: {winner_summary}", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
 @admin_bp.route("/admin/tournament/create", methods=["POST"])
 @login_required
 @admin_required

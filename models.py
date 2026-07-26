@@ -366,7 +366,14 @@ class ChatMessage(db.Model):
 
 
 class Giveaway(db.Model):
-    """管理者が作成するプレゼント企画。参加者の中から抽選で当選者にEmbersを付与する"""
+    """
+    管理者が作成するプレゼント企画。参加者の中から抽選で当選者にEmbersを付与する。
+    カジノゲームの勝敗とは完全に無関係の、単純な抽選企画専用の仕組み。
+    prize_type="paypay" の場合、Embersの代わりに、管理者が事前に用意したPayPay送金リンクを
+    当選者へDMで自動送付する(実際の送金操作自体は、リンクを作成した時点で管理者がPayPayアプリ側で
+    既に完了させている前提。このサイトは「誰にどのリンクを届けるか」を抽選するだけで、
+    実際の送金処理そのものには一切関与しない)。
+    """
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text, nullable=True)
@@ -376,6 +383,8 @@ class Giveaway(db.Model):
     created_by = db.Column(db.String(32), nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
     drawn_at = db.Column(db.DateTime, nullable=True)
+    prize_type = db.Column(db.String(16), default="embers", nullable=False)  # embers / paypay
+    paypay_links_json = db.Column(db.Text, nullable=True)  # 当選者数分のPayPay送金リンク(1行1リンク→JSON配列で保存)
 
 
 class GiveawayEntry(db.Model):
@@ -385,6 +394,7 @@ class GiveawayEntry(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     is_winner = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
+    paypay_link_sent = db.Column(db.String(500), nullable=True)  # 当選者に実際に送ったPayPayリンク(記録用)
 
     giveaway = db.relationship("Giveaway", backref=db.backref("entries", lazy="dynamic"))
     user = db.relationship("User", backref=db.backref("giveaway_entries", lazy="dynamic"))
