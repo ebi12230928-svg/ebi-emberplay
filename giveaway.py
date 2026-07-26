@@ -55,14 +55,24 @@ def index():
 @giveaway_bp.route("/giveaways/<int:giveaway_id>/enter", methods=["POST"])
 @login_required
 def enter(giveaway_id):
+    from sqlalchemy import func
+    from models import User
+
     giveaway = Giveaway.query.get(giveaway_id)
     if not giveaway or giveaway.status != "open":
         flash("この企画は現在参加できません。", "error")
         return redirect(url_for("giveaway.index"))
 
     if giveaway.source_type == "referral_ranking":
-        flash("この企画は招待人数ランキング型のため、エントリー不要です(自動で対象になります)。", "error")
-        return redirect(url_for("giveaway.index"))
+        # 参加条件: 指定人数以上を紹介していないとエントリーできない
+        my_referral_count = (
+            db.session.query(func.count(User.id))
+            .filter(User.referred_by_id == current_user.id)
+            .scalar() or 0
+        )
+        if my_referral_count < giveaway.min_referral_count:
+            flash(f"この企画は{giveaway.min_referral_count}人以上を紹介していないとエントリーできません(現在: {my_referral_count}人)。", "error")
+            return redirect(url_for("giveaway.index"))
 
     existing = GiveawayEntry.query.filter_by(giveaway_id=giveaway_id, user_id=current_user.id).first()
     if existing:
@@ -230,40 +240,42 @@ RANK_MULTIPLIERS = {0: 5, 1: 3, 2: 2}  # 1位=5倍・2位=3倍・3位=2倍
 
 def _draw_referral_ranking(giveaway):
     """
-    招待ランキング型: 参加エントリー不要。招待(紹介)人数が多い順に上位3名をランキングし、
-    「基本報酬(またはPayPayリンク)×倍率」を自動配布する。指定人数以上を紹介していないと対象外。
+    招待ランキング型: 指定人数以上を紹介しているユーザーだけがエントリーできる。
+    エントリーした人たちの中で、招待(紹介)人数が多い順にランキングし、上位3名に
+    「基本報酬(またはPayPayリンク)×倍率」(1位=5倍・2位=3倍・3位=2倍)を自動配布する。
     """
     from sqlalchemy import func
     from models import utcnow, User
 
-    referral_counts = (
+    entries = giveaway.entries.all()
+    if not entries:
+        flash("エントリーした人が1人もいないため抽選できません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    # エントリーした人それぞれの、現時点での紹介人数を数える
+    entrant_ids = [e.user_id for e in entries]
+    counts_by_user = dict(
         db.session.query(User.referred_by_id, func.count(User.id))
-        .filter(User.referred_by_id.isnot(None))
+        .filter(User.referred_by_id.in_(entrant_ids))
         .group_by(User.referred_by_id)
-        .having(func.count(User.id) >= giveaway.min_referral_count)  # 参加条件
-        .order_by(func.count(User.id).desc())
-        .limit(3)
         .all()
     )
 
-    if not referral_counts:
-        flash(f"参加条件({giveaway.min_referral_count}人以上を紹介)を満たすユーザーがいませんでした。企画はそのまま開催中の状態にしています。", "error")
-        return redirect(url_for("admin.dashboard"))
+    ranked = sorted(
+        entries, key=lambda e: counts_by_user.get(e.user_id, 0), reverse=True
+    )[:3]
 
     paypay_links = json.loads(giveaway.paypay_links_json) if giveaway.prize_type == "paypay" and giveaway.paypay_links_json else []
 
     results = []
-    for rank, (referrer_id, count) in enumerate(referral_counts):
-        user = User.query.get(referrer_id)
-        if not user:
-            continue
+    for rank, entry in enumerate(ranked):
+        user = entry.user
+        count = counts_by_user.get(entry.user_id, 0)
         multiplier = RANK_MULTIPLIERS[rank]
 
-        entry = GiveawayEntry(
-            giveaway_id=giveaway.id, user_id=user.id, is_winner=True,
-            referral_count=count, reward_multiplier=multiplier,
-        )
-        db.session.add(entry)
+        entry.is_winner = True
+        entry.referral_count = count
+        entry.reward_multiplier = multiplier
 
         if giveaway.prize_type == "paypay":
             link = paypay_links[rank] if rank < len(paypay_links) else None
