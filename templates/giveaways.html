@@ -18,11 +18,11 @@
   {% if g.description %}<p>{{ g.description }}</p>{% endif %}
   <p class="mono" style="font-size: 13px;">
     {% if g.source_type == "referral_ranking" %}
-    🏆 招待人数ランキング形式(エントリー者全員平等な確率で抽選) ・ 参加条件: {{ g.min_referral_count }}人以上を紹介 ・
+    🏆 招待人数ランキング形式(紹介人数が多いほど当選確率アップ) ・ 参加条件: {{ g.min_referral_count }}人以上を紹介 ・
     {% if g.prize_type == "paypay" %}
-    賞品: 💰 PayPay(1位=5倍・2位=3倍・3位=2倍)
+    賞品: 💰 PayPay ・ 当選人数: {{ g.winner_count }}名
     {% else %}
-    賞品: {{ "{:,}".format(g.prize_amount) }} Embers(1位=5倍・2位=3倍・3位=2倍)
+    賞品: {{ "{:,}".format(g.prize_amount) }} Embers ・ 当選人数: {{ g.winner_count }}名
     {% endif %}
     ・ 現在のエントリー数: {{ g.entries.count() }}人
     {% elif g.prize_type == "paypay" %}
@@ -40,7 +40,7 @@
     <button type="submit" class="btn btn-ember">参加する</button>
   </form>
   {% if g.source_type == "referral_ranking" %}
-  <p class="text-muted" style="font-size: 11px; margin-top: 6px;">※ {{ g.min_referral_count }}人以上を紹介していないとエントリーできません。エントリー時に自動で確認されます。</p>
+  <p class="text-muted" style="font-size: 11px; margin-top: 6px;">※ {{ g.min_referral_count }}人以上を紹介していないとエントリーできません。紹介人数が多いほど当選確率が上がりますが、条件さえ満たしていれば誰にでも当選のチャンスがあります。</p>
   {% endif %}
   {% endif %}
 </div>
