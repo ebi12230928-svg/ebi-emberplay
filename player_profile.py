@@ -165,3 +165,78 @@ def set_avatar():
     db.session.commit()
     flash("アバターを変更しました。", "success")
     return redirect(url_for("profile.index"))
+
+
+@profile_bp.route("/profile/change-username", methods=["POST"])
+@login_required
+def change_own_username():
+    """
+    自分自身のユーザー名(ID)を変更する。なりすまし防止のため、現在のパスワードの入力を必須とする。
+    """
+    import re
+    from models import AdminAccountLog
+
+    current_password = request.form.get("current_password", "")
+    new_username = request.form.get("new_username", "").strip()
+
+    if not current_user.check_password(current_password):
+        flash("現在のパスワードが正しくありません。", "error")
+        return redirect(url_for("profile.index"))
+
+    if not re.match(r"^[A-Za-z0-9_]{3,32}$", new_username):
+        flash("新しいユーザー名は英数字・アンダースコアのみ、3〜32文字で入力してください。", "error")
+        return redirect(url_for("profile.index"))
+
+    if new_username == current_user.username:
+        flash("現在のユーザー名と同じです。", "error")
+        return redirect(url_for("profile.index"))
+
+    if User.query.filter_by(username=new_username).first():
+        flash("そのユーザー名はすでに使われています。", "error")
+        return redirect(url_for("profile.index"))
+
+    old_username = current_user.username
+    current_user.username = new_username
+    db.session.add(AdminAccountLog(
+        admin_username=old_username, action="username_changed", target_username=new_username,
+        details=f"{old_username} → {new_username}(本人による変更)",
+    ))
+    db.session.commit()
+
+    flash(f"ユーザー名を {new_username} に変更しました。次回ログインからは新しいユーザー名を使ってください。", "success")
+    return redirect(url_for("profile.index"))
+
+
+@profile_bp.route("/profile/change-password", methods=["POST"])
+@login_required
+def change_own_password():
+    """
+    自分自身のパスワードを変更する。なりすまし防止のため、現在のパスワードの入力を必須とする。
+    """
+    from models import AdminAccountLog
+
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    new_password_confirm = request.form.get("new_password_confirm", "")
+
+    if not current_user.check_password(current_password):
+        flash("現在のパスワードが正しくありません。", "error")
+        return redirect(url_for("profile.index"))
+
+    if len(new_password) < 4:
+        flash("新しいパスワードは4文字以上で入力してください。", "error")
+        return redirect(url_for("profile.index"))
+
+    if new_password != new_password_confirm:
+        flash("新しいパスワード(確認)が一致しません。", "error")
+        return redirect(url_for("profile.index"))
+
+    current_user.set_password(new_password)
+    db.session.add(AdminAccountLog(
+        admin_username=current_user.username, action="password_changed", target_username=current_user.username,
+        details="本人による変更",
+    ))
+    db.session.commit()
+
+    flash("パスワードを変更しました。", "success")
+    return redirect(url_for("profile.index"))
