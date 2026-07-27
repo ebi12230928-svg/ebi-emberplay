@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}視聴収益 ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">💰 Earnings</span>
+<h1>視聴収益・出金申請</h1>
+
+<div class="panel" style="margin-bottom: 16px; text-align:center;">
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 4px;">現在の収益残高</p>
+  <p class="mono" style="font-size: 32px; font-weight:800; color: var(--gold); margin:0;">¥{{ "%.2f"|format(earnings_yen) }}</p>
+</div>
+
+<div class="panel" style="margin-bottom: 16px; text-align:center;" id="budget-panel">
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 4px;">運営の出金予算(みんなで共有)</p>
+  <p class="mono" id="budget-remaining-text" style="font-size: 18px; font-weight:700; margin:0;">
+    {% if remaining_budget is not none %}残り{{ "{:,}".format(remaining_budget) }}円まで出金可能です{% else %}現在、出金予算の制限はありません{% endif %}
+  </p>
+</div>
+
+<div class="panel" style="margin-bottom: 16px;">
+  <h3 style="margin-bottom: 8px;">出金申請</h3>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">最低出金額は{{ min_withdrawal }}円です。PayPayのID(電話番号など)または請求リンクのどちらかを入力してください。管理者が確認・手動で送金します。</p>
+  <form method="POST" action="{{ url_for('videos.request_withdrawal') }}">
+    <div class="field">
+      <label for="wd-amount">出金額(円)</label>
+      <input type="number" id="wd-amount" name="amount_yen" min="{{ min_withdrawal }}" value="{{ min_withdrawal }}" required>
+    </div>
+    <div class="field">
+      <label for="wd-destination">PayPay ID または請求リンク</label>
+      <input type="text" id="wd-destination" name="paypay_destination" placeholder="例: 080xxxxxxxx または https://pay.paypay.ne.jp/..." required>
+    </div>
+    <button type="submit" class="btn btn-ember btn-block">出金を申請する</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h3 style="margin-bottom: 8px;">申請履歴</h3>
+  {% for wd in my_requests %}
+  <div style="display:flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--panel-border); flex-wrap: wrap;">
+    <span class="mono">¥{{ wd.amount_yen }}</span>
+    <span class="text-muted" style="font-size: 12px;">{{ "✅ 送金済み" if wd.status == "sent" else "⏳ 確認中" }} ・ {{ wd.created_at.strftime("%Y/%m/%d %H:%M") }}</span>
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">まだ出金申請はありません。</p>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 出金予算の残りを、他の人の出金申請も反映してリアルタイムに近い形で更新する
+  (function () {
+    const el = document.getElementById("budget-remaining-text");
+    async function refreshBudget() {
+      try {
+        const res = await fetch("{{ url_for('videos.budget_poll') }}");
+        const data = await res.json();
+        if (data.remaining_budget === null || data.remaining_budget === undefined) {
+          el.textContent = "現在、出金予算の制限はありません";
+        } else {
+          el.textContent = `残り${data.remaining_budget.toLocaleString()}円まで出金可能です`;
+        }
+      } catch (err) { /* noop */ }
+    }
+    setInterval(refreshBudget, 5000);
+  })();
+</script>
+{% endblock %}

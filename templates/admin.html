@@ -765,6 +765,61 @@
 </div>
 
 <div class="panel" style="margin-top: 24px;">
+  <h3>💸 動画視聴収益の出金申請</h3>
+  <p style="font-size: 13px;">内容を確認し、PayPayのID・請求リンク宛に<strong>手動で実際に送金してから</strong>、「送金済みにする」ボタンを押してください。このサイトが自動で送金することは一切ありません。</p>
+
+  <div style="background: var(--bg-raised); border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 6px;">出金予算(現在: {{ "{:,}".format(withdrawal_budget_total) }}円)</p>
+    <p class="mono" style="font-size: 22px; font-weight:800; color: var(--gold); margin: 0 0 10px;">
+      {% if withdrawal_budget_remaining is not none %}残り {{ "{:,}".format(withdrawal_budget_remaining) }}円まで出金可能{% else %}予算未設定(無制限){% endif %}
+    </p>
+    <form method="POST" action="{{ url_for('admin.set_withdrawal_budget') }}" style="display:flex; gap: 8px; align-items:flex-end; flex-wrap: wrap;">
+      <div class="field" style="margin:0; flex:1; min-width:140px;">
+        <label for="withdrawal-budget-input">予算総額(円)</label>
+        <input type="number" id="withdrawal-budget-input" name="total_budget_yen" value="{{ withdrawal_budget_total }}" min="0">
+      </div>
+      <button type="submit" class="btn btn-ghost">予算を設定する</button>
+    </form>
+  </div>
+
+  <h4 style="font-size: 13px; margin: 12px 0 6px;">⏳ 確認待ち({{ pending_withdrawals|length }}件)</h4>
+  {% for wd in pending_withdrawals %}
+  <div style="display:flex; justify-content: space-between; align-items:center; padding: 10px 0; border-top: 1px solid var(--panel-border); flex-wrap: wrap; gap: 8px;">
+    <div>
+      <strong>{{ wd.user.username }}</strong> ・ <span class="mono">¥{{ wd.amount_yen }}</span>
+      <p class="mono text-muted" style="font-size: 12px; margin: 2px 0 0; word-break: break-all;">{{ wd.paypay_destination }}</p>
+      <p class="text-muted" style="font-size: 11px; margin: 2px 0 0;">申請日時: {{ wd.created_at.strftime("%Y/%m/%d %H:%M") }}</p>
+    </div>
+    <form method="POST" action="{{ url_for('admin.mark_withdrawal_sent', request_id=wd.id) }}" onsubmit="return confirm('実際にPayPayで送金済みですか?');">
+      <button type="submit" class="btn btn-ember" style="padding: 8px 14px; font-size: 12px;">送金済みにする</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">確認待ちの出金申請はありません。</p>
+  {% endfor %}
+
+  <h4 style="font-size: 13px; margin: 16px 0 6px;">✅ 送金済み(直近30件)</h4>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>ユーザー</th><th>金額</th><th>送金先</th><th>対応した管理者</th><th>送金日時</th></tr></thead>
+      <tbody>
+        {% for wd in sent_withdrawals %}
+        <tr>
+          <td>{{ wd.user.username }}</td>
+          <td class="mono">¥{{ wd.amount_yen }}</td>
+          <td class="mono text-muted" style="font-size: 11px; word-break: break-all;">{{ wd.paypay_destination }}</td>
+          <td class="text-muted">{{ wd.sent_by_admin }}</td>
+          <td class="text-muted">{{ wd.sent_at.strftime("%Y/%m/%d %H:%M") if wd.sent_at else "" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted">まだ記録がありません。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" style="margin-top: 24px;">
   <h3>📋 管理者ログ(種類ごとに分けて表示)</h3>
   <div style="display:flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
     <button type="button" class="btn btn-ghost admin-log-tab active" data-tab="log-account-creation" style="font-size: 12px; padding: 6px 12px;">アカウント作成</button>

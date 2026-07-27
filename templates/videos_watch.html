@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ video.title }} ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📹 {{ "{:,}".format(video.view_count) }}回視聴</span>
+<h1 style="font-size: 22px;">{{ video.title }}</h1>
+
+<video id="video-player" controls playsinline style="width:100%; border-radius: 12px; background:#000; margin-bottom: 12px;" src="{{ url_for('videos.serve_video_file', filename=video.filename) }}"></video>
+
+<div class="panel" style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
+  <div>
+    <a href="{{ url_for('videos.channel', username=video.uploader.username) }}" style="text-decoration:none; color: var(--text); font-weight:700;">
+      {{ video.uploader.avatar }} {{ video.uploader.username }}
+    </a>
+    <p class="text-muted" style="font-size: 12px; margin: 2px 0 0;">チャンネル登録者 {{ subscriber_count }}人</p>
+  </div>
+  {% if video.uploader_id != current_user.id %}
+  <form method="POST" action="{{ url_for('videos.subscribe', username=video.uploader.username) }}">
+    <button type="submit" class="btn {{ 'btn-ghost' if is_subscribed else 'btn-ember' }}">{{ "登録済み" if is_subscribed else "チャンネル登録" }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div style="display:flex; gap: 8px; margin-bottom: 16px;">
+  <form method="POST" action="{{ url_for('videos.like', video_id=video.id) }}">
+    <input type="hidden" name="is_like" value="1">
+    <button type="submit" class="btn {{ 'btn-ember' if my_like and my_like.is_like else 'btn-ghost' }}">👍 {{ video.like_count }}</button>
+  </form>
+  <form method="POST" action="{{ url_for('videos.like', video_id=video.id) }}">
+    <input type="hidden" name="is_like" value="0">
+    <button type="submit" class="btn {{ 'btn-ember' if my_like and not my_like.is_like else 'btn-ghost' }}">👎 {{ video.dislike_count }}</button>
+  </form>
+</div>
+
+{% if video.description %}
+<div class="panel" style="margin-bottom: 16px;">
+  <p style="margin:0; white-space: pre-wrap;">{{ video.description }}</p>
+</div>
+{% endif %}
+
+<p class="text-muted" style="font-size: 11px;">※ この動画で得られる収益は、実質1回分の視聴(動画の長さ分)までです。同じ動画を繰り返し見ても、それ以上は収益として計上されません。</p>
+
+<div class="panel">
+  <h3 style="margin-bottom: 10px;">コメント</h3>
+  <form method="POST" action="{{ url_for('videos.comment', video_id=video.id) }}" style="display:flex; gap: 8px; margin-bottom: 16px;">
+    <input type="text" name="message" placeholder="コメントを入力…" maxlength="500" style="flex:1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);" required>
+    <button type="submit" class="btn btn-ember">送信</button>
+  </form>
+  {% for c in comments %}
+  <div style="padding: 8px 0; border-top: 1px solid var(--panel-border);">
+    <strong style="font-size: 13px;">{{ c.user.username }}</strong>
+    <span class="text-muted" style="font-size: 11px; margin-left: 6px;">{{ c.created_at.strftime("%Y/%m/%d %H:%M") }}</span>
+    <p style="margin: 4px 0 0; font-size: 13px;">{{ c.message }}</p>
+  </div>
+  {% else %}
+  <p class="text-muted" style="margin:0;">まだコメントがありません。</p>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 数秒おきに、新たに視聴した秒数をサーバーへ報告し、視聴収益に加算してもらう
+  (function () {
+    const videoEl = document.getElementById("video-player");
+    let lastReportedTime = 0;
+
+    setInterval(() => {
+      if (videoEl.paused || videoEl.seeking) return;
+      const currentTime = videoEl.currentTime;
+      const delta = Math.round(currentTime - lastReportedTime);
+      if (delta <= 0 || delta > 30) {
+        lastReportedTime = currentTime; // 巻き戻し・早送りなどは加算しない
+        return;
+      }
+      lastReportedTime = currentTime;
+      fetch("{{ url_for('videos.watch_progress', video_id=video.id) }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seconds: delta }),
+      }).catch(() => {});
+    }, 10000); // 10秒おきに報告
+  })();
+</script>
+{% endblock %}

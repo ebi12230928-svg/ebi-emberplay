@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}動画をアップロード ・ EMBERPLAY{% endblock %}
+
+{% block content %}
+<span class="eyebrow">📤 Upload</span>
+<h1>動画をアップロード</h1>
+<p class="text-muted" style="font-size: 13px;">動画は<strong>{{ max_minutes }}分以内</strong>のものだけアップロードできます(ファイルサイズの上限は{{ max_mb }}MBです)。</p>
+
+<form method="POST" enctype="multipart/form-data" class="panel">
+  <div class="field">
+    <label for="video-title">タイトル</label>
+    <input type="text" id="video-title" name="title" required maxlength="128">
+  </div>
+  <div class="field">
+    <label for="video-description">説明(任意)</label>
+    <textarea id="video-description" name="description" rows="3" style="width:100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg-raised); color: var(--text);"></textarea>
+  </div>
+  <div class="field">
+    <label for="video-file">動画ファイル</label>
+    <input type="file" id="video-file" name="video_file" accept="video/mp4,video/webm,video/quicktime" required>
+  </div>
+  <button type="submit" class="btn btn-ember btn-block">アップロードする</button>
+</form>
+{% endblock %}

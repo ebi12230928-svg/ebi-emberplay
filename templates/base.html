@@ -62,6 +62,7 @@
       <a href="{{ url_for('trade.index') }}" class="{{ 'active' if request.endpoint == 'trade.index' else '' }}"><span class="bn-icon">🔄</span>トレード</a>
       <a href="{{ url_for('fishing.index') }}" class="{{ 'active' if request.endpoint == 'fishing.index' else '' }}"><span class="bn-icon">🎣</span>釣り</a>
       <a href="{{ url_for('rhythm.index') }}" class="{{ 'active' if request.endpoint == 'rhythm.index' else '' }}"><span class="bn-icon">🎵</span>リズムゲーム</a>
+      <a href="{{ url_for('videos.index') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('videos.') else '' }}"><span class="bn-icon">📹</span>動画</a>
       <a href="{{ url_for('fortune.index') }}" class="{{ 'active' if request.endpoint == 'fortune.index' else '' }}"><span class="bn-icon">🎋</span>おみくじ</a>
       <a href="{{ url_for('guild.index') }}" class="{{ 'active' if request.endpoint == 'guild.index' else '' }}"><span class="bn-icon">🛡️</span>ギルド</a>
       <a href="{{ url_for('titles.index') }}" class="{{ 'active' if request.endpoint == 'titles.index' else '' }}"><span class="bn-icon">🎖️</span>称号</a>
