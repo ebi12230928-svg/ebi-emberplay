@@ -942,6 +942,22 @@ class RhythmSkin(db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "skin_key", name="uq_user_rhythm_skin"),)
 
 
+class AdminAccountLog(db.Model):
+    """
+    管理者操作のログ。以下の種類を1つのテーブルにまとめて記録し、管理画面側で
+    action(種類)ごとに分けて表示する(アカウント作成ログ・ID/パスワード変更ログなど)。
+    action: "account_created"(テストアカウント作成) / "referrals_granted"(招待人数付与)
+            / "username_changed"(ID変更) / "password_changed"(パスワード変更)
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    admin_username = db.Column(db.String(32), nullable=False)
+    action = db.Column(db.String(32), nullable=False, index=True)
+    target_username = db.Column(db.String(32), nullable=False)
+    details = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+
 # ───────── おみくじ ─────────
 class FortuneDraw(db.Model):
     """1日1回引けるおみくじの記録(重複引き防止用)"""

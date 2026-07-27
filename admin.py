@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong, AdminAccountLog, BetRecord
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -96,6 +96,15 @@ def dashboard():
 
     from config import Config
 
+    # 管理者専用ログ: それぞれ分けて表示できるよう、種類ごとに取得する
+    account_creation_logs = AdminAccountLog.query.filter_by(action="account_created").order_by(AdminAccountLog.created_at.desc()).limit(50).all()
+    referral_grant_logs = AdminAccountLog.query.filter_by(action="referrals_granted").order_by(AdminAccountLog.created_at.desc()).limit(50).all()
+    id_password_logs = AdminAccountLog.query.filter(
+        AdminAccountLog.action.in_(["username_changed", "password_changed"])
+    ).order_by(AdminAccountLog.created_at.desc()).limit(50).all()
+    casino_logs = BetRecord.query.order_by(BetRecord.created_at.desc()).limit(50).all()
+    grant_logs = Transaction.query.filter_by(kind="admin_grant").order_by(Transaction.created_at.desc()).limit(50).all()
+
     return render_template(
         "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
         game_scalars=game_scalars, min_scalar=MIN_PAYOUT_SCALAR, max_scalar=MAX_PAYOUT_SCALAR,
@@ -106,7 +115,9 @@ def dashboard():
         current_enemy_tier=current_enemy_tier, enemy_tier_multiplier=enemy_tier_multiplier,
         current_reward_multiplier=current_reward_multiplier, active_tournaments=active_tournaments,
         difficulties=rhythm_difficulties,
-        enemy_tier_labels=ENEMY_TIER_LABELS
+        enemy_tier_labels=ENEMY_TIER_LABELS,
+        account_creation_logs=account_creation_logs, referral_grant_logs=referral_grant_logs,
+        id_password_logs=id_password_logs, casino_logs=casino_logs, grant_logs=grant_logs,
     )
 
 
@@ -145,12 +156,37 @@ def grant_points():
     return redirect(url_for("admin.dashboard"))
 
 
-def _random_username(prefix="test"):
-    """ランダムなIDのユーザー名を、重複しないものが見つかるまで生成する"""
+_USERNAME_WORDS_A = [
+    "Swift", "Quiet", "Lucky", "Cosmic", "Silver", "Golden", "Shadow", "Crimson",
+    "Azure", "Velvet", "Midnight", "Solar", "Frost", "Ember", "Wild", "Royal",
+]
+_USERNAME_WORDS_B = [
+    "Fox", "Wolf", "Hawk", "Tiger", "Raven", "Falcon", "Panther", "Dragon",
+    "Phoenix", "Otter", "Lynx", "Eagle", "Bear", "Rabbit", "Dolphin", "Owl",
+]
+
+
+def _random_username(prefix=None):
+    """
+    テスト・ダミーアカウントだと分かりにくいよう、実際のユーザーが選びそうな
+    自然な見た目のユーザー名(例: SwiftFox482)を、重複しないものが見つかるまで生成する。
+    prefixを指定した場合のみ、その接頭辞を使う(内部管理用に区別したい場合のため)。
+    """
     while True:
-        candidate = f"{prefix}_{secrets.token_hex(4)}"  # 例: test_a1b2c3d4
+        if prefix:
+            candidate = f"{prefix}_{secrets.token_hex(4)}"
+        else:
+            candidate = (
+                secrets.choice(_USERNAME_WORDS_A) + secrets.choice(_USERNAME_WORDS_B)
+                + str(secrets.randbelow(900) + 100)
+            )
         if not User.query.filter_by(username=candidate).first():
             return candidate
+
+
+def _random_password():
+    """自動生成パスワード(記号を含まない、見やすい12文字)"""
+    return secrets.token_urlsafe(9)[:12]
 
 
 def _random_referral_code():
@@ -165,25 +201,29 @@ def _random_referral_code():
 @admin_required
 def create_test_account():
     """
-    管理者専用: ランダムなID・指定したパスワード・指定した招待人数(紹介したことになっている
-    ダミーアカウントの数)を持つテストアカウントを、ボタン1つで作成する。
-    招待ランキング企画などのテストに使うことを想定している。
+    管理者専用: 自然な見た目のランダムなID・パスワード(指定 or 自動生成)・
+    指定した招待人数(紹介したことになっているダミーアカウントの数)を持つ
+    テストアカウントを、ボタン1つで作成する。招待ランキング企画などのテストに使うことを想定している。
     """
     password = request.form.get("password", "").strip()
+    auto_generated = False
+    if not password:
+        password = _random_password()
+        auto_generated = True
     try:
         referral_count = int(request.form.get("referral_count", "0"))
     except ValueError:
         flash("招待人数は数値で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    if not password or len(password) < 4:
+    if len(password) < 4:
         flash("パスワードは4文字以上で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
     if referral_count < 0 or referral_count > 500:
         flash("招待人数は0〜500の範囲で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    username = _random_username("test")
+    username = _random_username()
     main_user = User(
         username=username, referral_code=_random_referral_code(),
         balance=0,
@@ -194,7 +234,7 @@ def create_test_account():
 
     # 指定人数分の「紹介された側」のダミーアカウントも作成する
     for _ in range(referral_count):
-        dummy_username = _random_username("invitee")
+        dummy_username = _random_username()
         dummy_password = secrets.token_hex(6)  # ログインさせる想定は無いので、ランダムでよい
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
@@ -203,6 +243,10 @@ def create_test_account():
         dummy.set_password(dummy_password)
         db.session.add(dummy)
 
+    db.session.add(AdminAccountLog(
+        admin_username=current_user.username, action="account_created", target_username=username,
+        details=f"招待人数{referral_count}人分のダミーアカウントも同時作成 / パスワード{'自動生成' if auto_generated else '指定'}",
+    ))
     db.session.commit()
 
     flash(
@@ -239,7 +283,7 @@ def grant_referrals():
         return redirect(url_for("admin.dashboard"))
 
     for _ in range(referral_count):
-        dummy_username = _random_username("invitee")
+        dummy_username = _random_username()
         dummy_password = secrets.token_hex(6)
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
@@ -248,9 +292,84 @@ def grant_referrals():
         dummy.set_password(dummy_password)
         db.session.add(dummy)
 
+    db.session.add(AdminAccountLog(
+        admin_username=current_user.username, action="referrals_granted", target_username=target_user.username,
+        details=f"招待人数を{referral_count}人分追加",
+    ))
+
     db.session.commit()
 
     flash(f"{target_user.username} に招待人数を{referral_count}人分追加しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/change-username", methods=["POST"])
+@login_required
+@admin_required
+def change_username():
+    """管理者専用: 指定したアカウントのユーザー名(ID)を変更する"""
+    current_username = request.form.get("current_username", "").strip()
+    new_username = request.form.get("new_username", "").strip()
+
+    if not current_username or not new_username:
+        flash("変更対象のユーザー名・新しいユーザー名の両方を入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if not re.match(r"^[A-Za-z0-9_]{3,32}$", new_username):
+        flash("新しいユーザー名は英数字・アンダースコアのみ、3〜32文字で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    target_user = User.query.filter_by(username=current_username).first()
+    if not target_user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if User.query.filter_by(username=new_username).first():
+        flash("そのユーザー名はすでに使われています。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    old_username = target_user.username
+    target_user.username = new_username
+    db.session.add(AdminAccountLog(
+        admin_username=current_user.username, action="username_changed", target_username=new_username,
+        details=f"{old_username} → {new_username}",
+    ))
+    db.session.commit()
+
+    flash(f"ユーザー名を {old_username} から {new_username} に変更しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/change-password", methods=["POST"])
+@login_required
+@admin_required
+def change_password():
+    """管理者専用: 指定したアカウントのパスワードを変更する(未入力なら自動生成)"""
+    username = request.form.get("username", "").strip()
+    new_password = request.form.get("new_password", "").strip()
+    auto_generated = False
+    if not new_password:
+        new_password = _random_password()
+        auto_generated = True
+
+    if not username:
+        flash("ユーザー名を入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if len(new_password) < 4:
+        flash("パスワードは4文字以上で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    target_user = User.query.filter_by(username=username).first()
+    if not target_user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    target_user.set_password(new_password)
+    db.session.add(AdminAccountLog(
+        admin_username=current_user.username, action="password_changed", target_username=username,
+        details=f"パスワード{'自動生成' if auto_generated else '指定'}で変更",
+    ))
+    db.session.commit()
+
+    flash(f"{username} のパスワードを変更しました。新しいパスワード: {new_password}", "success")
     return redirect(url_for("admin.dashboard"))
 
 
