@@ -518,8 +518,9 @@
   <p style="font-size: 13px;">ランダムなIDのテストアカウントを、指定したパスワードで1つ作成します。指定した人数分の「招待した」ダミーアカウントも同時に作られるため、招待ランキング企画などのテストに使えます。</p>
   <form method="POST" action="{{ url_for('admin.create_test_account') }}">
     <div class="field">
-      <label for="test-account-password">パスワード(このテストアカウント用)</label>
-      <input type="text" id="test-account-password" name="password" placeholder="4文字以上" required>
+      <label for="test-account-password">パスワード(空欄なら自動生成されます)</label>
+      <input type="text" id="test-account-password" name="password" placeholder="空欄でOK・指定する場合は4文字以上">
+      <p class="text-muted" style="font-size: 11px; margin: 4px 0 0;">ユーザー名も、テストアカウントだと分からないような自然な見た目(例: SwiftFox482)で自動生成されます。</p>
     </div>
     <div class="field">
       <label for="test-account-referrals">招待人数(ダミーアカウントを何人分作るか)</label>
@@ -543,6 +544,34 @@
     </div>
     <button type="submit" class="btn btn-ember">招待人数を付与する</button>
   </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>🔑 ID・パスワードの変更</h3>
+  <div style="display:flex; gap: 16px; flex-wrap: wrap;">
+    <form method="POST" action="{{ url_for('admin.change_username') }}" style="flex:1; min-width: 220px;">
+      <div class="field">
+        <label for="change-username-current">現在のユーザー名</label>
+        <input type="text" id="change-username-current" name="current_username" required>
+      </div>
+      <div class="field">
+        <label for="change-username-new">新しいユーザー名</label>
+        <input type="text" id="change-username-new" name="new_username" required>
+      </div>
+      <button type="submit" class="btn btn-ghost">IDを変更する</button>
+    </form>
+    <form method="POST" action="{{ url_for('admin.change_password') }}" style="flex:1; min-width: 220px;">
+      <div class="field">
+        <label for="change-password-username">ユーザー名</label>
+        <input type="text" id="change-password-username" name="username" required>
+      </div>
+      <div class="field">
+        <label for="change-password-new">新しいパスワード(空欄なら自動生成)</label>
+        <input type="text" id="change-password-new" name="new_password" placeholder="空欄でOK">
+      </div>
+      <button type="submit" class="btn btn-ghost">パスワードを変更する</button>
+    </form>
+  </div>
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
@@ -734,6 +763,120 @@
   </table>
 </div>
 </div>
+
+<div class="panel" style="margin-top: 24px;">
+  <h3>📋 管理者ログ(種類ごとに分けて表示)</h3>
+  <div style="display:flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+    <button type="button" class="btn btn-ghost admin-log-tab active" data-tab="log-account-creation" style="font-size: 12px; padding: 6px 12px;">アカウント作成</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-referral-grant" style="font-size: 12px; padding: 6px 12px;">招待人数付与</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-id-password" style="font-size: 12px; padding: 6px 12px;">ID・パスワード変更</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-casino" style="font-size: 12px; padding: 6px 12px;">カジノログ</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-grant" style="font-size: 12px; padding: 6px 12px;">付与ログ</button>
+  </div>
+
+  <div id="log-account-creation" class="admin-log-panel">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>作成したユーザー</th><th>操作した管理者</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in account_creation_logs %}
+          <tr>
+            <td>{{ log.target_username }}</td>
+            <td class="text-muted">{{ log.admin_username }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-referral-grant" class="admin-log-panel" style="display:none;">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>対象ユーザー</th><th>操作した管理者</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in referral_grant_logs %}
+          <tr>
+            <td>{{ log.target_username }}</td>
+            <td class="text-muted">{{ log.admin_username }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-id-password" class="admin-log-panel" style="display:none;">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>種類</th><th>対象ユーザー</th><th>操作した管理者</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in id_password_logs %}
+          <tr>
+            <td class="text-muted">{{ "ID変更" if log.action == "username_changed" else "パスワード変更" }}</td>
+            <td>{{ log.target_username }}</td>
+            <td class="text-muted">{{ log.admin_username }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-casino" class="admin-log-panel" style="display:none;">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>ゲーム</th><th>賭け金</th><th>払い戻し</th><th>倍率</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for bet in casino_logs %}
+          <tr>
+            <td>{{ bet.user.username }}</td>
+            <td class="text-muted">{{ bet.game }}</td>
+            <td class="mono">{{ "{:,}".format(bet.wager) }}</td>
+            <td class="mono {{ 'text-win' if bet.payout > bet.wager else 'text-loss' }}">{{ "{:,}".format(bet.payout) }}</td>
+            <td class="mono text-muted">{{ "%.2f"|format(bet.multiplier) }}x</td>
+            <td class="text-muted">{{ bet.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-grant" class="admin-log-panel" style="display:none;">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>金額</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for tx in grant_logs %}
+          <tr>
+            <td>{{ tx.user.username }}</td>
+            <td class="mono {{ 'text-win' if tx.amount > 0 else 'text-loss' }}">{{ "{:+,}".format(tx.amount) }}</td>
+            <td class="text-muted">{{ tx.description }}</td>
+            <td class="text-muted">{{ tx.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -881,4 +1024,18 @@
     refresh();
   })();
 </script>
+<script>
+  // 管理者ログのタブ切り替え
+  document.querySelectorAll(".admin-log-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".admin-log-tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".admin-log-panel").forEach((p) => p.style.display = "none");
+      document.getElementById(btn.dataset.tab).style.display = "block";
+    });
+  });
+</script>
+<style>
+  .admin-log-tab.active { border-color: var(--ember); color: var(--ember); }
+</style>
 {% endblock %}
