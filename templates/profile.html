@@ -19,6 +19,43 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 10px;">🔑 アカウント設定</h3>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">ユーザー名・パスワードの変更には、現在のパスワードの入力が必要です。</p>
+
+  <div style="display:flex; gap: 16px; flex-wrap: wrap;">
+    <form method="POST" action="{{ url_for('profile.change_own_username') }}" style="flex:1; min-width: 220px;">
+      <h4 style="font-size: 13px; margin-bottom: 8px;">ユーザー名(ID)を変更</h4>
+      <div class="field">
+        <label for="pf-new-username">新しいユーザー名</label>
+        <input type="text" id="pf-new-username" name="new_username" required>
+      </div>
+      <div class="field">
+        <label for="pf-username-current-pw">現在のパスワード</label>
+        <input type="password" id="pf-username-current-pw" name="current_password" required>
+      </div>
+      <button type="submit" class="btn btn-ghost">ユーザー名を変更する</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('profile.change_own_password') }}" style="flex:1; min-width: 220px;">
+      <h4 style="font-size: 13px; margin-bottom: 8px;">パスワードを変更</h4>
+      <div class="field">
+        <label for="pf-current-pw">現在のパスワード</label>
+        <input type="password" id="pf-current-pw" name="current_password" required>
+      </div>
+      <div class="field">
+        <label for="pf-new-pw">新しいパスワード</label>
+        <input type="password" id="pf-new-pw" name="new_password" required>
+      </div>
+      <div class="field">
+        <label for="pf-new-pw-confirm">新しいパスワード(確認)</label>
+        <input type="password" id="pf-new-pw-confirm" name="new_password_confirm" required>
+      </div>
+      <button type="submit" class="btn btn-ghost">パスワードを変更する</button>
+    </form>
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 8px;">レベル進捗</h3>
   <div style="background: var(--bg-raised); border-radius: 100px; height: 14px; overflow: hidden; margin-bottom: 6px;">
     <div style="background: linear-gradient(90deg, var(--ember), var(--gold)); height: 100%; width: {{ (user.xp_progress * 100) | round(1) }}%;"></div>
