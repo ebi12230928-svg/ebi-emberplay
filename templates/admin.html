@@ -514,6 +514,38 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3>🧪 テストアカウントを作成</h3>
+  <p style="font-size: 13px;">ランダムなIDのテストアカウントを、指定したパスワードで1つ作成します。指定した人数分の「招待した」ダミーアカウントも同時に作られるため、招待ランキング企画などのテストに使えます。</p>
+  <form method="POST" action="{{ url_for('admin.create_test_account') }}">
+    <div class="field">
+      <label for="test-account-password">パスワード(このテストアカウント用)</label>
+      <input type="text" id="test-account-password" name="password" placeholder="4文字以上" required>
+    </div>
+    <div class="field">
+      <label for="test-account-referrals">招待人数(ダミーアカウントを何人分作るか)</label>
+      <input type="number" id="test-account-referrals" name="referral_count" value="0" min="0" max="500">
+    </div>
+    <button type="submit" class="btn btn-ember">テストアカウントを作成</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3>🎁 既存アカウントに招待人数を付与</h3>
+  <p style="font-size: 13px;">既に存在するアカウントに対して、指定した人数分の「招待した」ダミーアカウントを追加で作成し、招待人数を後から積み増しできます。</p>
+  <form method="POST" action="{{ url_for('admin.grant_referrals') }}">
+    <div class="field">
+      <label for="grant-referral-username">ユーザー名</label>
+      <input type="text" id="grant-referral-username" name="username" required>
+    </div>
+    <div class="field">
+      <label for="grant-referral-count">追加する招待人数</label>
+      <input type="number" id="grant-referral-count" name="referral_count" value="1" min="1" max="500">
+    </div>
+    <button type="submit" class="btn btn-ember">招待人数を付与する</button>
+  </form>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3>ポイントを付与(個別)</h3>
   <form method="POST" action="{{ url_for('admin.grant_points') }}">
     <div class="field">
