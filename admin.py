@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong, AdminAccountLog, BetRecord
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong, AdminAccountLog, BetRecord, WithdrawalRequest, Video, WithdrawalPoolSetting
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -104,6 +104,13 @@ def dashboard():
     ).order_by(AdminAccountLog.created_at.desc()).limit(50).all()
     casino_logs = BetRecord.query.order_by(BetRecord.created_at.desc()).limit(50).all()
     grant_logs = Transaction.query.filter_by(kind="admin_grant").order_by(Transaction.created_at.desc()).limit(50).all()
+    pending_withdrawals = WithdrawalRequest.query.filter_by(status="pending").order_by(WithdrawalRequest.created_at.asc()).all()
+    sent_withdrawals = WithdrawalRequest.query.filter_by(status="sent").order_by(WithdrawalRequest.sent_at.desc()).limit(30).all()
+
+    from videos import _remaining_withdrawal_budget
+    withdrawal_pool = WithdrawalPoolSetting.query.get("default")
+    withdrawal_budget_total = withdrawal_pool.total_budget_yen if withdrawal_pool else 0
+    withdrawal_budget_remaining = _remaining_withdrawal_budget()
 
     return render_template(
         "admin.html", users=users, recent_tx=recent_tx, query=query, codes=codes, announcements=announcements,
@@ -118,6 +125,8 @@ def dashboard():
         enemy_tier_labels=ENEMY_TIER_LABELS,
         account_creation_logs=account_creation_logs, referral_grant_logs=referral_grant_logs,
         id_password_logs=id_password_logs, casino_logs=casino_logs, grant_logs=grant_logs,
+        pending_withdrawals=pending_withdrawals, sent_withdrawals=sent_withdrawals,
+        withdrawal_budget_total=withdrawal_budget_total, withdrawal_budget_remaining=withdrawal_budget_remaining,
     )
 
 
@@ -370,6 +379,61 @@ def change_password():
     db.session.commit()
 
     flash(f"{username} のパスワードを変更しました。新しいパスワード: {new_password}", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/withdrawals/<int:request_id>/mark-sent", methods=["POST"])
+@login_required
+@admin_required
+def mark_withdrawal_sent(request_id):
+    """
+    管理者専用: 出金申請の内容(PayPay ID/請求リンク)を見て、実際にPayPayアプリから
+    手動で送金した後、このボタンで「送金済み」にする。このサイトが自動で送金することは一切ない。
+    """
+    wd = WithdrawalRequest.query.get_or_404(request_id)
+    if wd.status == "sent":
+        flash("すでに送金済みです。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    from models import utcnow
+    wd.status = "sent"
+    wd.sent_at = utcnow()
+    wd.sent_by_admin = current_user.username
+    db.session.commit()
+
+    notify(wd.user_id, f"出金申請({wd.amount_yen}円)への送金が完了しました。ご確認ください。")
+    db.session.commit()
+
+    flash(f"{wd.user.username} への{wd.amount_yen}円の出金を送金済みにしました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/withdrawals/set-budget", methods=["POST"])
+@login_required
+@admin_required
+def set_withdrawal_budget():
+    """
+    管理者専用: 出金依頼への対応予算(総額)を設定する。出金依頼が集中して対応しきれなくなるのを
+    防ぐため、「今対応できる総額」を決めておくことで、それを超える新規申請を自動的に防げる。
+    """
+    try:
+        budget = int(request.form.get("total_budget_yen", "0"))
+    except ValueError:
+        flash("予算額は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if budget < 0:
+        flash("予算額は0円以上で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    pool = WithdrawalPoolSetting.query.get("default")
+    if not pool:
+        pool = WithdrawalPoolSetting(key="default", total_budget_yen=budget)
+        db.session.add(pool)
+    else:
+        pool.total_budget_yen = budget
+    db.session.commit()
+
+    flash(f"出金予算を{budget:,}円に設定しました。", "success")
     return redirect(url_for("admin.dashboard"))
 
 

@@ -82,6 +82,7 @@ def _auto_migrate(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 動画アップロード対応のため500MBまで許可
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -125,6 +126,7 @@ def create_app():
     from titles import titles_bp
     from tournament import tournament_bp
     from dm import dm_bp
+    from videos import videos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -161,6 +163,7 @@ def create_app():
     app.register_blueprint(titles_bp)
     app.register_blueprint(tournament_bp)
     app.register_blueprint(dm_bp)
+    app.register_blueprint(videos_bp)
 
     @app.context_processor
     def inject_user():

@@ -34,6 +34,8 @@ class User(UserMixin, db.Model):
     bot_difficulty = db.Column(db.String(16), nullable=True)  # easy / normal / hard(is_bot=Trueの時のみ意味を持つ)
     active_title = db.Column(db.String(32), nullable=True)  # 現在表示中の称号キー
     active_rhythm_skin = db.Column(db.String(32), nullable=True)  # リズムゲームで使用中のノーツスキン
+    video_watch_seconds_total = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴の累計秒数
+    video_earnings_milliyen = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴による収益(1000分の1円単位。500円=500000)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -1030,3 +1032,103 @@ class TournamentScore(db.Model):
     user = db.relationship("User")
 
     __table_args__ = (db.UniqueConstraint("tournament_id", "user_id", name="uq_tournament_score"),)
+
+
+# ───────── 動画投稿・視聴プラットフォーム ─────────
+
+class Video(db.Model):
+    """アップロードされた動画。1時間以内の動画のみアップロード可能。"""
+    id = db.Column(db.Integer, primary_key=True)
+    uploader_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    title = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, default="")
+    filename = db.Column(db.String(255), nullable=False)  # static/uploads/videos/ 以下のファイル名
+    duration_seconds = db.Column(db.Integer, default=0, nullable=False)
+    view_count = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    uploader = db.relationship("User", foreign_keys=[uploader_id])
+    comments = db.relationship("VideoComment", backref="video", lazy="dynamic", cascade="all, delete-orphan")
+    likes = db.relationship("VideoLike", backref="video", lazy="dynamic", cascade="all, delete-orphan")
+
+    @property
+    def like_count(self):
+        return self.likes.filter_by(is_like=True).count()
+
+    @property
+    def dislike_count(self):
+        return self.likes.filter_by(is_like=False).count()
+
+
+class VideoComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    video_id = db.Column(db.Integer, db.ForeignKey("video.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    message = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+class VideoLike(db.Model):
+    """高評価・低評価。1ユーザー1動画につき1レコードまで(is_likeで切り替える)"""
+    id = db.Column(db.Integer, primary_key=True)
+    video_id = db.Column(db.Integer, db.ForeignKey("video.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    is_like = db.Column(db.Boolean, nullable=False)  # True=高評価 / False=低評価
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("video_id", "user_id", name="uq_video_like"),)
+
+
+class VideoWatchProgress(db.Model):
+    """
+    ユーザーごと・動画ごとの「収益に計上済みの視聴秒数」を記録する。
+    同じ動画を何度も見ても、収益として計上されるのは1動画につき最大30分(1800秒)まで
+    (不正な収益稼ぎ対策)。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    video_id = db.Column(db.Integer, db.ForeignKey("video.id"), nullable=False, index=True)
+    counted_seconds = db.Column(db.Integer, default=0, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "video_id", name="uq_video_watch_progress"),)
+
+
+class ChannelSubscription(db.Model):
+    """チャンネル登録(フォロー)。subscriber が channel_owner を登録している状態"""
+    id = db.Column(db.Integer, primary_key=True)
+    subscriber_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    channel_owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    __table_args__ = (db.UniqueConstraint("subscriber_id", "channel_owner_id", name="uq_channel_subscription"),)
+
+
+class WithdrawalRequest(db.Model):
+    """
+    動画視聴による収益の出金申請。最低出金額は500円。
+    ユーザーがPayPayのID(電話番号など)または請求リンクのどちらかを入力し、
+    管理者が手動で実際に送金した後、「送金済み」ボタンを押して完了とする。
+    このサイト自体が自動で送金することは一切ない(実際の送金操作は必ず管理者が手動で行う)。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    amount_yen = db.Column(db.Integer, nullable=False)  # 円(整数)
+    paypay_destination = db.Column(db.String(255), nullable=False)  # PayPay ID または請求リンク
+    status = db.Column(db.String(16), default="pending", nullable=False)  # pending / sent
+    created_at = db.Column(db.DateTime, default=utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    sent_by_admin = db.Column(db.String(32), nullable=True)
+
+    user = db.relationship("User")
+
+
+class WithdrawalPoolSetting(db.Model):
+    """
+    管理者が設定する「出金予算の上限」。出金依頼が集中して対応しきれなくなるのを防ぐため、
+    管理者が「今対応できる総額」を決めておき、申請額の合計がこれを超えたら新規申請を
+    受け付けないようにする。残り予算はリアルタイムで表示・更新される。
+    """
+    key = db.Column(db.String(16), primary_key=True, default="default")
+    total_budget_yen = db.Column(db.Integer, default=0, nullable=False)
