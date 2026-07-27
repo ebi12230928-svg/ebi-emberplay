@@ -145,6 +145,115 @@ def grant_points():
     return redirect(url_for("admin.dashboard"))
 
 
+def _random_username(prefix="test"):
+    """ランダムなIDのユーザー名を、重複しないものが見つかるまで生成する"""
+    while True:
+        candidate = f"{prefix}_{secrets.token_hex(4)}"  # 例: test_a1b2c3d4
+        if not User.query.filter_by(username=candidate).first():
+            return candidate
+
+
+def _random_referral_code():
+    while True:
+        code = secrets.token_hex(4).upper()
+        if not User.query.filter_by(referral_code=code).first():
+            return code
+
+
+@admin_bp.route("/admin/create-test-account", methods=["POST"])
+@login_required
+@admin_required
+def create_test_account():
+    """
+    管理者専用: ランダムなID・指定したパスワード・指定した招待人数(紹介したことになっている
+    ダミーアカウントの数)を持つテストアカウントを、ボタン1つで作成する。
+    招待ランキング企画などのテストに使うことを想定している。
+    """
+    password = request.form.get("password", "").strip()
+    try:
+        referral_count = int(request.form.get("referral_count", "0"))
+    except ValueError:
+        flash("招待人数は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if not password or len(password) < 4:
+        flash("パスワードは4文字以上で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+    if referral_count < 0 or referral_count > 500:
+        flash("招待人数は0〜500の範囲で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    username = _random_username("test")
+    main_user = User(
+        username=username, referral_code=_random_referral_code(),
+        balance=0,
+    )
+    main_user.set_password(password)
+    db.session.add(main_user)
+    db.session.flush()  # main_user.id を確定させる(referred_by_idで使うため)
+
+    # 指定人数分の「紹介された側」のダミーアカウントも作成する
+    for _ in range(referral_count):
+        dummy_username = _random_username("invitee")
+        dummy_password = secrets.token_hex(6)  # ログインさせる想定は無いので、ランダムでよい
+        dummy = User(
+            username=dummy_username, referral_code=_random_referral_code(),
+            balance=0, referred_by_id=main_user.id,
+        )
+        dummy.set_password(dummy_password)
+        db.session.add(dummy)
+
+    db.session.commit()
+
+    flash(
+        f"テストアカウントを作成しました。ユーザー名: {username} / パスワード: {password} "
+        f"/ 招待人数: {referral_count}人(ダミーアカウントも同時に作成済み)",
+        "success"
+    )
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/grant-referrals", methods=["POST"])
+@login_required
+@admin_required
+def grant_referrals():
+    """
+    管理者専用: 既存のアカウントに対して、指定した人数分の「招待した」ダミーアカウントを
+    追加で作成し、招待人数を後から積み増しできるようにする。招待ランキング企画などのテストや、
+    運営判断での招待人数調整に使うことを想定している。
+    """
+    username = request.form.get("username", "").strip()
+    try:
+        referral_count = int(request.form.get("referral_count", "0"))
+    except ValueError:
+        flash("追加する招待人数は数値で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    target_user = User.query.filter_by(username=username).first()
+    if not target_user:
+        flash("指定されたユーザーが見つかりません。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    if referral_count <= 0 or referral_count > 500:
+        flash("追加する招待人数は1〜500の範囲で入力してください。", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    for _ in range(referral_count):
+        dummy_username = _random_username("invitee")
+        dummy_password = secrets.token_hex(6)
+        dummy = User(
+            username=dummy_username, referral_code=_random_referral_code(),
+            balance=0, referred_by_id=target_user.id,
+        )
+        dummy.set_password(dummy_password)
+        db.session.add(dummy)
+
+    db.session.commit()
+
+    flash(f"{target_user.username} に招待人数を{referral_count}人分追加しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
 @admin_bp.route("/admin/broadcast", methods=["POST"])
 @login_required
 @admin_required
