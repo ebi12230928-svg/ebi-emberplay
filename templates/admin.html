@@ -699,7 +699,7 @@
 <div class="table-scroll">
   <table>
     <thead>
-      <tr><th>ユーザー名</th><th>残高</th><th>借金</th><th>管理者</th><th>VIP</th><th>ブラックリスト</th><th>登録日</th><th></th></tr>
+      <tr><th>ユーザー名</th><th>残高</th><th>借金</th><th>管理者</th><th>VIP</th><th>ブラックリスト</th><th>直近IP</th><th>登録日</th><th></th></tr>
     </thead>
     <tbody>
       {% for u in users %}
@@ -710,6 +710,10 @@
         <td>{{ "はい" if u.is_admin else "いいえ" }}</td>
         <td>{{ vip_tier_names[u.vip_tier] if u.is_vip else "いいえ" }}</td>
         <td>{% if u.is_blacklisted %}<span class="text-loss">🚫 登録中</span>{% else %}-{% endif %}</td>
+        <td class="mono text-muted" style="font-size: 11px;">
+          {{ u.last_ip or "-" }}
+          {% if u.vpn_flagged %}<br><span class="text-loss">⚠️VPN疑い</span>{% endif %}
+        </td>
         <td class="text-muted">{{ u.created_at.strftime("%Y/%m/%d") }}</td>
         <td style="white-space: nowrap;">
           <form method="POST" action="{{ url_for('admin.toggle_admin') }}" style="display:inline;">
@@ -827,6 +831,9 @@
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-id-password" style="font-size: 12px; padding: 6px 12px;">ID・パスワード変更</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-casino" style="font-size: 12px; padding: 6px 12px;">カジノログ</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-grant" style="font-size: 12px; padding: 6px 12px;">付与ログ</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-fraud" style="font-size: 12px; padding: 6px 12px;">🚨不正検知</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-auto-blacklist" style="font-size: 12px; padding: 6px 12px;">⛔自動ブラックリスト</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-ip" style="font-size: 12px; padding: 6px 12px;">🌐IPログ</button>
   </div>
 
   <div id="log-account-creation" class="admin-log-panel">
@@ -923,6 +930,68 @@
             <td class="mono {{ 'text-win' if tx.amount > 0 else 'text-loss' }}">{{ "{:+,}".format(tx.amount) }}</td>
             <td class="text-muted">{{ tx.description }}</td>
             <td class="text-muted">{{ tx.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-fraud" class="admin-log-panel" style="display:none;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">CAPTCHA連続失敗・動画視聴収益の異常なペースなど、不正の疑いがある行動を検知した記録です。同じ理由で短時間に一定回数検知されると、自動的にブラックリストに追加されます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>理由</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in fraud_logs %}
+          <tr>
+            <td>{{ log.user.username if log.user else "(不明)" }}</td>
+            <td class="text-muted">{{ log.reason }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-auto-blacklist" class="admin-log-panel" style="display:none;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">不正検知により、システムが自動的にブラックリストに追加したアカウントの記録です。誤検知の場合は、ユーザー管理からブラックリストを解除できます。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in auto_blacklist_logs %}
+          <tr>
+            <td>{{ log.target_username }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-ip" class="admin-log-panel" style="display:none;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">ユーザーのアクセスIPアドレスの履歴です。前回と異なるIPになった時だけ記録されます(不正な多重アカウント・VPN利用の調査にお使いください)。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>IPアドレス</th><th>VPN疑い</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in ip_logs %}
+          <tr>
+            <td>{{ log.user.username }}</td>
+            <td class="mono text-muted">{{ log.ip_address }}</td>
+            <td>{% if log.vpn_flagged %}<span class="text-loss">⚠️疑いあり</span>{% else %}-{% endif %}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
           </tr>
           {% else %}
           <tr><td colspan="4" class="text-muted">まだ記録がありません。</td></tr>
