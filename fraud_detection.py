@@ -18,7 +18,7 @@ FLAG_RULES = {
     "watch_progress_abuse": {"window_minutes": 10, "threshold": 5},
     "referral_burst": {"window_minutes": 60, "threshold": 3},        # 短時間に大量の招待を繰り返す
     "withdrawal_spam": {"window_minutes": 60, "threshold": 5},        # 出金申請の連発
-    "multi_account_same_ip": {"window_minutes": 1440, "threshold": 4},  # 同じIPからの多重アカウント
+    "multi_account_same_ip": {"window_minutes": 1440, "threshold": 1},  # 同じIPからの多重アカウントは即座に対象
     "vpn_detected": {"window_minutes": 1440, "threshold": 1},          # VPN/プロキシ検知は1回で即対象
 }
 
@@ -38,22 +38,50 @@ def _client_ip():
 # 本格的なVPN検知には、IPQualityScoreやIP2Proxyなどの有料IP判定サービスとの連携が必要になる。
 # ここでは、外部サービスとの契約が無くても最低限の判定ができるよう、
 # 主要クラウド事業者のIPレンジ(VPN業者がよく間借りしている)を簡易的にチェックしている。
+#
+# 【重要な限界】この方式では、NordVPN・ExpressVPN・Surfsharkなど、一般的な民生用VPNサービスの
+# 多くは検知できない。これらの多くは、クラウド事業者だけでなく、独自に確保した多種多様なIPを
+# 使っており、住宅用回線のIPに偽装するサービス(レジデンシャルIP)も増えているため、
+# IPレンジの一覧だけでは検知しきれない。本当に確実な検知が必要な場合は、
+# 有料のIP判定サービス(下記のcheck_via_external_api関数を参照)との連携が必須になる。
 _KNOWN_DATACENTER_PREFIXES = (
     "3.", "13.", "18.", "34.", "35.", "52.", "54.",   # AWS系
     "104.196.", "104.197.", "104.198.", "35.184.", "35.185.",  # Google Cloud系
     "20.", "40.", "52.16", "104.40.",                  # Azure系
     "104.131.", "138.68.", "142.93.", "159.65.", "165.22.",  # DigitalOcean系
+    "45.32.", "45.63.", "45.76.", "45.77.", "108.61.",  # Vultr系
+    "172.104.", "172.105.", "139.162.", "139.144.",     # Linode(Akamai)系
+    "185.220.", "185.221.",                              # よく知られたVPN/Tor系ホスティングブロック
+    "5.157.", "23.129.", "51.15.", "51.68.", "51.75.", "51.77.", "51.83.", "51.89.",  # 欧州系VPS事業者に多い
 )
+
+
+def check_via_external_api(ip):
+    """
+    【差し替え用のフック】より確実なVPN判定をしたい場合は、この関数の中身を、
+    IPQualityScore・IP2Proxy・IPHubなどの有料IP判定サービスへのAPI呼び出しに置き換えてください。
+    (PythonAnywhereの無料プランでは、許可リストに無いドメインへは通信できないため、
+    使うサービスのドメインを事前にPythonAnywhereサポートへ申請して許可してもらうか、
+    有料プランへのアップグレードが必要になる場合があります)
+    現時点では未設定のため、常にNoneを返す(=判定に使わない)。
+    """
+    return None
 
 
 def is_vpn_or_proxy(ip):
     """
-    簡易的なVPN/プロキシ判定。あくまで「クラウド・データセンター経由の疑いがあるIPかどうか」の
-    大まかな目安であり、完全な判定ではない(本格的な判定には、有料のIP判定サービスとの連携が
-    別途必要になる。その場合は、この関数の中身を外部APIの呼び出しに差し替えるだけで済む設計にしている)。
+    VPN/プロキシ判定。まず外部API判定フック(設定されていれば)を試し、
+    未設定の場合は、既知のデータセンター系IPレンジによる簡易判定にフォールバックする。
+    あくまで「クラウド・データセンター経由の疑いがあるIPかどうか」の大まかな目安であり、
+    完全な判定ではない(詳しくはcheck_via_external_apiのコメントを参照)。
     """
     if not ip or ip == "unknown":
         return False
+
+    external_result = check_via_external_api(ip)
+    if external_result is not None:
+        return external_result
+
     return any(ip.startswith(prefix) for prefix in _KNOWN_DATACENTER_PREFIXES)
 
 
@@ -84,7 +112,7 @@ def track_ip(user):
     other_accounts_same_ip = User.query.filter(
         User.id != user.id, User.last_ip == ip, User.is_npc.is_(False)
     ).count()
-    if other_accounts_same_ip >= 3:  # 同じIPに4アカウント目以降が現れたら怪しいとみなす
+    if other_accounts_same_ip >= 1:  # 同じIPを使う他のアカウントが1つでもあれば、即座に検知する
         check_and_flag(user.id, "multi_account_same_ip", f"同一IP({ip})を使う他アカウントが{other_accounts_same_ip}件")
 
     if is_vpn_or_proxy(ip) and not user.vpn_flagged:

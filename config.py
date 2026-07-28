@@ -27,13 +27,18 @@ class Config:
     REFERRAL_BONUS_REFERRER = 1000  # 紹介した側が受け取るボーナス
 
     # ── Discord連携(OAuth2。パスワードは一切受け取らず、Discord公式の認可画面のみを使う) ──
-    # 事前にDiscord Developer Portal(https://discord.com/developers/applications)で
-    # アプリケーションを作成し、クライアントID・シークレットを取得した上で、
-    # サーバー側の環境変数として DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI
-    # を設定してください(コードには一切書き込まない)。
-    DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
-    DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
-    DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
+    # 設定の優先順位:
+    #   1. サーバーの環境変数(有料プランで「Environment variables」が使える場合はこちらを推奨)
+    #   2. local_secrets.py(無料プランなど、環境変数が使えない場合。GitHubには一切上げず、
+    #      PythonAnywhereのサーバー上で直接作成すること。.gitignoreに登録済み)
+    try:
+        import local_secrets as _local_secrets
+    except ImportError:
+        _local_secrets = None
+
+    DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID") or getattr(_local_secrets, "DISCORD_CLIENT_ID", "")
+    DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET") or getattr(_local_secrets, "DISCORD_CLIENT_SECRET", "")
+    DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI") or getattr(_local_secrets, "DISCORD_REDIRECT_URI", "")
 
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
     SPIN_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]                    # 各候補の出やすさ(合計比率)
