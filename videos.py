@@ -13,12 +13,13 @@ import os
 import subprocess
 import uuid
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
 
 from extensions import db
 from models import User, Video, VideoComment, VideoLike, ChannelSubscription, VideoWatchProgress, WithdrawalRequest, WithdrawalPoolSetting
 from notifications import notify
+from auth import _generate_captcha
 
 videos_bp = Blueprint("videos", __name__)
 
@@ -76,10 +77,18 @@ def index():
 @login_required
 def upload():
     if request.method == "GET":
+        target, options = _generate_captcha("captcha_video_upload")
         return render_template(
             "videos_upload.html", max_minutes=MAX_VIDEO_DURATION_SECONDS // 60,
             max_mb=MAX_UPLOAD_BYTES // (1024 * 1024),
+            captcha_target=target, captcha_options=options,
         )
+
+    captcha_answer = request.form.get("captcha_answer", "").strip()
+    correct_answer = session.pop("captcha_video_upload", None)
+    if not correct_answer or captcha_answer != correct_answer:
+        flash("画像の確認に失敗しました。表示されたローマ字と一致するものを選び直してください。", "error")
+        return redirect(url_for("videos.upload"))
 
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
@@ -137,6 +146,8 @@ def watch(video_id):
     video.view_count += 1
     db.session.commit()
 
+    captcha_target, captcha_options = _generate_captcha(f"captcha_watch_{video_id}")
+
     comments = video.comments.order_by(VideoComment.created_at.desc()).all()
     my_like = VideoLike.query.filter_by(video_id=video_id, user_id=current_user.id).first()
     is_subscribed = ChannelSubscription.query.filter_by(
@@ -147,7 +158,45 @@ def watch(video_id):
     return render_template(
         "videos_watch.html", video=video, comments=comments, my_like=my_like,
         is_subscribed=is_subscribed, subscriber_count=subscriber_count,
+        captcha_target=captcha_target, captcha_options=captcha_options,
     )
+
+
+WATCH_VERIFICATION_VALID_SECONDS = 10 * 60  # 一度確認したら10分間は再確認不要にする
+
+
+@videos_bp.route("/videos/<int:video_id>/verify-watch", methods=["POST"])
+@login_required
+def verify_watch(video_id):
+    """
+    動画視聴による収益稼ぎを自動化ツールで行えないようにするための本人確認。
+    正解すると、このセッションでこの動画については10分間、視聴収益のカウントが有効になる。
+    10分経つと再度確認が必要になる(スクリプトを流しっぱなしにして稼ぎ続けることを防ぐため)。
+    """
+    from models import utcnow
+    from datetime import timedelta
+
+    Video.query.get_or_404(video_id)
+    data = request.get_json(force=True)
+    answer = (data.get("answer") or "").strip()
+
+    correct_answer = session.pop(f"captcha_watch_{video_id}", None)
+    if not correct_answer or answer != correct_answer:
+        target, options = _generate_captcha(f"captcha_watch_{video_id}")
+        return jsonify({"ok": False, "captcha_target": target, "captcha_options": options}), 400
+
+    expiry = utcnow() + timedelta(seconds=WATCH_VERIFICATION_VALID_SECONDS)
+    session[f"watch_verified_{video_id}"] = expiry.isoformat()
+    return jsonify({"ok": True, "valid_seconds": WATCH_VERIFICATION_VALID_SECONDS})
+
+
+@videos_bp.route("/videos/<int:video_id>/watch-captcha")
+@login_required
+def watch_captcha(video_id):
+    """再確認が必要になった時に、新しいお手本・選択肢を取得するためのAPI"""
+    Video.query.get_or_404(video_id)
+    target, options = _generate_captcha(f"captcha_watch_{video_id}")
+    return jsonify({"captcha_target": target, "captcha_options": options})
 
 
 @videos_bp.route("/videos/<int:video_id>/comment", methods=["POST"])
@@ -226,8 +275,24 @@ def watch_progress(video_id):
     再生中のプレイヤーから数秒おきに呼ばれ、新たに視聴した秒数を収益に加算する。
     同じ動画は、その動画自体の長さ分までしか収益として計上されない
     (=1本の動画につき、実質1回視聴した分だけ稼げる。再生を繰り返しても追加では稼げない)。
+    また、直近で本人確認(CAPTCHA)に成功していない場合は、収益を一切加算しない
+    (自動再生ツール・スクリプトによる収益稼ぎを防ぐため)。
     """
+    from models import utcnow
+    from datetime import datetime as _datetime
+
     video = Video.query.get_or_404(video_id)
+
+    verified_until_raw = session.get(f"watch_verified_{video_id}")
+    verified = False
+    if verified_until_raw:
+        try:
+            verified = utcnow() < _datetime.fromisoformat(verified_until_raw)
+        except Exception:
+            verified = False
+    if not verified:
+        return jsonify({"ok": False, "needs_verification": True}), 403
+
     try:
         new_seconds = int(request.get_json(force=True).get("seconds", 0))
     except Exception:

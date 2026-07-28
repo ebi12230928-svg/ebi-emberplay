@@ -15,13 +15,15 @@ auth_bp = Blueprint("auth", __name__)
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,20}$")
 
 
-def _generate_captcha():
+def _generate_captcha(session_key="captcha_target"):
     """
-    マクロ・自動化ツールによる無限アカウント作成(招待の不正稼ぎ)を防ぐための簡易CAPTCHA。
+    マクロ・自動化ツールによる不正行為(無限アカウント作成・動画の自動アップロード・
+    動画の自動再生による収益稼ぎなど)を防ぐための簡易CAPTCHA。
     6文字のランダムなローマ字(大文字)を「お手本」として表示し、
     5つの選択肢の中から、お手本と完全に一致するものを選んでもらう。
     正解はセッション(サーバー側)に保存し、フォームの値を書き換えられても
-    突破できないようにする。
+    突破できないようにする。session_keyを変えることで、複数箇所(登録・動画アップロード・
+    動画視聴など)で同時に使っても、それぞれの正解が混ざらないようにしている。
     """
     target = "".join(secrets.choice(string.ascii_uppercase) for _ in range(6))
 
@@ -40,7 +42,7 @@ def _generate_captcha():
     options = list(options)
     secrets.SystemRandom().shuffle(options)
 
-    session["captcha_target"] = target
+    session[session_key] = target
     return target, options
 
 
