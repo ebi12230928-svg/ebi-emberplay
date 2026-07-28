@@ -54,7 +54,7 @@ def index():
 
     referral_counts = (
         db.session.query(User.referred_by_id, func.count(User.id))
-        .filter(User.referred_by_id.isnot(None))
+        .filter(User.referred_by_id.isnot(None), User.discord_id.isnot(None))
         .group_by(User.referred_by_id)
         .order_by(func.count(User.id).desc())
         .limit(5)

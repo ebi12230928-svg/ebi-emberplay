@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 
 from extensions import db
-from models import User, Transaction
+from models import User, Transaction, utcnow
 from config import Config
 from notifications import notify
 
@@ -97,13 +97,18 @@ def register():
             flash("そのユーザー名はすでに使われています。", "error")
             return render_with_fresh_captcha()
 
-        referrer = User.query.filter_by(referral_code=ref_code).first() if ref_code else None
+        raw_referrer = User.query.filter_by(referral_code=ref_code).first() if ref_code else None
+        # 招待する側(紹介者)がDiscord連携済みでない場合、この紹介コードは無効として扱う
+        # (招待する側・される側の両方がDiscord連携して初めて、紹介として成立させるため)
+        referrer = raw_referrer if (raw_referrer and raw_referrer.discord_id) else None
+        referrer_code_invalid = bool(ref_code) and raw_referrer and not raw_referrer.discord_id
 
-        signup_bonus = Config.SIGNUP_BONUS + (Config.REFERRAL_BONUS_NEW if referrer else 0)
+        signup_bonus = Config.SIGNUP_BONUS  # 紹介ボーナスは、この時点ではまだ付与しない(Discord連携完了後に付与)
 
         user = User(
             username=username, balance=signup_bonus, referral_code=_generate_referral_code(),
-            referred_by_id=referrer.id if referrer else None
+            referred_by_id=referrer.id if referrer else None,
+            referral_bonus_pending=bool(referrer),  # 紹介経由の場合、自分がDiscord連携したらボーナスが付与される
         )
         user.set_password(password)
         db.session.add(user)
@@ -111,17 +116,10 @@ def register():
 
         db.session.add(Transaction(
             user_id=user.id, amount=signup_bonus, kind="signup",
-            description="新規登録ボーナス" + ("(紹介ボーナス込み)" if referrer else "")
+            description="新規登録ボーナス"
         ))
 
         if referrer:
-            referrer.balance += Config.REFERRAL_BONUS_REFERRER
-            db.session.add(Transaction(
-                user_id=referrer.id, amount=Config.REFERRAL_BONUS_REFERRER, kind="referral",
-                description=f"{username} を紹介"
-            ))
-            notify(referrer.id, f"{username} があなたの紹介コードで登録しました。{Config.REFERRAL_BONUS_REFERRER:,} Embersを獲得しました。")
-
             # 同じ人が短時間に大量の招待を成立させている場合、不正な自作自演の疑いとして検知する
             from datetime import timedelta
             recent_referrals = User.query.filter(
@@ -134,7 +132,12 @@ def register():
         db.session.commit()
 
         login_user(user)
-        flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。", "success")
+        if referrer:
+            flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。あなた自身がDiscord連携すると、紹介ボーナスも受け取れます。", "success")
+        elif referrer_code_invalid:
+            flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。なお、入力された紹介コードは、紹介者がDiscord未連携のため今回は適用されませんでした。", "success")
+        else:
+            flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。", "success")
         return redirect(url_for("lobby.index"))
 
     target, options = _generate_captcha()

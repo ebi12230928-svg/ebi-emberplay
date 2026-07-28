@@ -58,16 +58,21 @@ def enter(giveaway_id):
     from sqlalchemy import func
     from models import User
 
+    if not current_user.discord_id:
+        flash("プレゼント企画に参加するには、先にプロフィール画面からDiscordアカウントとの連携が必要です。", "error")
+        return redirect(url_for("giveaway.index"))
+
     giveaway = Giveaway.query.get(giveaway_id)
     if not giveaway or giveaway.status != "open":
         flash("この企画は現在参加できません。", "error")
         return redirect(url_for("giveaway.index"))
 
     if giveaway.source_type == "referral_ranking":
-        # 参加条件: 指定人数以上を紹介していないとエントリーできない
+        # 参加条件: 指定人数以上を紹介していないとエントリーできない(招待した側・された側の
+        # 両方がDiscord連携済みでないとカウントされない)
         my_referral_count = (
             db.session.query(func.count(User.id))
-            .filter(User.referred_by_id == current_user.id)
+            .filter(User.referred_by_id == current_user.id, User.discord_id.isnot(None))
             .scalar() or 0
         )
         if my_referral_count < giveaway.min_referral_count:
@@ -267,11 +272,12 @@ def _draw_referral_ranking(giveaway):
         flash("エントリーした人が1人もいないため抽選できません。", "error")
         return redirect(url_for("admin.dashboard"))
 
-    # エントリーした人それぞれの、現時点での紹介人数を数える
+    # エントリーした人それぞれの、現時点での紹介人数を数える(招待した側・された側の
+    # 両方がDiscord連携済みの人数のみ)
     entrant_ids = [e.user_id for e in entries]
     counts_by_user = dict(
         db.session.query(User.referred_by_id, func.count(User.id))
-        .filter(User.referred_by_id.in_(entrant_ids))
+        .filter(User.referred_by_id.in_(entrant_ids), User.discord_id.isnot(None))
         .group_by(User.referred_by_id)
         .all()
     )

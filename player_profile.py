@@ -61,7 +61,7 @@ def index():
         badge_list.append(entry)
     badge_list.sort(key=lambda b: (not b["unlocked"], b["name"]))
 
-    referral_count = User.query.filter_by(referred_by_id=user.id).count()
+    referral_count = User.query.filter_by(referred_by_id=user.id).filter(User.discord_id.isnot(None)).count()
     giveaway_wins = GiveawayEntry.query.filter_by(user_id=user.id, is_winner=True).count()
 
     next_level_xp = int((user.level ** 2) * 500)
@@ -88,6 +88,14 @@ def apply_referral():
 
     if not referrer or referrer.id == current_user.id:
         flash("有効な紹介コードではありません。", "error")
+        return redirect(url_for("profile.index"))
+
+    if not current_user.discord_id:
+        flash("紹介コードを適用するには、先に自分自身がDiscordアカウントと連携している必要があります。", "error")
+        return redirect(url_for("profile.index"))
+
+    if not referrer.discord_id:
+        flash("この紹介コードは、紹介者がDiscord未連携のため現在適用できません。", "error")
         return redirect(url_for("profile.index"))
 
     current_user.referred_by_id = referrer.id

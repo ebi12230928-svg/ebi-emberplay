@@ -44,6 +44,7 @@ class User(UserMixin, db.Model):
     discord_id = db.Column(db.String(32), unique=True, nullable=True)  # Discordの内部ユーザーID(OAuth2経由でのみ取得。パスワードは一切保存しない)
     discord_username = db.Column(db.String(64), nullable=True)  # 表示用(例: username#1234)
     discord_linked_at = db.Column(db.DateTime, nullable=True)
+    referral_bonus_pending = db.Column(db.Boolean, default=False, nullable=False)  # 招待した側もされた側もDiscord連携が済むまで、紹介ボーナスの支払いを保留する
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)

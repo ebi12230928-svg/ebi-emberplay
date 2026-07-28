@@ -76,6 +76,10 @@ def index():
 @videos_bp.route("/videos/upload", methods=["GET", "POST"])
 @login_required
 def upload():
+    if not current_user.discord_id:
+        flash("動画のアップロード・視聴収益を貯めるには、先にDiscordアカウントとの連携が必要です。", "error")
+        return redirect(url_for("profile.index"))
+
     if request.method == "GET":
         target, options = _generate_captcha("captcha_video_upload")
         return render_template(
@@ -286,6 +290,9 @@ def watch_progress(video_id):
     from datetime import datetime as _datetime
 
     video = Video.query.get_or_404(video_id)
+
+    if not current_user.discord_id:
+        return jsonify({"ok": False, "needs_discord_link": True}), 403
 
     verified_until_raw = session.get(f"watch_verified_{video_id}")
     verified = False
