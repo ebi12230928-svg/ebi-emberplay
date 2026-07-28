@@ -13,7 +13,7 @@
   </div>
   <div id="watch-captcha-options" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px;">
     {% for opt in captcha_options %}
-    <button type="button" class="btn btn-ghost watch-captcha-opt" data-value="{{ opt }}" style="font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px;">{{ opt }}</button>
+    <button type="button" class="btn btn-ghost watch-captcha-opt" data-value="{{ opt }}" style="font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px; width: 100%;">{{ opt }}</button>
     {% endfor %}
   </div>
   <p id="watch-captcha-error" class="text-loss" style="font-size: 12px; display:none; margin:0;">正解と一致しませんでした。もう一度お試しください。</p>
@@ -121,7 +121,7 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "btn btn-ghost watch-captcha-opt";
-        btn.style.cssText = "font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px;";
+        btn.style.cssText = "font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px; width: 100%;";
         btn.dataset.value = opt;
         btn.textContent = opt;
         optionsWrap.appendChild(btn);

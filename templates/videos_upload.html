@@ -28,7 +28,7 @@
     </div>
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
       {% for opt in captcha_options %}
-      <label style="display:flex; align-items:center; justify-content:center; gap: 6px; padding: 10px 8px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--bg-raised); cursor:pointer; overflow: hidden;">
+      <label style="display:flex; align-items:center; justify-content:center; gap: 6px; padding: 10px 8px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--bg-raised); cursor:pointer; overflow: hidden; width: 100%;">
         <input type="radio" name="captcha_answer" value="{{ opt }}" required style="margin:0; flex-shrink:0;">
         <span class="mono" style="font-size: 13px; letter-spacing: 0.5px; white-space: nowrap;">{{ opt }}</span>
       </label>
