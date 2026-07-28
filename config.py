@@ -26,6 +26,15 @@ class Config:
     REFERRAL_BONUS_NEW = 500        # 紹介経由で登録した新規ユーザーへの追加ボーナス
     REFERRAL_BONUS_REFERRER = 1000  # 紹介した側が受け取るボーナス
 
+    # ── Discord連携(OAuth2。パスワードは一切受け取らず、Discord公式の認可画面のみを使う) ──
+    # 事前にDiscord Developer Portal(https://discord.com/developers/applications)で
+    # アプリケーションを作成し、クライアントID・シークレットを取得した上で、
+    # サーバー側の環境変数として DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI
+    # を設定してください(コードには一切書き込まない)。
+    DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
+    DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
+    DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI", "")
+
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
     SPIN_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]                    # 各候補の出やすさ(合計比率)
 

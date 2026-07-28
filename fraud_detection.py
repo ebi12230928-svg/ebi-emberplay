@@ -1,0 +1,135 @@
+"""
+不正検知(CAPTCHA連続失敗・動画視聴収益の異常なペース・IPの多重アカウント・VPN/プロキシなど)から、
+自動でブラックリストに追加する機能。各所から check_and_flag(user_id, reason, details) を
+呼ぶだけで、記録 → 直近の回数チェック → 閾値を超えたら自動ブラックリスト、まで一括で行う。
+"""
+from datetime import timedelta
+
+from flask import request
+from extensions import db
+from models import User, SuspiciousActivityLog, AdminAccountLog, IpAccessLog, utcnow
+from notifications import notify_all
+
+# 不正の種類ごとに、「何分以内に何回で自動ブラックリストにするか」を設定する
+FLAG_RULES = {
+    "captcha_fail_register": {"window_minutes": 10, "threshold": 8},
+    "captcha_fail_upload": {"window_minutes": 10, "threshold": 8},
+    "captcha_fail_watch": {"window_minutes": 10, "threshold": 8},
+    "watch_progress_abuse": {"window_minutes": 10, "threshold": 5},
+    "referral_burst": {"window_minutes": 60, "threshold": 3},        # 短時間に大量の招待を繰り返す
+    "withdrawal_spam": {"window_minutes": 60, "threshold": 5},        # 出金申請の連発
+    "multi_account_same_ip": {"window_minutes": 1440, "threshold": 4},  # 同じIPからの多重アカウント
+    "vpn_detected": {"window_minutes": 1440, "threshold": 1},          # VPN/プロキシ検知は1回で即対象
+}
+
+
+def _client_ip():
+    """
+    実際のアクセス元IPを取得する。PythonAnywhereなどリバースプロキシ経由の環境では、
+    X-Forwarded-Forヘッダーの一番左側(最初にアクセスしてきた相手)を優先的に使う。
+    """
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+# VPN・データセンター経由でよく使われる代表的なIPレンジ(一部)。
+# 本格的なVPN検知には、IPQualityScoreやIP2Proxyなどの有料IP判定サービスとの連携が必要になる。
+# ここでは、外部サービスとの契約が無くても最低限の判定ができるよう、
+# 主要クラウド事業者のIPレンジ(VPN業者がよく間借りしている)を簡易的にチェックしている。
+_KNOWN_DATACENTER_PREFIXES = (
+    "3.", "13.", "18.", "34.", "35.", "52.", "54.",   # AWS系
+    "104.196.", "104.197.", "104.198.", "35.184.", "35.185.",  # Google Cloud系
+    "20.", "40.", "52.16", "104.40.",                  # Azure系
+    "104.131.", "138.68.", "142.93.", "159.65.", "165.22.",  # DigitalOcean系
+)
+
+
+def is_vpn_or_proxy(ip):
+    """
+    簡易的なVPN/プロキシ判定。あくまで「クラウド・データセンター経由の疑いがあるIPかどうか」の
+    大まかな目安であり、完全な判定ではない(本格的な判定には、有料のIP判定サービスとの連携が
+    別途必要になる。その場合は、この関数の中身を外部APIの呼び出しに差し替えるだけで済む設計にしている)。
+    """
+    if not ip or ip == "unknown":
+        return False
+    return any(ip.startswith(prefix) for prefix in _KNOWN_DATACENTER_PREFIXES)
+
+
+def track_ip(user):
+    """
+    ログイン中のユーザーのアクセスIPを記録し、多重アカウント(同じIPから複数アカウント作成)や
+    VPN/プロキシの疑いを検知する。app.pyのbefore_requestから毎リクエスト呼ばれる。
+    IPアドレスの履歴は、前回と異なるIPになった時だけ新しい行として記録する
+    (毎リクエスト記録すると、ログがすぐに膨大な量になってしまうため)。
+    """
+    ip = _client_ip()
+    if not ip or ip == "unknown":
+        return
+
+    ip_changed = user.last_ip != ip
+
+    if not user.signup_ip:
+        user.signup_ip = ip
+    user.last_ip = ip
+    user.last_ip_seen_at = utcnow()
+    db.session.commit()
+
+    if ip_changed:
+        db.session.add(IpAccessLog(user_id=user.id, ip_address=ip, vpn_flagged=is_vpn_or_proxy(ip)))
+        db.session.commit()
+
+    # 同じIPを使っている、自分以外のアカウントがどれだけあるかを確認する
+    other_accounts_same_ip = User.query.filter(
+        User.id != user.id, User.last_ip == ip, User.is_npc.is_(False)
+    ).count()
+    if other_accounts_same_ip >= 3:  # 同じIPに4アカウント目以降が現れたら怪しいとみなす
+        check_and_flag(user.id, "multi_account_same_ip", f"同一IP({ip})を使う他アカウントが{other_accounts_same_ip}件")
+
+    if is_vpn_or_proxy(ip) and not user.vpn_flagged:
+        user.vpn_flagged = True
+        db.session.commit()
+        check_and_flag(user.id, "vpn_detected", f"データセンター/VPN経由の疑いがあるIP({ip})からのアクセス")
+
+
+def check_and_flag(user_id, reason, details=""):
+    """
+    不正の疑いがある行動を1件記録し、直近の同種のフラグ回数が閾値を超えていたら、
+    自動的にそのユーザーをブラックリストに追加する。
+    戻り値: 今回の記録によって新たにブラックリスト入りした場合はTrue、それ以外はFalse。
+    """
+    if not user_id:
+        return False
+
+    db.session.add(SuspiciousActivityLog(user_id=user_id, reason=reason, details=details))
+    db.session.commit()
+
+    rule = FLAG_RULES.get(reason)
+    if not rule:
+        return False
+
+    cutoff = utcnow() - timedelta(minutes=rule["window_minutes"])
+    recent_count = SuspiciousActivityLog.query.filter(
+        SuspiciousActivityLog.user_id == user_id,
+        SuspiciousActivityLog.reason == reason,
+        SuspiciousActivityLog.created_at >= cutoff,
+    ).count()
+
+    if recent_count < rule["threshold"]:
+        return False
+
+    user = User.query.get(user_id)
+    if not user or user.is_blacklisted or user.is_admin:
+        return False  # 既にブラックリスト済み、または管理者は対象外にする
+
+    user.is_blacklisted = True
+    db.session.add(AdminAccountLog(
+        admin_username="system(自動検知)", action="auto_blacklisted", target_username=user.username,
+        details=f"理由: {reason} / 直近{rule['window_minutes']}分で{recent_count}回検知",
+    ))
+    db.session.commit()
+
+    notify_all(f"⚠️ 不正の疑いにより、{user.username} を自動的にブラックリストに追加しました。管理画面から確認できます。")
+    db.session.commit()
+    return True

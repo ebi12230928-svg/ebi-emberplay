@@ -91,6 +91,21 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    @app.before_request
+    def _track_ip_and_check_vpn():
+        """
+        ログイン中のユーザーのアクセスIPを記録する(多重アカウント検知に使う)。
+        併せて、簡易的なVPN/プロキシ判定も行う。
+        """
+        from flask_login import current_user as _cu
+        if not _cu.is_authenticated:
+            return
+        try:
+            from fraud_detection import track_ip
+            track_ip(_cu)
+        except Exception:
+            pass  # IP記録に失敗しても、サイトの利用自体は止めない
+
     from auth import auth_bp
     from lobby import lobby_bp
     from rewards import rewards_bp
@@ -127,6 +142,7 @@ def create_app():
     from tournament import tournament_bp
     from dm import dm_bp
     from videos import videos_bp
+    from discord_auth import discord_auth_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -164,6 +180,7 @@ def create_app():
     app.register_blueprint(tournament_bp)
     app.register_blueprint(dm_bp)
     app.register_blueprint(videos_bp)
+    app.register_blueprint(discord_auth_bp)
 
     @app.context_processor
     def inject_user():

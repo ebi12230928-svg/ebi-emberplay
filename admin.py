@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong, AdminAccountLog, BetRecord, WithdrawalRequest, Video, WithdrawalPoolSetting
+from models import User, Transaction, RedeemCode, Announcement, GameSetting, Giveaway, Event, TipRequest, GachaSetting, UserCharacter, Season, EndlessScore, CustomCharacter, Poll, CharacterOverride, TDDifficultySetting, Tournament, RhythmSong, AdminAccountLog, BetRecord, WithdrawalRequest, Video, WithdrawalPoolSetting, SuspiciousActivityLog, IpAccessLog
 from notifications import notify, notify_all
 from games.common import MIN_PAYOUT_SCALAR, MAX_PAYOUT_SCALAR
 
@@ -104,6 +104,9 @@ def dashboard():
     ).order_by(AdminAccountLog.created_at.desc()).limit(50).all()
     casino_logs = BetRecord.query.order_by(BetRecord.created_at.desc()).limit(50).all()
     grant_logs = Transaction.query.filter_by(kind="admin_grant").order_by(Transaction.created_at.desc()).limit(50).all()
+    fraud_logs = SuspiciousActivityLog.query.order_by(SuspiciousActivityLog.created_at.desc()).limit(50).all()
+    auto_blacklist_logs = AdminAccountLog.query.filter_by(action="auto_blacklisted").order_by(AdminAccountLog.created_at.desc()).limit(50).all()
+    ip_logs = IpAccessLog.query.order_by(IpAccessLog.created_at.desc()).limit(80).all()
     pending_withdrawals = WithdrawalRequest.query.filter_by(status="pending").order_by(WithdrawalRequest.created_at.asc()).all()
     sent_withdrawals = WithdrawalRequest.query.filter_by(status="sent").order_by(WithdrawalRequest.sent_at.desc()).limit(30).all()
 
@@ -127,6 +130,7 @@ def dashboard():
         id_password_logs=id_password_logs, casino_logs=casino_logs, grant_logs=grant_logs,
         pending_withdrawals=pending_withdrawals, sent_withdrawals=sent_withdrawals,
         withdrawal_budget_total=withdrawal_budget_total, withdrawal_budget_remaining=withdrawal_budget_remaining,
+        fraud_logs=fraud_logs, auto_blacklist_logs=auto_blacklist_logs, ip_logs=ip_logs,
     )
 
 

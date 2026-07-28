@@ -122,6 +122,15 @@ def register():
             ))
             notify(referrer.id, f"{username} があなたの紹介コードで登録しました。{Config.REFERRAL_BONUS_REFERRER:,} Embersを獲得しました。")
 
+            # 同じ人が短時間に大量の招待を成立させている場合、不正な自作自演の疑いとして検知する
+            from datetime import timedelta
+            recent_referrals = User.query.filter(
+                User.referred_by_id == referrer.id, User.created_at >= utcnow() - timedelta(minutes=10)
+            ).count()
+            if recent_referrals >= 5:
+                from fraud_detection import check_and_flag
+                check_and_flag(referrer.id, "referral_burst", f"直近10分で{recent_referrals}件の招待が成立")
+
         db.session.commit()
 
         login_user(user)

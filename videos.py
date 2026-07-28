@@ -87,6 +87,8 @@ def upload():
     captcha_answer = request.form.get("captcha_answer", "").strip()
     correct_answer = session.pop("captcha_video_upload", None)
     if not correct_answer or captcha_answer != correct_answer:
+        from fraud_detection import check_and_flag
+        check_and_flag(current_user.id, "captcha_fail_upload", "動画アップロード時のCAPTCHA不一致")
         flash("画像の確認に失敗しました。表示されたローマ字と一致するものを選び直してください。", "error")
         return redirect(url_for("videos.upload"))
 
@@ -182,6 +184,8 @@ def verify_watch(video_id):
 
     correct_answer = session.pop(f"captcha_watch_{video_id}", None)
     if not correct_answer or answer != correct_answer:
+        from fraud_detection import check_and_flag
+        check_and_flag(current_user.id, "captcha_fail_watch", f"動画視聴時のCAPTCHA不一致(video_id={video_id})")
         target, options = _generate_captcha(f"captcha_watch_{video_id}")
         return jsonify({"ok": False, "captcha_target": target, "captcha_options": options}), 400
 
@@ -306,6 +310,16 @@ def watch_progress(video_id):
         progress = VideoWatchProgress(user_id=current_user.id, video_id=video_id, counted_seconds=0)
         db.session.add(progress)
 
+    # 通常、視聴報告は10秒おきに届くはず。それより明らかに短い間隔(6秒未満)で
+    # 繰り返し届く場合は、自動化ツールによる不正な連打の可能性が高いとみなす。
+    if progress.last_reported_at:
+        gap = (utcnow() - progress.last_reported_at).total_seconds()
+        if gap < 6:
+            from fraud_detection import check_and_flag
+            check_and_flag(current_user.id, "watch_progress_abuse", f"視聴報告の間隔が異常に短い({gap:.1f}秒、video_id={video_id})")
+            return jsonify({"ok": False}), 429
+    progress.last_reported_at = utcnow()
+
     # 動画自体の長さ(video.duration_seconds)を超えては計上しない。
     # 長さが未取得(0)の場合は、安全側に倒して15分(アップロード上限)を仮の上限にする。
     cap_seconds = video.duration_seconds if video.duration_seconds > 0 else MAX_VIDEO_DURATION_SECONDS
@@ -370,6 +384,17 @@ def request_withdrawal():
     if remaining_budget is not None and amount_yen > remaining_budget:
         flash(f"現在、運営の出金予算の都合上、この金額は申請できません(残り出金可能額: {remaining_budget}円)。しばらく経ってから再度お試しください。", "error")
         return redirect(url_for("videos.earnings"))
+
+    # 短時間に大量の出金申請を繰り返している場合は、不正な稼ぎ方の疑いとして検知する
+    from datetime import timedelta
+    from models import utcnow
+    recent_requests = WithdrawalRequest.query.filter(
+        WithdrawalRequest.user_id == current_user.id,
+        WithdrawalRequest.created_at >= utcnow() - timedelta(minutes=60),
+    ).count()
+    if recent_requests >= 4:  # 直近1時間で5件目の申請になる場合
+        from fraud_detection import check_and_flag
+        check_and_flag(current_user.id, "withdrawal_spam", f"直近1時間で{recent_requests + 1}件目の出金申請")
 
     current_user.video_earnings_milliyen -= amount_yen * 1000
     db.session.add(WithdrawalRequest(

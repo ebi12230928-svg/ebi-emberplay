@@ -37,6 +37,13 @@ class User(UserMixin, db.Model):
     video_watch_seconds_total = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴の累計秒数
     video_earnings_milliyen = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴による収益(1000分の1円単位。500円=500000)
     is_npc = db.Column(db.Boolean, default=False, nullable=False)  # 招待人数付与・テストアカウント作成で生成されたダミーアカウントかどうか
+    signup_ip = db.Column(db.String(64), nullable=True)  # 登録時のIPアドレス(多重アカウント検知に使う)
+    last_ip = db.Column(db.String(64), nullable=True)  # 直近のアクセスIPアドレス
+    last_ip_seen_at = db.Column(db.DateTime, nullable=True)
+    vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)  # VPN/プロキシ経由の疑いがあるとマークされたか
+    discord_id = db.Column(db.String(32), unique=True, nullable=True)  # Discordの内部ユーザーID(OAuth2経由でのみ取得。パスワードは一切保存しない)
+    discord_username = db.Column(db.String(64), nullable=True)  # 表示用(例: username#1234)
+    discord_linked_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -960,6 +967,35 @@ class AdminAccountLog(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
 
 
+class SuspiciousActivityLog(db.Model):
+    """
+    不正検知(CAPTCHA連続失敗・視聴収益の異常なペースなど)のログ。
+    同じユーザーが短時間のうちに一定回数フラグを立てられると、自動的にブラックリストに
+    追加される(_auto_blacklist.pyのcheck_and_flag関数を参照)。
+    reason: "captcha_fail_register" / "captcha_fail_upload" / "captcha_fail_watch" / "watch_progress_abuse"
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)  # 未ログイン時はNoneもありうる
+    reason = db.Column(db.String(48), nullable=False, index=True)
+    details = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class IpAccessLog(db.Model):
+    """
+    ユーザーのアクセスIPアドレスの履歴。同じIPが続けて記録されないよう、
+    「前回と異なるIPになった時だけ」新しい行を追加する(不要にログが膨れ上がらないようにするため)。
+    管理者ログの「IPログ」タブで、誰がどのIPからアクセスしていたかを時系列で確認できる。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    ip_address = db.Column(db.String(64), nullable=False)
+    vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
 
 # ───────── おみくじ ─────────
 class FortuneDraw(db.Model):
@@ -1092,6 +1128,7 @@ class VideoWatchProgress(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     video_id = db.Column(db.Integer, db.ForeignKey("video.id"), nullable=False, index=True)
     counted_seconds = db.Column(db.Integer, default=0, nullable=False)
+    last_reported_at = db.Column(db.DateTime, nullable=True)  # 前回、視聴報告を受け付けた時刻(異常な頻度の検知に使う)
 
     __table_args__ = (db.UniqueConstraint("user_id", "video_id", name="uq_video_watch_progress"),)
 
