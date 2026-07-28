@@ -44,6 +44,10 @@ def _auto_migrate(app):
 
         db.create_all()  # 存在しないテーブルはここで新規作成される
 
+        migration_had_errors = False  # 1つでも列の追加に失敗したら、キャッシュを保存しない
+        # (失敗したままキャッシュしてしまうと、次回起動時からずっとスキャンされなくなり、
+        #  不足した列が永久に追加されないままになってしまうバグを防ぐため)
+
         inspector = inspect(db.engine)  # create_all後に取り直す
         for table in db.metadata.sorted_tables:
             if table.name not in existing_tables:
@@ -70,7 +74,11 @@ def _auto_migrate(app):
                     print(f"[auto-migrate] {table.name}.{column.name} を追加しました。")
                 except Exception as e:
                     db.session.rollback()
+                    migration_had_errors = True
                     print(f"[auto-migrate] {table.name}.{column.name} の追加に失敗しました: {e}")
+
+    if migration_had_errors:
+        return  # キャッシュを保存せずに終了する(次回起動時に必ず再スキャンされる)
 
     try:
         with open(marker_path, "w", encoding="utf-8") as f:

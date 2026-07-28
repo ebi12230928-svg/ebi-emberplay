@@ -2,9 +2,10 @@ import secrets
 import json
 import uuid
 import re
+import os
 from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_required, current_user
 
 from extensions import db
@@ -239,21 +240,31 @@ def create_test_account():
         return redirect(url_for("admin.dashboard"))
 
     username = _random_username()
+    from models import utcnow
     main_user = User(
         username=username, referral_code=_random_referral_code(),
         balance=0, is_npc=True,
+        discord_id=f"npc-{secrets.token_hex(10)}", discord_username="(テスト用ダミー)",
+        discord_linked_at=utcnow(),  # テストアカウント自身も、招待ランキング・動画収益などを
+        # すぐテストできるよう、あらかじめ「Discord連携済み」扱いにしておく
     )
     main_user.set_password(password)
     db.session.add(main_user)
     db.session.flush()  # main_user.id を確定させる(referred_by_idで使うため)
 
-    # 指定人数分の「紹介された側」のダミーアカウントも作成する
+    # 指定人数分の「紹介された側」のダミーアカウントも作成する。
+    # 招待人数のカウントには「招待した側・された側の両方がDiscord連携済み」という条件があるが、
+    # これは管理者が意図的に作るテスト用データなので、テスト目的が果たせるよう、
+    # ダミーアカウントには「連携済み扱いにするための仮の情報」を持たせておく
+    # (実際のDiscordアカウントとは一切結びついていない、テスト専用の値)
     for _ in range(referral_count):
         dummy_username = _random_username()
         dummy_password = secrets.token_hex(6)  # ログインさせる想定は無いので、ランダムでよい
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
             balance=0, referred_by_id=main_user.id, is_npc=True,
+            discord_id=f"npc-{secrets.token_hex(10)}", discord_username="(テスト用ダミー)",
+            discord_linked_at=utcnow(),
         )
         dummy.set_password(dummy_password)
         db.session.add(dummy)
@@ -297,12 +308,15 @@ def grant_referrals():
         flash("追加する招待人数は1〜500の範囲で入力してください。", "error")
         return redirect(url_for("admin.dashboard"))
 
+    from models import utcnow as _utcnow
     for _ in range(referral_count):
         dummy_username = _random_username()
         dummy_password = secrets.token_hex(6)
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
             balance=0, referred_by_id=target_user.id, is_npc=True,
+            discord_id=f"npc-{secrets.token_hex(10)}", discord_username="(テスト用ダミー)",
+            discord_linked_at=_utcnow(),
         )
         dummy.set_password(dummy_password)
         db.session.add(dummy)
@@ -440,6 +454,69 @@ def set_withdrawal_budget():
     db.session.commit()
 
     flash(f"出金予算を{budget:,}円に設定しました。", "success")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/admin/db-check", methods=["POST"])
+@login_required
+@admin_required
+def db_check():
+    """
+    管理者専用: 実際のデータベースに、モデル定義通りの列がすべて存在しているかを確認し、
+    不足している列があれば、その場で追加する(自動マイグレーションのキャッシュに問題があり、
+    列の追加が反映されないままになっていた場合の、手動での応急処置)。
+    """
+    from sqlalchemy import inspect, text
+    from extensions import db as _db
+
+    inspector = inspect(_db.engine)
+    existing_tables = set(inspector.get_table_names())
+
+    added = []
+    failed = []
+
+    for table in _db.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            continue
+
+        existing_columns = {col["name"] for col in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in existing_columns:
+                continue
+
+            col_type = column.type.compile(_db.engine.dialect)
+            default_clause = ""
+            if column.default is not None and not column.default.is_callable:
+                val = column.default.arg
+                if isinstance(val, bool):
+                    val = 1 if val else 0
+                default_clause = f" DEFAULT '{val}'" if isinstance(val, str) else f" DEFAULT {val}"
+
+            try:
+                _db.session.execute(text(
+                    f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}{default_clause}'
+                ))
+                _db.session.commit()
+                added.append(f"{table.name}.{column.name}")
+            except Exception as e:
+                _db.session.rollback()
+                failed.append(f"{table.name}.{column.name}({e})")
+
+    # 次回起動時にも正しく再スキャンされるよう、古いキャッシュファイルを削除しておく
+    try:
+        marker_path = os.path.join(current_app.instance_path, ".schema_fingerprint")
+        if os.path.exists(marker_path):
+            os.remove(marker_path)
+    except OSError:
+        pass
+
+    if added:
+        flash(f"不足していた{len(added)}件の列を追加しました: {', '.join(added)}", "success")
+    elif not failed:
+        flash("データベースは最新の状態です(不足している列はありませんでした)。", "success")
+    if failed:
+        flash(f"追加に失敗した列があります: {', '.join(failed)}", "error")
+
     return redirect(url_for("admin.dashboard"))
 
 
