@@ -40,6 +40,17 @@ class Config:
     DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET") or getattr(_local_secrets, "DISCORD_CLIENT_SECRET", "")
     DISCORD_REDIRECT_URI = os.environ.get("DISCORD_REDIRECT_URI") or getattr(_local_secrets, "DISCORD_REDIRECT_URI", "")
 
+    # ── 広告(Google AdSenseなど) ──
+    # 実際に収益を得るには、Google AdSense(https://www.google.com/adsense/)などの広告ネットワークに
+    # ご自身で登録・審査を通過する必要がある(このサイトはカジノ風コンテンツを含むため、
+    # 審査基準によっては否認される可能性がある点にご留意ください)。
+    # 発行された「パブリッシャーID」(ca-pub-xxxxxxxxxxxxxxxx の形式)を、
+    # local_secrets.py または環境変数 ADSENSE_PUBLISHER_ID に設定すると、
+    # サイト内の広告枠に自動的にAdSenseのスクリプトが読み込まれるようになる。
+    # 未設定の間は、広告は一切表示されない(空欄のまま)。
+    ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID") or getattr(_local_secrets, "ADSENSE_PUBLISHER_ID", "")
+    ADSENSE_AD_SLOT_BANNER = os.environ.get("ADSENSE_AD_SLOT_BANNER") or getattr(_local_secrets, "ADSENSE_AD_SLOT_BANNER", "")
+
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
     SPIN_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]                    # 各候補の出やすさ(合計比率)
 

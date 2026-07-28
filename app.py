@@ -188,7 +188,11 @@ def create_app():
         if current_user.is_authenticated:
             from models import Notification
             unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
-        return {"nav_user": current_user, "unread_notifications": unread_count}
+        return {
+            "nav_user": current_user, "unread_notifications": unread_count,
+            "adsense_publisher_id": Config.ADSENSE_PUBLISHER_ID,
+            "adsense_ad_slot_banner": Config.ADSENSE_AD_SLOT_BANNER,
+        }
 
     _auto_migrate(app)
 
