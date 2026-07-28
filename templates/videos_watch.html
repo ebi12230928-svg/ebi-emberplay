@@ -5,7 +5,21 @@
 <span class="eyebrow">📹 {{ "{:,}".format(video.view_count) }}回視聴</span>
 <h1 style="font-size: 22px;">{{ video.title }}</h1>
 
-<video id="video-player" controls playsinline style="width:100%; border-radius: 12px; background:#000; margin-bottom: 12px;" src="{{ url_for('videos.serve_video_file', filename=video.filename) }}"></video>
+<div id="watch-captcha-gate" class="panel" style="margin-bottom: 12px; text-align:center;">
+  <p style="font-weight:700; margin: 0 0 6px;">🤖 視聴を始める前に、本人確認をお願いします</p>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">下のお手本と<strong>完全に同じもの</strong>を選んでください(視聴収益の自動化ツール対策です)。</p>
+  <div id="watch-captcha-target" class="mono" style="font-size: 26px; font-weight:800; letter-spacing: 4px; background: var(--bg-raised); border: 1px solid var(--panel-border); border-radius: 8px; padding: 14px; margin-bottom: 10px; user-select: none;">
+    {{ captcha_target }}
+  </div>
+  <div id="watch-captcha-options" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px;">
+    {% for opt in captcha_options %}
+    <button type="button" class="btn btn-ghost watch-captcha-opt" data-value="{{ opt }}" style="font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px;">{{ opt }}</button>
+    {% endfor %}
+  </div>
+  <p id="watch-captcha-error" class="text-loss" style="font-size: 12px; display:none; margin:0;">正解と一致しませんでした。もう一度お試しください。</p>
+</div>
+
+<video id="video-player" controls playsinline style="width:100%; border-radius: 12px; background:#000; margin-bottom: 12px; display:none;" src="{{ url_for('videos.serve_video_file', filename=video.filename) }}"></video>
 
 <div class="panel" style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
   <div>
@@ -60,13 +74,77 @@
 
 {% block scripts %}
 <script>
-  // 数秒おきに、新たに視聴した秒数をサーバーへ報告し、視聴収益に加算してもらう
   (function () {
     const videoEl = document.getElementById("video-player");
+    const gateEl = document.getElementById("watch-captcha-gate");
+    const errorEl = document.getElementById("watch-captcha-error");
+    const optionsWrap = document.getElementById("watch-captcha-options");
+    const targetEl = document.getElementById("watch-captcha-target");
     let lastReportedTime = 0;
+    let verified = false;
 
+    function bindOptionButtons() {
+      document.querySelectorAll(".watch-captcha-opt").forEach((btn) => {
+        btn.addEventListener("click", () => submitAnswer(btn.dataset.value));
+      });
+    }
+    bindOptionButtons();
+
+    async function submitAnswer(answer) {
+      try {
+        const res = await fetch("{{ url_for('videos.verify_watch', video_id=video.id) }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answer }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          verified = true;
+          errorEl.style.display = "none";
+          gateEl.style.display = "none";
+          videoEl.style.display = "block";
+          videoEl.play().catch(() => {});
+        } else {
+          errorEl.style.display = "block";
+          showNewCaptcha(data.captcha_target, data.captcha_options);
+        }
+      } catch (err) {
+        errorEl.textContent = "確認に失敗しました。もう一度お試しください。";
+        errorEl.style.display = "block";
+      }
+    }
+
+    function showNewCaptcha(target, options) {
+      targetEl.textContent = target;
+      optionsWrap.innerHTML = "";
+      options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-ghost watch-captcha-opt";
+        btn.style.cssText = "font-family: var(--font-mono); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; padding: 10px 8px;";
+        btn.dataset.value = opt;
+        btn.textContent = opt;
+        optionsWrap.appendChild(btn);
+      });
+      bindOptionButtons();
+    }
+
+    async function requireReverification() {
+      // 一定時間ごとに再確認が必要になった場合、再生を止めてCAPTCHAゲートを出し直す
+      verified = false;
+      videoEl.pause();
+      videoEl.style.display = "none";
+      gateEl.style.display = "block";
+      try {
+        const res = await fetch("{{ url_for('videos.watch_captcha', video_id=video.id) }}");
+        const data = await res.json();
+        showNewCaptcha(data.captcha_target, data.captcha_options);
+      } catch (err) { /* noop */ }
+    }
+
+    // 数秒おきに、新たに視聴した秒数をサーバーへ報告し、視聴収益に加算してもらう
     setInterval(() => {
-      if (videoEl.paused || videoEl.seeking) return;
+      if (!verified || videoEl.paused || videoEl.seeking) return;
       const currentTime = videoEl.currentTime;
       const delta = Math.round(currentTime - lastReportedTime);
       if (delta <= 0 || delta > 30) {
@@ -78,6 +156,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seconds: delta }),
+      }).then((res) => {
+        if (res.status === 403) requireReverification(); // 確認の有効期限が切れていた場合
       }).catch(() => {});
     }, 10000); // 10秒おきに報告
   })();
