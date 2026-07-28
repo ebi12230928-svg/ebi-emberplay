@@ -513,6 +513,14 @@
   {% endif %}
 </div>
 
+<div class="panel" style="margin-bottom: 24px; border-color: var(--gold);">
+  <h3>🛠️ データベースの診断・修復</h3>
+  <p style="font-size: 13px;">機能を追加してもうまく反映されない場合(例: 招待人数が正しくカウントされない等)、実際のデータベースに、必要な項目がすべて揃っているかを確認し、不足していれば自動的に追加します。通常は自動で行われますが、うまくいかない場合の手動リカバリー用です。</p>
+  <form method="POST" action="{{ url_for('admin.db_check') }}">
+    <button type="submit" class="btn btn-ember">今すぐ診断・修復する</button>
+  </form>
+</div>
+
 <div class="panel" style="margin-bottom: 24px;">
   <h3>🧪 テストアカウントを作成</h3>
   <p style="font-size: 13px;">ランダムなIDのテストアカウントを、指定したパスワードで1つ作成します。指定した人数分の「招待した」ダミーアカウントも同時に作られるため、招待ランキング企画などのテストに使えます。</p>
