@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}EMBERPLAY{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% if adsense_publisher_id %}
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ adsense_publisher_id }}" crossorigin="anonymous"></script>
+  {% endif %}
   {% block head %}{% endblock %}
 </head>
 <body>

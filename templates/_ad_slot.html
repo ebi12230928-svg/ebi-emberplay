@@ -1,0 +1,14 @@
+{# 広告枠の共通パーツ。ADSENSE_PUBLISHER_IDが設定されていない間は、何も表示されない(空欄)。
+   設定済みの場合のみ、Google AdSenseの広告ユニットが読み込まれる。 #}
+{% if adsense_publisher_id %}
+<div class="ad-slot" style="margin: 16px 0; text-align: center;">
+  <p class="text-muted" style="font-size: 10px; margin: 0 0 4px;">広告</p>
+  <ins class="adsbygoogle"
+       style="display:block"
+       data-ad-client="{{ adsense_publisher_id }}"
+       data-ad-slot="{{ adsense_ad_slot_banner }}"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</div>
+{% endif %}

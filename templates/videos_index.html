@@ -7,6 +7,8 @@
 <a href="{{ url_for('videos.upload') }}" class="btn btn-ember btn-block" style="margin-bottom: 16px;">📤 動画をアップロード</a>
 <a href="{{ url_for('videos.earnings') }}" class="btn btn-ghost btn-block" style="margin-bottom: 16px;">💰 視聴収益・出金</a>
 
+{% include "_ad_slot.html" %}
+
 <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;">
   {% for video in videos %}
   <a href="{{ url_for('videos.watch', video_id=video.id) }}" style="text-decoration:none; color: var(--text);">
