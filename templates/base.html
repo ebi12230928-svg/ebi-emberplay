@@ -2,8 +2,20 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}EMBERPLAY{% endblock %}</title>
+
+  <!-- PWA対応: アプリとしてインストールできるようにするための設定 -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#171225">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <!-- iOSでホーム画面に追加した際、アプリらしく(ブラウザのアドレスバー無しで)表示するための設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EMBERPLAY">
+  <meta name="mobile-web-app-capable" content="yes">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% if adsense_publisher_id %}
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ adsense_publisher_id }}" crossorigin="anonymous"></script>
@@ -106,6 +118,15 @@
     })();
   </script>
   {% if nav_user.is_authenticated %}<script src="{{ url_for('static', filename='js/dm_notify.js') }}"></script>{% endif %}
+  <script>
+    // PWA対応: Service Workerを登録する(対応していないブラウザでは何も起きない)。
+    // /sw.js (ルート直下)から配信することで、サイト全体をPWAの対象にできる。
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
