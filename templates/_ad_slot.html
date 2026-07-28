@@ -1,6 +1,9 @@
-{# 広告枠の共通パーツ。ADSENSE_PUBLISHER_IDが設定されていない間は、何も表示されない(空欄)。
-   設定済みの場合のみ、Google AdSenseの広告ユニットが読み込まれる。 #}
-{% if adsense_publisher_id %}
+{# 広告枠の共通パーツ。
+   - パブリッシャーIDが未設定の間は、AdSenseのスクリプト自体が読み込まれないため何も表示されない。
+   - パブリッシャーIDのみ設定されている場合は、base.htmlで読み込まれる自動広告(Auto ads)機能が、
+     Google側の判断でページ内に自動的に広告を挿入してくれる(この枠自体は表示しない)。
+   - 個別の広告枠ID(ADSENSE_AD_SLOT_BANNER)も設定した場合のみ、この位置に手動で広告ユニットを表示する。 #}
+{% if adsense_publisher_id and adsense_ad_slot_banner %}
 <div class="ad-slot" style="margin: 16px 0; text-align: center;">
   <p class="text-muted" style="font-size: 10px; margin: 0 0 4px;">広告</p>
   <ins class="adsbygoogle"
