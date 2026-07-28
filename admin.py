@@ -235,7 +235,7 @@ def create_test_account():
     username = _random_username()
     main_user = User(
         username=username, referral_code=_random_referral_code(),
-        balance=0,
+        balance=0, is_npc=True,
     )
     main_user.set_password(password)
     db.session.add(main_user)
@@ -247,7 +247,7 @@ def create_test_account():
         dummy_password = secrets.token_hex(6)  # ログインさせる想定は無いので、ランダムでよい
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
-            balance=0, referred_by_id=main_user.id,
+            balance=0, referred_by_id=main_user.id, is_npc=True,
         )
         dummy.set_password(dummy_password)
         db.session.add(dummy)
@@ -296,7 +296,7 @@ def grant_referrals():
         dummy_password = secrets.token_hex(6)
         dummy = User(
             username=dummy_username, referral_code=_random_referral_code(),
-            balance=0, referred_by_id=target_user.id,
+            balance=0, referred_by_id=target_user.id, is_npc=True,
         )
         dummy.set_password(dummy_password)
         db.session.add(dummy)

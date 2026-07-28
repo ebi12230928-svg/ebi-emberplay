@@ -1,7 +1,8 @@
 import re
 import secrets
+import string
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 
 from extensions import db
@@ -12,6 +13,35 @@ from notifications import notify
 auth_bp = Blueprint("auth", __name__)
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,20}$")
+
+
+def _generate_captcha():
+    """
+    マクロ・自動化ツールによる無限アカウント作成(招待の不正稼ぎ)を防ぐための簡易CAPTCHA。
+    6文字のランダムなローマ字(大文字)を「お手本」として表示し、
+    5つの選択肢の中から、お手本と完全に一致するものを選んでもらう。
+    正解はセッション(サーバー側)に保存し、フォームの値を書き換えられても
+    突破できないようにする。
+    """
+    target = "".join(secrets.choice(string.ascii_uppercase) for _ in range(6))
+
+    def scramble(base):
+        # お手本を少しだけ変えた「紛らわしい」ダミーの選択肢を作る(1〜3文字を別の文字に置き換える)
+        chars = list(base)
+        change_count = secrets.randbelow(3) + 1
+        positions = secrets.SystemRandom().sample(range(len(chars)), change_count)
+        for pos in positions:
+            chars[pos] = secrets.choice(string.ascii_uppercase)
+        return "".join(chars)
+
+    options = {target}
+    while len(options) < 5:
+        options.add(scramble(target))
+    options = list(options)
+    secrets.SystemRandom().shuffle(options)
+
+    session["captcha_target"] = target
+    return target, options
 
 
 def _generate_referral_code():
@@ -28,26 +58,42 @@ def register():
 
     ref_code = request.args.get("ref", "").strip() or request.form.get("ref_code", "").strip()
 
+    def render_with_fresh_captcha():
+        target, options = _generate_captcha()
+        return render_template(
+            "register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code,
+            captcha_target=target, captcha_options=options,
+        )
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         password2 = request.form.get("password2", "")
+        captcha_answer = request.form.get("captcha_answer", "").strip()
+
+        # マクロ・自動化ツールによる無限アカウント作成(招待の不正稼ぎ)を防ぐための本人確認。
+        # 正解はサーバー側のセッションに保存してあるものと照合するため、フォームの値を
+        # 直接書き換えても突破できない。
+        correct_answer = session.pop("captcha_target", None)
+        if not correct_answer or captcha_answer != correct_answer:
+            flash("画像の確認に失敗しました。表示されたローマ字と一致するものを選び直してください。", "error")
+            return render_with_fresh_captcha()
 
         if not USERNAME_RE.match(username):
             flash("ユーザー名は英数字とアンダースコアのみ、3〜20文字で入力してください。", "error")
-            return render_template("register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code)
+            return render_with_fresh_captcha()
 
         if len(password) < 8:
             flash("パスワードは8文字以上で入力してください。", "error")
-            return render_template("register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code)
+            return render_with_fresh_captcha()
 
         if password != password2:
             flash("パスワードが一致しません。", "error")
-            return render_template("register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code)
+            return render_with_fresh_captcha()
 
         if User.query.filter_by(username=username).first():
             flash("そのユーザー名はすでに使われています。", "error")
-            return render_template("register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code)
+            return render_with_fresh_captcha()
 
         referrer = User.query.filter_by(referral_code=ref_code).first() if ref_code else None
 
@@ -80,7 +126,11 @@ def register():
         flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。", "success")
         return redirect(url_for("lobby.index"))
 
-    return render_template("register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code)
+    target, options = _generate_captcha()
+    return render_template(
+        "register.html", signup_bonus=Config.SIGNUP_BONUS, ref_code=ref_code,
+        captcha_target=target, captcha_options=options,
+    )
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

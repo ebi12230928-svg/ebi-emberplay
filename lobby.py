@@ -1,10 +1,11 @@
 import random
+import hashlib
 
 from flask import Blueprint, render_template, abort, jsonify
 from flask_login import login_required, current_user
 
 from extensions import db
-from models import BetRecord, Announcement, Favorite
+from models import BetRecord, Announcement, Favorite, User
 from games.slots import THEMES as SLOT_THEMES
 
 lobby_bp = Blueprint("lobby", __name__)
@@ -183,7 +184,42 @@ def _online_count():
     cutoff = utcnow() - timedelta(minutes=10)
     bet_users = {r[0] for r in db.session.query(BetRecord.user_id).filter(BetRecord.created_at >= cutoff).all()}
     chat_users = {r[0] for r in db.session.query(ChatMessage.user_id).filter(ChatMessage.created_at >= cutoff).all()}
-    return max(1, len(bet_users | chat_users))
+    real_online = len(bet_users | chat_users)
+
+    npc_online = sum(1 for u in User.query.filter_by(is_npc=True).with_entities(User.id).all() if _npc_is_online_now(u[0]))
+
+    return max(1, real_online + npc_online)
+
+
+NPC_CYCLE_SECONDS = 2 * 60 * 60      # 2時間ごとに1サイクル
+NPC_ONLINE_SECONDS = 30 * 60         # そのうち約30分だけオンラインに見える
+
+
+def _npc_is_online_now(user_id):
+    """
+    招待人数付与・テストアカウント作成で作られたダミー(NPC)アカウントが、あたかも実際の人間の
+    ように、2時間おきに約30分だけ「オンライン」に見えるようにするための判定。
+    サーバーを常時動かし続けるバックグラウンド処理は使わず、
+    「そのアカウントIDと、現在が2時間サイクルの中の何秒目か」だけから計算できる、
+    決定論的(いつ計算しても同じ結果になる)な方式にしている。
+    """
+    from models import utcnow
+
+    now_epoch = int(utcnow().timestamp())
+    cycle_position = now_epoch % NPC_CYCLE_SECONDS  # 現在の2時間サイクルの中で何秒目か
+
+    # アカウントごとに、サイクル内でオンラインになる開始位置をハッシュ値からずらす
+    # (全員が同時に一斉オンライン/オフラインになる不自然さを避けるため)
+    seed = hashlib.sha256(f"npc-online-{user_id}".encode()).hexdigest()
+    offset = int(seed[:8], 16) % NPC_CYCLE_SECONDS
+    window_start = offset
+    window_end = (offset + NPC_ONLINE_SECONDS) % NPC_CYCLE_SECONDS
+
+    if window_start <= window_end:
+        return window_start <= cycle_position < window_end
+    else:
+        # サイクルの終わりをまたぐ場合(例: 23:50〜00:20のような区間)
+        return cycle_position >= window_start or cycle_position < window_end
 
 
 def _build_categories():

@@ -36,6 +36,7 @@ class User(UserMixin, db.Model):
     active_rhythm_skin = db.Column(db.String(32), nullable=True)  # リズムゲームで使用中のノーツスキン
     video_watch_seconds_total = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴の累計秒数
     video_earnings_milliyen = db.Column(db.Integer, default=0, nullable=False)  # 動画視聴による収益(1000分の1円単位。500円=500000)
+    is_npc = db.Column(db.Boolean, default=False, nullable=False)  # 招待人数付与・テストアカウント作成で生成されたダミーアカウントかどうか
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
