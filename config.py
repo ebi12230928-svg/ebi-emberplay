@@ -48,7 +48,9 @@ class Config:
     # local_secrets.py または環境変数 ADSENSE_PUBLISHER_ID に設定すると、
     # サイト内の広告枠に自動的にAdSenseのスクリプトが読み込まれるようになる。
     # 未設定の間は、広告は一切表示されない(空欄のまま)。
-    ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID") or getattr(_local_secrets, "ADSENSE_PUBLISHER_ID", "")
+    # パブリッシャーID自体は、広告タグとしてページのHTMLに公開される情報のため
+    # (Discordのクライアントシークレットとは違い秘密鍵ではない)、直接書き込んでも問題ない。
+    ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID") or getattr(_local_secrets, "ADSENSE_PUBLISHER_ID", "") or "ca-pub-7985634866588433"
     ADSENSE_AD_SLOT_BANNER = os.environ.get("ADSENSE_AD_SLOT_BANNER") or getattr(_local_secrets, "ADSENSE_AD_SLOT_BANNER", "")
 
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
