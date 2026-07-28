@@ -156,8 +156,17 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seconds: delta }),
-      }).then((res) => {
-        if (res.status === 403) requireReverification(); // 確認の有効期限が切れていた場合
+      }).then(async (res) => {
+        if (res.status === 403) {
+          const data = await res.json().catch(() => ({}));
+          if (data.needs_discord_link) {
+            videoEl.pause();
+            alert("視聴収益を貯めるには、先にプロフィール画面からDiscord連携が必要です。");
+            window.location.href = "{{ url_for('profile.index') }}";
+          } else {
+            requireReverification(); // 確認の有効期限が切れていた場合
+          }
+        }
       }).catch(() => {});
     }, 10000); // 10秒おきに報告
   })();

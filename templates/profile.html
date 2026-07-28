@@ -20,7 +20,7 @@
 
 <div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 10px;">🎮 Discord連携</h3>
-  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">任意の機能です。連携すると、パスワードなどの情報は一切こちらに送られません(Discord公式の許可画面のみを使用します)。</p>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">プレゼント企画への参加、動画のアップロード・視聴収益を貯めるには、Discordアカウントとの連携が必要です。パスワードなどの情報は一切こちらに送られません(Discord公式の許可画面のみを使用します)。</p>
   {% if user.discord_id %}
   <p style="margin: 0 0 10px;">✅ 連携済み: <strong>{{ user.discord_username }}</strong></p>
   <form method="POST" action="{{ url_for('discord_auth.discord_unlink') }}" onsubmit="return confirm('Discord連携を解除しますか?(視聴収益を貯めるには再度連携が必要になります)');">

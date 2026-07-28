@@ -6,6 +6,13 @@
 <h1>プレゼント企画</h1>
 <p>参加は無料です。抽選で当選すると、賞品の種類に応じて自動的にEmbersが付与されるか、PayPay受け取りリンクがDMに届きます。</p>
 
+{% if not current_user.discord_id %}
+<div class="panel" style="margin-bottom: 16px; border-color: var(--gold);">
+  <p style="margin: 0 0 8px;">🎮 プレゼント企画への参加には、Discordアカウントとの連携が必要です。</p>
+  <a href="{{ url_for('discord_auth.discord_login') }}" class="btn btn-ember">Discordでログインして連携する</a>
+</div>
+{% endif %}
+
 <h2>開催中</h2>
 {% if not open_giveaways %}
 <div class="panel"><p style="margin:0;">現在開催中の企画はありません。</p></div>
