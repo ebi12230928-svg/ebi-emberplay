@@ -182,6 +182,19 @@ def create_app():
     app.register_blueprint(videos_bp)
     app.register_blueprint(discord_auth_bp)
 
+    @app.route("/sw.js")
+    def service_worker():
+        """
+        Service Workerを、/static/sw.js ではなく /sw.js (サイトのルート)から配信する。
+        Service Workerは「自分が置かれている場所より下の階層」しか制御できない仕組みのため、
+        /static/ 配下に置いたままだとサイト全体(/)をPWAとして扱えなくなってしまうため。
+        """
+        from flask import send_from_directory, make_response
+        response = make_response(send_from_directory(app.static_folder, "sw.js"))
+        response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Content-Type"] = "application/javascript"
+        return response
+
     @app.context_processor
     def inject_user():
         unread_count = 0
