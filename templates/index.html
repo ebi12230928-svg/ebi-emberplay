@@ -71,6 +71,14 @@
 </div>
 {% endif %}
 
+{% if not current_user.discord_first_link_bonus_claimed %}
+<a href="{{ url_for('profile.index') }}" class="panel" style="display:block; margin-bottom: 24px; border-color: var(--gold); background: radial-gradient(circle at 90% 0%, rgba(255,209,102,0.12), transparent 60%), var(--bg-raised);">
+  <span class="eyebrow" style="color: var(--gold);">NEW 🎉キャンペーン</span>
+  <h3 style="margin-bottom: 4px;">Discord連携で200円プレゼント!</h3>
+  <p style="margin: 0;">プロフィール画面からDiscordアカウントと連携するだけで、動画視聴収益に200円が自動的に追加されます(初回連携時のみ)。</p>
+</a>
+{% endif %}
+
 <a href="{{ url_for('sportsbook.index') }}" class="panel" style="display:block; margin-bottom: 24px; border-color: var(--gold);">
   <span class="eyebrow">NEW</span>
   <h3 style="margin-bottom: 4px;">スポーツベット</h3>

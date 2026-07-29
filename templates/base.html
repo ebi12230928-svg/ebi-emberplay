@@ -8,8 +8,8 @@
   <!-- PWA対応: アプリとしてインストールできるようにするための設定 -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#171225">
-  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32-v2.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon-v2.png') }}">
   <!-- iOSでホーム画面に追加した際、アプリらしく(ブラウザのアドレスバー無しで)表示するための設定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -123,9 +123,49 @@
     // /sw.js (ルート直下)から配信することで、サイト全体をPWAの対象にできる。
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(() => {});
+        navigator.serviceWorker.register("/sw.js")
+          .then((registration) => {
+            {% if nav_user.is_authenticated and vapid_public_key %}
+            setupPushNotifications(registration);
+            {% endif %}
+          })
+          .catch(() => {});
       });
     }
+
+    {% if nav_user.is_authenticated and vapid_public_key %}
+    // プッシュ通知の購読(アプリとして開いている場合、DM・お知らせなどをプッシュ通知で受け取れるようにする)
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+    }
+
+    async function setupPushNotifications(registration) {
+      if (!("PushManager" in window) || Notification.permission === "denied") return;
+      try {
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          // 「アプリとして開いている(standaloneモード)時だけ」ではなく、一度購読しておけば
+          // ホーム画面に追加された状態(アプリとして存在している間)は、ブラウザ・アプリの
+          // どちらからアクセスしていても通知が届くようにする
+          const permission = await Notification.requestPermission();
+          if (permission !== "granted") return;
+
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array("{{ vapid_public_key }}"),
+          });
+        }
+        fetch("{{ url_for('push.subscribe') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(subscription.toJSON()),
+        }).catch(() => {});
+      } catch (err) { /* 通知が使えない環境では、何もしない */ }
+    }
+    {% endif %}
   </script>
   {% block scripts %}{% endblock %}
 </body>
