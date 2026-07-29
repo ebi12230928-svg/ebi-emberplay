@@ -112,6 +112,7 @@ def dashboard():
     from models import AnonymousIpLog
     anonymous_ip_logs = AnonymousIpLog.query.order_by(AnonymousIpLog.created_at.desc()).limit(80).all()
     discord_link_logs = AdminAccountLog.query.filter_by(action="discord_linked").order_by(AdminAccountLog.created_at.desc()).limit(50).all()
+    google_link_logs = AdminAccountLog.query.filter_by(action="google_linked").order_by(AdminAccountLog.created_at.desc()).limit(50).all()
     pending_withdrawals = WithdrawalRequest.query.filter_by(status="pending").order_by(WithdrawalRequest.created_at.asc()).all()
     sent_withdrawals = WithdrawalRequest.query.filter_by(status="sent").order_by(WithdrawalRequest.sent_at.desc()).limit(30).all()
 
@@ -137,7 +138,7 @@ def dashboard():
         withdrawal_budget_total=withdrawal_budget_total, withdrawal_budget_remaining=withdrawal_budget_remaining,
         fraud_logs=fraud_logs, auto_blacklist_logs=auto_blacklist_logs, ip_logs=ip_logs,
         discord_link_logs=discord_link_logs, fraud_reason_labels=fraud_reason_labels,
-        anonymous_ip_logs=anonymous_ip_logs,
+        anonymous_ip_logs=anonymous_ip_logs, google_link_logs=google_link_logs,
     )
 
 

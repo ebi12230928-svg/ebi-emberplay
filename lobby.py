@@ -191,6 +191,12 @@ def _online_count():
     return max(1, real_online + npc_online)
 
 
+def _offline_count(online_count):
+    """登録ユーザーの総数から、オンライン人数を差し引いた「オフライン人数」を算出する"""
+    total_users = User.query.count()
+    return max(0, total_users - online_count)
+
+
 NPC_CYCLE_SECONDS = 2 * 60 * 60      # 2時間ごとに1サイクル
 NPC_ONLINE_SECONDS = 30 * 60         # そのうち約30分だけオンラインに見える
 
@@ -274,12 +280,14 @@ def index():
     favorite_keys = {f.game_key for f in Favorite.query.filter_by(user_id=current_user.id).all()}
     favorites = [g for g in GAMES if g["game_key"] in favorite_keys]
     online_count = _online_count()
+    offline_count = _offline_count(online_count)
 
     return render_template(
         "index.html", games=GAMES, big_wins=big_wins, categories=categories,
         latest_announcements=latest_announcements,
         continue_playing=continue_playing, recommended=recommended,
-        favorites=favorites, favorite_keys=favorite_keys, online_count=online_count
+        favorites=favorites, favorite_keys=favorite_keys, online_count=online_count,
+        offline_count=offline_count,
     )
 
 

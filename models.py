@@ -46,6 +46,9 @@ class User(UserMixin, db.Model):
     discord_linked_at = db.Column(db.DateTime, nullable=True)
     referral_bonus_pending = db.Column(db.Boolean, default=False, nullable=False)  # 招待した側もされた側もDiscord連携が済むまで、紹介ボーナスの支払いを保留する
     discord_first_link_bonus_claimed = db.Column(db.Boolean, default=False, nullable=False)  # 初回Discord連携キャンペーン(200円)を既に受け取ったか(連携解除→再連携での不正な再受給を防ぐ)
+    google_id = db.Column(db.String(64), unique=True, nullable=True)  # GoogleのユーザーID(OAuth2経由でのみ取得)
+    google_email = db.Column(db.String(255), nullable=True)  # 通知の送信先として使うメールアドレス
+    google_linked_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -1012,6 +1015,25 @@ class AnonymousIpLog(db.Model):
     path = db.Column(db.String(255), default="")  # どのページにアクセスしたか(参考情報)
     vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class PasskeyCredential(db.Model):
+    """
+    パスキー(WebAuthn)でのログインに使う、公開鍵の情報。
+    指紋・顔認証などの生体情報そのものは、常に端末側にのみ保存され、このサイトには
+    一切送られてこない(WebAuthnの仕組み上、公開鍵と、それに対応する「今回はこの端末で
+    認証した」という電子署名だけがやり取りされる)。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    credential_id = db.Column(db.String(500), nullable=False, unique=True)  # base64url
+    public_key = db.Column(db.Text, nullable=False)  # base64url化した公開鍵
+    sign_count = db.Column(db.Integer, default=0, nullable=False)  # クローン検知用のカウンタ
+    device_label = db.Column(db.String(100), default="")  # 「iPhoneのFace ID」など、任意の分かりやすい名前
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship("User")
 
 
 class PushSubscription(db.Model):

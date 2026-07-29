@@ -65,6 +65,26 @@ class Config:
     VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY") or getattr(_local_secrets, "VAPID_PRIVATE_KEY", "")
     VAPID_CONTACT_EMAIL = os.environ.get("VAPID_CONTACT_EMAIL") or getattr(_local_secrets, "VAPID_CONTACT_EMAIL", "mailto:admin@example.com")
 
+    # ── Google連携(OAuth2。「Gmailでログイン」。パスワードは一切受け取らない) ──
+    # Google Cloud Console(https://console.cloud.google.com/apis/credentials)で
+    # OAuthクライアントIDを作成し、発行される値をlocal_secrets.pyに設定してください。
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID") or getattr(_local_secrets, "GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET") or getattr(_local_secrets, "GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI") or getattr(_local_secrets, "GOOGLE_REDIRECT_URI", "")
+
+    # ── メール通知(キャンペーン・お知らせをGmailなどに送信する) ──
+    # Gmailで送信する場合、GOOGLE_SENDER_EMAILには送信元にしたいGmailアドレス、
+    # GOOGLE_SENDER_APP_PASSWORDには、そのGoogleアカウントで発行した「アプリパスワード」
+    # (https://myaccount.google.com/apppasswords で発行。通常のログインパスワードとは別物)を設定する。
+    MAIL_SENDER_EMAIL = os.environ.get("MAIL_SENDER_EMAIL") or getattr(_local_secrets, "MAIL_SENDER_EMAIL", "")
+    MAIL_SENDER_APP_PASSWORD = os.environ.get("MAIL_SENDER_APP_PASSWORD") or getattr(_local_secrets, "MAIL_SENDER_APP_PASSWORD", "")
+
+    # ── パスキー(WebAuthn)。指紋・顔認証などでログインできるようにする ──
+    # RP_ID(Relying Party ID)には、サイトのドメイン名だけを指定する(https://は付けない)。
+    WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID") or getattr(_local_secrets, "WEBAUTHN_RP_ID", "ebi1223.pythonanywhere.com")
+    WEBAUTHN_RP_NAME = "EMBERPLAY"
+    WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN") or getattr(_local_secrets, "WEBAUTHN_ORIGIN", f"https://{WEBAUTHN_RP_ID}")
+
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
     SPIN_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]                    # 各候補の出やすさ(合計比率)
 

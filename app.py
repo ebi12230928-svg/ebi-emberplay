@@ -162,6 +162,8 @@ def create_app():
     from dm import dm_bp
     from videos import videos_bp
     from discord_auth import discord_auth_bp
+    from google_auth import google_auth_bp
+    from webauthn_auth import webauthn_bp
     from push_notifications import push_bp
 
     app.register_blueprint(auth_bp)
@@ -201,6 +203,8 @@ def create_app():
     app.register_blueprint(dm_bp)
     app.register_blueprint(videos_bp)
     app.register_blueprint(discord_auth_bp)
+    app.register_blueprint(google_auth_bp)
+    app.register_blueprint(webauthn_bp)
     app.register_blueprint(push_bp)
 
     @app.route("/sw.js")
