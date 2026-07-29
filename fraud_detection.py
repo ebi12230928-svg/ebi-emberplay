@@ -22,6 +22,18 @@ FLAG_RULES = {
     "vpn_detected": {"window_minutes": 1440, "threshold": 1},          # VPN/プロキシ検知は1回で即対象
 }
 
+# 管理画面で表示する、理由コードの日本語ラベル(「なぜブラックリストに入ったか」を分かりやすくするため)
+REASON_LABELS = {
+    "captcha_fail_register": "新規登録時のCAPTCHA連続失敗",
+    "captcha_fail_upload": "動画アップロード時のCAPTCHA連続失敗",
+    "captcha_fail_watch": "動画視聴時のCAPTCHA連続失敗",
+    "watch_progress_abuse": "動画視聴報告の異常な頻度(自動化ツールの疑い)",
+    "referral_burst": "短時間での招待の急増(自作自演の疑い)",
+    "withdrawal_spam": "出金申請の連発",
+    "multi_account_same_ip": "同一IPアドレスからの多重アカウント",
+    "vpn_detected": "VPN/データセンター経由の疑いがあるアクセス",
+}
+
 
 def _client_ip():
     """
@@ -85,12 +97,59 @@ def is_vpn_or_proxy(ip):
     return any(ip.startswith(prefix) for prefix in _KNOWN_DATACENTER_PREFIXES)
 
 
+def track_anonymous_ip(ip, path=""):
+    """
+    ログインしていない訪問者のIPを記録する(ログイン済みユーザーとは別のテーブルに残す)。
+    直近30分以内に同じIPの記録があれば、ログが埋め尽くされないよう新しい行は追加しない。
+    """
+    from datetime import timedelta
+    from models import AnonymousIpLog
+
+    if not ip or ip == "unknown":
+        return
+
+    cutoff = utcnow() - timedelta(minutes=30)
+    recent = AnonymousIpLog.query.filter(
+        AnonymousIpLog.ip_address == ip, AnonymousIpLog.created_at >= cutoff
+    ).first()
+    if recent:
+        return  # 直近30分以内に同じIPの記録が既にあるので、追加しない
+
+    db.session.add(AnonymousIpLog(ip_address=ip, path=path, vpn_flagged=is_vpn_or_proxy(ip)))
+    db.session.commit()
+
+
+def track_login_ip(user):
+    """
+    ログインが成功した瞬間に呼ぶ。前回と同じIPであっても、必ず1件記録する
+    (「いつ・どのIPでログインしたか」を漏れなく確認できるようにするため)。
+    auth.pyのlogin()から呼ばれる。
+    """
+    ip = _client_ip()
+    if not ip or ip == "unknown":
+        return
+
+    if not user.signup_ip:
+        user.signup_ip = ip
+    user.last_ip = ip
+    user.last_ip_seen_at = utcnow()
+
+    db.session.add(IpAccessLog(user_id=user.id, ip_address=ip, vpn_flagged=is_vpn_or_proxy(ip), event_type="login"))
+    db.session.commit()
+
+    if is_vpn_or_proxy(ip) and not user.vpn_flagged:
+        user.vpn_flagged = True
+        db.session.commit()
+        check_and_flag(user.id, "vpn_detected", f"データセンター/VPN経由の疑いがあるIP({ip})からのログイン")
+
+
 def track_ip(user):
     """
     ログイン中のユーザーのアクセスIPを記録し、多重アカウント(同じIPから複数アカウント作成)や
     VPN/プロキシの疑いを検知する。app.pyのbefore_requestから毎リクエスト呼ばれる。
     IPアドレスの履歴は、前回と異なるIPになった時だけ新しい行として記録する
-    (毎リクエスト記録すると、ログがすぐに膨大な量になってしまうため)。
+    (毎リクエスト記録すると、ログがすぐに膨大な量になってしまうため。
+    ログイン時は、track_login_ipで別途必ず記録される)。
     """
     ip = _client_ip()
     if not ip or ip == "unknown":
@@ -105,7 +164,7 @@ def track_ip(user):
     db.session.commit()
 
     if ip_changed:
-        db.session.add(IpAccessLog(user_id=user.id, ip_address=ip, vpn_flagged=is_vpn_or_proxy(ip)))
+        db.session.add(IpAccessLog(user_id=user.id, ip_address=ip, vpn_flagged=is_vpn_or_proxy(ip), event_type="ip_changed"))
         db.session.commit()
 
     # 同じIPを使っている、自分以外のアカウントがどれだけあるかを確認する
@@ -152,12 +211,13 @@ def check_and_flag(user_id, reason, details=""):
         return False  # 既にブラックリスト済み、または管理者は対象外にする
 
     user.is_blacklisted = True
+    reason_label = REASON_LABELS.get(reason, reason)
     db.session.add(AdminAccountLog(
         admin_username="system(自動検知)", action="auto_blacklisted", target_username=user.username,
-        details=f"理由: {reason} / 直近{rule['window_minutes']}分で{recent_count}回検知",
+        details=f"理由: {reason_label} / 直近{rule['window_minutes']}分で{recent_count}回検知(最後の検知内容: {details})",
     ))
     db.session.commit()
 
-    notify_all(f"⚠️ 不正の疑いにより、{user.username} を自動的にブラックリストに追加しました。管理画面から確認できます。")
+    notify_all(f"⚠️ 不正の疑い({reason_label})により、{user.username} を自動的にブラックリストに追加しました。管理画面から確認できます。")
     db.session.commit()
     return True

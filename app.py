@@ -103,16 +103,27 @@ def create_app():
     def _track_ip_and_check_vpn():
         """
         ログイン中のユーザーのアクセスIPを記録する(多重アカウント検知に使う)。
+        ログインしていない訪問者のIPも、別のログ(AnonymousIpLog)に記録する。
         併せて、簡易的なVPN/プロキシ判定も行う。
         """
+        from flask import request as _req
         from flask_login import current_user as _cu
-        if not _cu.is_authenticated:
-            return
-        try:
-            from fraud_detection import track_ip
-            track_ip(_cu)
-        except Exception:
-            pass  # IP記録に失敗しても、サイトの利用自体は止めない
+
+        if _cu.is_authenticated:
+            try:
+                from fraud_detection import track_ip
+                track_ip(_cu)
+            except Exception:
+                pass  # IP記録に失敗しても、サイトの利用自体は止めない
+        else:
+            # 静的ファイル(CSS・JS・アイコンなど)へのアクセスは記録しない(ノイズになるため)
+            if _req.path.startswith("/static/"):
+                return
+            try:
+                from fraud_detection import track_anonymous_ip, _client_ip
+                track_anonymous_ip(_client_ip(), _req.path)
+            except Exception:
+                pass
 
     from auth import auth_bp
     from lobby import lobby_bp
@@ -151,6 +162,7 @@ def create_app():
     from dm import dm_bp
     from videos import videos_bp
     from discord_auth import discord_auth_bp
+    from push_notifications import push_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(lobby_bp)
@@ -189,6 +201,7 @@ def create_app():
     app.register_blueprint(dm_bp)
     app.register_blueprint(videos_bp)
     app.register_blueprint(discord_auth_bp)
+    app.register_blueprint(push_bp)
 
     @app.route("/sw.js")
     def service_worker():
@@ -213,6 +226,7 @@ def create_app():
             "nav_user": current_user, "unread_notifications": unread_count,
             "adsense_publisher_id": Config.ADSENSE_PUBLISHER_ID,
             "adsense_ad_slot_banner": Config.ADSENSE_AD_SLOT_BANNER,
+            "vapid_public_key": Config.VAPID_PUBLIC_KEY,
         }
 
     _auto_migrate(app)

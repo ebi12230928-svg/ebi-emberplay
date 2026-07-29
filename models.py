@@ -985,17 +985,33 @@ class SuspiciousActivityLog(db.Model):
 
 class IpAccessLog(db.Model):
     """
-    ユーザーのアクセスIPアドレスの履歴。同じIPが続けて記録されないよう、
-    「前回と異なるIPになった時だけ」新しい行を追加する(不要にログが膨れ上がらないようにするため)。
-    管理者ログの「IPログ」タブで、誰がどのIPからアクセスしていたかを時系列で確認できる。
+    ユーザーのアクセスIPアドレスの履歴。
+    event_type="login": ログインするたびに、IPが変わっていなくても必ず記録する
+    event_type="ip_changed": ログイン中に、前回と異なるIPになった時だけ記録する
+    (どちらも記録することで、「いつ・どのIPでログインしたか」を漏れなく確認できるようにしている)
     """
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     ip_address = db.Column(db.String(64), nullable=False)
     vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)
+    event_type = db.Column(db.String(16), default="ip_changed", nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User")
+
+
+class AnonymousIpLog(db.Model):
+    """
+    ログインしていない(未ログインの)訪問者のIPアドレスの記録。
+    ログイン済みユーザーのIPログ(IpAccessLog)とは、あえて別のテーブルに分けている。
+    同じIPからの連続アクセスでログが埋め尽くされないよう、直近30分以内に同じIPの記録が
+    あれば、新しい行は追加しない(_track_anonymous_ip関数を参照)。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(64), nullable=False, index=True)
+    path = db.Column(db.String(255), default="")  # どのページにアクセスしたか(参考情報)
+    vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class PushSubscription(db.Model):

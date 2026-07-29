@@ -132,6 +132,13 @@ def register():
         db.session.commit()
 
         login_user(user)
+
+        try:
+            from fraud_detection import track_login_ip
+            track_login_ip(user)
+        except Exception:
+            pass
+
         if referrer:
             flash(f"ようこそ、{username}さん。{signup_bonus:,} Embersを進呈しました。あなた自身がDiscord連携すると、紹介ボーナスも受け取れます。", "success")
         elif referrer_code_invalid:
@@ -162,6 +169,13 @@ def login():
             return render_template("login.html")
 
         login_user(user)
+
+        try:
+            from fraud_detection import track_login_ip
+            track_login_ip(user)
+        except Exception:
+            pass  # IP記録に失敗しても、ログイン自体は成功させる
+
         return redirect(url_for("lobby.index"))
 
     return render_template("login.html")
