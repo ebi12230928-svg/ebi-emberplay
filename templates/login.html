@@ -26,6 +26,7 @@
     <span class="eyebrow" style="display:block; text-align:center;">おかえりなさい</span>
     <h2 style="text-align:center;">ログイン</h2>
     <form method="POST">
+      <input type="hidden" id="is_pwa" name="is_pwa" value="0">
       <div class="field">
         <label for="username">ユーザー名</label>
         <input type="text" id="username" name="username" required autofocus>
@@ -41,4 +42,14 @@
     </p>
   </div>
 </div>
+<script>
+  // ホーム画面に追加した「アプリ」として開いている場合は、ログイン状態を長く保持する
+  // (毎回ログインし直す手間を減らすため)
+  (function () {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    if (isStandalone) {
+      document.getElementById("is_pwa").value = "1";
+    }
+  })();
+</script>
 {% endblock %}

@@ -31,6 +31,7 @@
     {% endif %}
     <form method="POST">
       <input type="hidden" name="ref_code" value="{{ ref_code }}">
+      <input type="hidden" id="is_pwa" name="is_pwa" value="0">
       <div class="field">
         <label for="username">ユーザー名(英数字・3〜20文字)</label>
         <input type="text" id="username" name="username" required autofocus>
@@ -67,4 +68,12 @@
     </p>
   </div>
 </div>
+<script>
+  (function () {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    if (isStandalone) {
+      document.getElementById("is_pwa").value = "1";
+    }
+  })();
+</script>
 {% endblock %}
