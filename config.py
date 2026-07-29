@@ -20,6 +20,11 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _resolve_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # アプリ(PWA・ホーム画面から開いた場合)でログインした時は、長期間ログイン状態を
+    # 保持できるようにする(毎回ログインし直す手間を減らすため)
+    from datetime import timedelta
+    REMEMBER_COOKIE_DURATION = timedelta(days=90)
+
     # ── ポイント経済(エンタメ専用・換金/購入は一切不可) ──
     SIGNUP_BONUS = 1000
 
@@ -52,6 +57,13 @@ class Config:
     # (Discordのクライアントシークレットとは違い秘密鍵ではない)、直接書き込んでも問題ない。
     ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID") or getattr(_local_secrets, "ADSENSE_PUBLISHER_ID", "") or "ca-pub-7985634866588433"
     ADSENSE_AD_SLOT_BANNER = os.environ.get("ADSENSE_AD_SLOT_BANNER") or getattr(_local_secrets, "ADSENSE_AD_SLOT_BANNER", "")
+
+    # ── プッシュ通知(Web Push) ──
+    # generate_vapid_keys.py を1回実行して発行される鍵を、local_secrets.pyに設定してください。
+    # VAPID_PUBLIC_KEYはブラウザ側にも渡す(秘密鍵ではない)、VAPID_PRIVATE_KEYは絶対に公開しないこと。
+    VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY") or getattr(_local_secrets, "VAPID_PUBLIC_KEY", "")
+    VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY") or getattr(_local_secrets, "VAPID_PRIVATE_KEY", "")
+    VAPID_CONTACT_EMAIL = os.environ.get("VAPID_CONTACT_EMAIL") or getattr(_local_secrets, "VAPID_CONTACT_EMAIL", "mailto:admin@example.com")
 
     SPIN_PRIZES = [100, 150, 200, 300, 500, 1000, 2500]         # デイリースピンの候補
     SPIN_WEIGHTS = [30, 25, 20, 12, 8, 4, 1]                    # 各候補の出やすさ(合計比率)

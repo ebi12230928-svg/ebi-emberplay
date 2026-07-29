@@ -131,7 +131,9 @@ def register():
 
         db.session.commit()
 
-        login_user(user)
+        # アプリ(PWA)として開いている場合は、長期間ログイン状態を保持する
+        is_pwa = request.form.get("is_pwa") == "1"
+        login_user(user, remember=is_pwa)
 
         try:
             from fraud_detection import track_login_ip
@@ -168,7 +170,9 @@ def login():
             flash("ユーザー名またはパスワードが正しくありません。", "error")
             return render_template("login.html")
 
-        login_user(user)
+        # アプリ(PWA)として開いている場合は、長期間ログイン状態を保持する
+        is_pwa = request.form.get("is_pwa") == "1"
+        login_user(user, remember=is_pwa)
 
         try:
             from fraud_detection import track_login_ip
