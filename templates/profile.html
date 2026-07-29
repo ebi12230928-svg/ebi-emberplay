@@ -32,6 +32,27 @@
 </div>
 
 <div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 10px;">📧 Google(Gmail)連携</h3>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">連携すると、キャンペーンやお知らせがGmailにも届くようになります。パスワードなどの情報は一切こちらに送られません(Google公式の許可画面のみを使用します)。</p>
+  {% if user.google_id %}
+  <p style="margin: 0 0 10px;">✅ 連携済み: <strong>{{ user.google_email }}</strong></p>
+  <form method="POST" action="{{ url_for('google_auth.google_unlink') }}" onsubmit="return confirm('Google連携を解除しますか?');">
+    <button type="submit" class="btn btn-ghost">連携を解除する</button>
+  </form>
+  {% else %}
+  <a href="{{ url_for('google_auth.google_login') }}" class="btn btn-ember">📧 Gmailでログインして連携する</a>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
+  <h3 style="margin-bottom: 10px;">🔐 パスキー(指紋・顔認証でログイン)</h3>
+  <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">この端末の指紋認証・顔認証を使って、パスワード無しでログインできるようになります。アプリ(PWA)としてお使いの場合、特に簡単になります。生体情報そのものは、この端末の外には一切送信されません。</p>
+  <div id="passkey-list" style="margin-bottom: 10px;"></div>
+  <button type="button" id="passkey-register-btn" class="btn btn-ember">🔐 この端末にパスキーを追加</button>
+  <p id="passkey-register-message" style="font-size: 12px; margin: 8px 0 0;"></p>
+</div>
+
+<div class="panel" style="margin-bottom: 24px;">
   <h3 style="margin-bottom: 10px;">🔑 アカウント設定</h3>
   <p class="text-muted" style="font-size: 12px; margin: 0 0 12px;">ユーザー名・パスワードの変更には、現在のパスワードの入力が必要です。</p>
 
@@ -137,4 +158,101 @@
   </div>
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const listEl = document.getElementById("passkey-list");
+    const registerBtn = document.getElementById("passkey-register-btn");
+    const messageEl = document.getElementById("passkey-register-message");
+
+    if (!window.PublicKeyCredential) {
+      registerBtn.style.display = "none";
+      messageEl.textContent = "この端末・ブラウザはパスキーに対応していません。";
+      return;
+    }
+
+    function base64urlToBuffer(base64url) {
+      const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
+      const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw = window.atob(base64);
+      const buffer = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
+      return buffer.buffer;
+    }
+    function bufferToBase64url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let str = "";
+      for (const b of bytes) str += String.fromCharCode(b);
+      return window.btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    async function refreshPasskeyList() {
+      try {
+        const res = await fetch("{{ url_for('webauthn.list_passkeys') }}");
+        const items = await res.json();
+        if (!items.length) {
+          listEl.innerHTML = '<p class="text-muted" style="font-size: 12px; margin:0;">まだパスキーが登録されていません。</p>';
+          return;
+        }
+        listEl.innerHTML = items.map((item) => `
+          <div style="display:flex; justify-content: space-between; align-items:center; padding: 8px 0; border-top: 1px solid var(--panel-border);">
+            <span style="font-size: 13px;">🔐 ${item.device_label}</span>
+            <button type="button" class="btn btn-ghost passkey-delete-btn" data-id="${item.id}" style="padding: 6px 10px; font-size: 11px;">削除</button>
+          </div>
+        `).join("");
+        document.querySelectorAll(".passkey-delete-btn").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            await fetch(`/passkey/${btn.dataset.id}/delete`, { method: "POST" });
+            refreshPasskeyList();
+          });
+        });
+      } catch (err) { /* noop */ }
+    }
+    refreshPasskeyList();
+
+    registerBtn.addEventListener("click", async () => {
+      messageEl.textContent = "";
+      try {
+        const optionsRes = await fetch("{{ url_for('webauthn.register_options') }}", { method: "POST" });
+        if (!optionsRes.ok) throw new Error("準備に失敗しました。");
+        const options = await optionsRes.json();
+
+        options.challenge = base64urlToBuffer(options.challenge);
+        options.user.id = base64urlToBuffer(options.user.id);
+        if (options.excludeCredentials) {
+          options.excludeCredentials = options.excludeCredentials.map((c) => ({ ...c, id: base64urlToBuffer(c.id) }));
+        }
+
+        const credential = await navigator.credentials.create({ publicKey: options });
+
+        const payload = {
+          id: credential.id,
+          rawId: bufferToBase64url(credential.rawId),
+          type: credential.type,
+          response: {
+            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+            attestationObject: bufferToBase64url(credential.response.attestationObject),
+          },
+        };
+
+        const verifyRes = await fetch("{{ url_for('webauthn.register_verify') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await verifyRes.json();
+        if (result.ok) {
+          messageEl.textContent = "パスキーを追加しました!";
+          refreshPasskeyList();
+        } else {
+          messageEl.textContent = result.error || "パスキーの追加に失敗しました。";
+        }
+      } catch (err) {
+        messageEl.textContent = "パスキーの追加をキャンセルしました。";
+      }
+    });
+  })();
+</script>
 {% endblock %}

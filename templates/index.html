@@ -25,7 +25,10 @@
     <span class="eyebrow">エンタメ専用ポイント ・ 換金/購入は一切できません</span>
     <h1>今夜、どのテーブルで遊ぶ?</h1>
     <p>Embersは無料の報酬でのみ手に入る、遊びのためだけのポイントです。デイリー・ウィークリー・マンスリー・リロード・レーキバックはウォレットから受け取れます。</p>
-    <div class="online-pill">🟢 オンライン: {{ "{:,}".format(online_count) }}人</div>
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+      <div class="online-pill">🟢 オンライン: {{ "{:,}".format(online_count) }}人</div>
+      <div class="online-pill" style="background: rgba(148,163,184,0.15); color: var(--text-muted, #94a3b8); border-color: rgba(148,163,184,0.3);">⚪ オフライン: {{ "{:,}".format(offline_count) }}人</div>
+    </div>
   </div>
   <svg viewBox="0 0 120 140" class="mascot-flame" aria-hidden="true">
     <defs>

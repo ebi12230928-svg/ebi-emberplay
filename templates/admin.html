@@ -844,6 +844,7 @@
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-ip" style="font-size: 12px; padding: 6px 12px;">🌐IPログ</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-anonymous-ip" style="font-size: 12px; padding: 6px 12px;">👤ログインなしIPログ</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-discord" style="font-size: 12px; padding: 6px 12px;">🎮Discord連携</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-google" style="font-size: 12px; padding: 6px 12px;">📧Gmail連携</button>
   </div>
 
   <div id="log-account-creation" class="admin-log-panel">
@@ -1040,6 +1041,26 @@
         <thead><tr><th>ユーザー</th><th>詳細</th><th>日時</th></tr></thead>
         <tbody>
           {% for log in discord_link_logs %}
+          <tr>
+            <td>{{ log.target_username }}</td>
+            <td class="text-muted">{{ log.details }}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="log-google" class="admin-log-panel" style="display:none;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">誰が・いつGoogle(Gmail)アカウントと連携したかの記録です(全員分)。安全のため、アクセストークンなどの認証情報そのものは一切記録していません(Googleのメールアドレスのみ)。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>ユーザー</th><th>詳細</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in google_link_logs %}
           <tr>
             <td>{{ log.target_username }}</td>
             <td class="text-muted">{{ log.details }}</td>
