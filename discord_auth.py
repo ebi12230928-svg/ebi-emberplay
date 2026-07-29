@@ -120,6 +120,7 @@ def discord_callback():
         return redirect(url_for("profile.index"))
 
     from models import utcnow
+    is_first_time_link = not current_user.discord_first_link_bonus_claimed  # 過去に一度でも受け取っていれば対象外(連携解除→再連携を繰り返しても再受給できないようにする)
     current_user.discord_id = discord_id
     current_user.discord_username = discord_username
     current_user.discord_linked_at = utcnow()
@@ -148,6 +149,15 @@ def discord_callback():
     ))
     db.session.commit()
 
+    campaign_bonus_message = ""
+    if is_first_time_link:
+        # 初回Discord連携キャンペーン: 動画視聴収益に200円を追加する(1アカウントにつき1回のみ)
+        FIRST_LINK_BONUS_YEN = 200
+        current_user.video_earnings_milliyen += FIRST_LINK_BONUS_YEN * 1000
+        current_user.discord_first_link_bonus_claimed = True
+        db.session.commit()
+        campaign_bonus_message = f" 🎉初回連携キャンペーンで、視聴収益に{FIRST_LINK_BONUS_YEN}円プレゼントされました!"
+
     bonus_message = ""
     if current_user.referral_bonus_pending and current_user.referred_by_id:
         # 招待する側(紹介者)・される側(自分)の両方がDiscord連携を済ませたので、
@@ -170,7 +180,7 @@ def discord_callback():
         current_user.referral_bonus_pending = False
         db.session.commit()
 
-    flash(f"Discordアカウント「{discord_username}」と連携しました!{bonus_message}", "success")
+    flash(f"Discordアカウント「{discord_username}」と連携しました!{campaign_bonus_message}{bonus_message}", "success")
     return redirect(url_for("profile.index"))
 
 

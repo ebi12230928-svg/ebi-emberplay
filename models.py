@@ -45,6 +45,7 @@ class User(UserMixin, db.Model):
     discord_username = db.Column(db.String(64), nullable=True)  # 表示用(例: username#1234)
     discord_linked_at = db.Column(db.DateTime, nullable=True)
     referral_bonus_pending = db.Column(db.Boolean, default=False, nullable=False)  # 招待した側もされた側もDiscord連携が済むまで、紹介ボーナスの支払いを保留する
+    discord_first_link_bonus_claimed = db.Column(db.Boolean, default=False, nullable=False)  # 初回Discord連携キャンペーン(200円)を既に受け取ったか(連携解除→再連携での不正な再受給を防ぐ)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     last_hourly_claim = db.Column(db.DateTime, nullable=True)
@@ -992,6 +993,22 @@ class IpAccessLog(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     ip_address = db.Column(db.String(64), nullable=False)
     vpn_flagged = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    user = db.relationship("User")
+
+
+class PushSubscription(db.Model):
+    """
+    PWA(アプリとして追加した場合)でのプッシュ通知の宛先情報。
+    ブラウザのPush APIから発行される「購読情報」を保存しておき、
+    DM・お知らせなどが届いた際に、この情報を使ってプッシュ通知を送る。
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    endpoint = db.Column(db.String(500), nullable=False, unique=True)
+    p256dh_key = db.Column(db.String(255), nullable=False)
+    auth_key = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship("User")
