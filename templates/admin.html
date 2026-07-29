@@ -842,6 +842,7 @@
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-fraud" style="font-size: 12px; padding: 6px 12px;">🚨不正検知</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-auto-blacklist" style="font-size: 12px; padding: 6px 12px;">⛔自動ブラックリスト</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-ip" style="font-size: 12px; padding: 6px 12px;">🌐IPログ</button>
+    <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-anonymous-ip" style="font-size: 12px; padding: 6px 12px;">👤ログインなしIPログ</button>
     <button type="button" class="btn btn-ghost admin-log-tab" data-tab="log-discord" style="font-size: 12px; padding: 6px 12px;">🎮Discord連携</button>
   </div>
 
@@ -957,7 +958,7 @@
           {% for log in fraud_logs %}
           <tr>
             <td>{{ log.user.username if log.user else "(不明)" }}</td>
-            <td class="text-muted">{{ log.reason }}</td>
+            <td class="text-muted">{{ fraud_reason_labels.get(log.reason, log.reason) }}</td>
             <td class="text-muted">{{ log.details }}</td>
             <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
           </tr>
@@ -990,15 +991,36 @@
   </div>
 
   <div id="log-ip" class="admin-log-panel" style="display:none;">
-    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">ユーザーのアクセスIPアドレスの履歴です。前回と異なるIPになった時だけ記録されます(不正な多重アカウント・VPN利用の調査にお使いください)。</p>
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">ユーザーのアクセスIPアドレスの履歴です。「ログイン」は、ログインするたびに(前回と同じIPでも)必ず記録されます。「IP変化」は、ログイン中に別のIPへ切り替わった時だけ記録されます。</p>
     <div class="table-scroll">
       <table>
-        <thead><tr><th>ユーザー</th><th>IPアドレス</th><th>VPN疑い</th><th>日時</th></tr></thead>
+        <thead><tr><th>ユーザー</th><th>種類</th><th>IPアドレス</th><th>VPN疑い</th><th>日時</th></tr></thead>
         <tbody>
           {% for log in ip_logs %}
           <tr>
             <td>{{ log.user.username }}</td>
+            <td class="text-muted">{{ "🔑ログイン" if log.event_type == "login" else "IP変化" }}</td>
             <td class="mono text-muted">{{ log.ip_address }}</td>
+            <td>{% if log.vpn_flagged %}<span class="text-loss">⚠️疑いあり</span>{% else %}-{% endif %}</td>
+            <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-muted">まだ記録がありません。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  <div id="log-anonymous-ip" class="admin-log-panel" style="display:none;">
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 10px;">ログインしていない訪問者のアクセスIPの記録です(ログイン済みユーザーのIPログとは別に管理しています)。同じIPからの連続アクセスでログが埋め尽くされないよう、直近30分以内に同じIPの記録があれば追加されません。</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>IPアドレス</th><th>アクセスしたページ</th><th>VPN疑い</th><th>日時</th></tr></thead>
+        <tbody>
+          {% for log in anonymous_ip_logs %}
+          <tr>
+            <td class="mono text-muted">{{ log.ip_address }}</td>
+            <td class="text-muted" style="font-size: 11px;">{{ log.path }}</td>
             <td>{% if log.vpn_flagged %}<span class="text-loss">⚠️疑いあり</span>{% else %}-{% endif %}</td>
             <td class="text-muted">{{ log.created_at.strftime("%Y/%m/%d %H:%M") }}</td>
           </tr>
@@ -1008,6 +1030,7 @@
         </tbody>
       </table>
     </div>
+  </div>
   </div>
 
   <div id="log-discord" class="admin-log-panel" style="display:none;">
