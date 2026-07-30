@@ -294,7 +294,14 @@
     <span class="text-muted" style="font-size: 12px; align-self:center;">⚡再生速度(VIP特典):</span>
     <button type="button" class="btn btn-ember speed-btn" data-speed="1">1x</button>
     <button type="button" class="btn btn-ghost speed-btn" data-speed="2">2x</button>
-    {% if max_speed >= 3 %}
+    {% if max_speed >= 50 %}
+    {# 💎ダイヤモンドVIP限定: 最大50倍速まで選べる #}
+    <button type="button" class="btn btn-ghost speed-btn" data-speed="3">3x</button>
+    <button type="button" class="btn btn-ghost speed-btn" data-speed="5">5x</button>
+    <button type="button" class="btn btn-ghost speed-btn" data-speed="10">10x</button>
+    <button type="button" class="btn btn-ghost speed-btn" data-speed="25">25x</button>
+    <button type="button" class="btn btn-ghost speed-btn" style="border-color: var(--gold); color: var(--gold);" data-speed="50">💎50x</button>
+    {% elif max_speed >= 3 %}
     <button type="button" class="btn btn-ghost speed-btn" data-speed="3">3x</button>
     {% endif %}
   </div>
