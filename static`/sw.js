@@ -4,12 +4,12 @@
   だけを軽くキャッシュする(ゲームの結果やお金に関わるデータは、必ず毎回サーバーに
   問い合わせるべきなので、キャッシュの対象にしていない)。
 */
-const CACHE_NAME = "emberplay-static-v1";
+const CACHE_NAME = "emberplay-static-v2"; // バージョンを上げることで、古いキャッシュを破棄させる
 const STATIC_ASSETS = [
   "/static/css/style.css",
   "/static/manifest.json",
-  "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png",
+  "/static/icons/icon-192-v2.png",
+  "/static/icons/icon-512-v2.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -45,6 +45,38 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
       });
+    })
+  );
+});
+
+// プッシュ通知を受信した時の処理(DM・お知らせなどが届いた時にサーバーから送られてくる)
+self.addEventListener("push", (event) => {
+  let data = { title: "EMBERPLAY", body: "新しいお知らせがあります。", url: "/" };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (err) { /* JSON以外のデータが来た場合は、既定のメッセージのままにする */ }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "EMBERPLAY", {
+      body: data.body || "",
+      icon: "/static/icons/icon-192-v2.png",
+      badge: "/static/icons/icon-192-v2.png",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+// 通知をタップした時、該当のページを開く(すでに開いているタブがあれば、それを前面に出す)
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
     })
   );
 });
