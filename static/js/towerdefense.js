@@ -579,12 +579,19 @@
 
   function gameLoop(now) {
     if (!running) return;
-    const dt = Math.min(0.05, (now - lastFrameTime) / 1000) * speedMultiplier;
+    // 高速再生(最大50倍)の時、そのまま1フレームの時間を50倍にしてしまうと、
+    // 敵が一瞬でタワーの射程を飛び越えてしまうことがあるため、
+    // 「小さな時間刻み(サブステップ)を何回かに分けて処理する」方式にして、
+    // 倍速でも通常速度と同じ精度でシミュレーションが行われるようにしている。
+    const realDt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    const totalDt = realDt * speedMultiplier;
+    const subSteps = Math.min(20, Math.max(1, Math.round(speedMultiplier)));
+    const stepDt = totalDt / subSteps;
     lastFrameTime = now;
 
     // 敵のスポーン
     if (spawnQueue.length > 0) {
-      spawnTimer -= dt;
+      spawnTimer -= totalDt;
       if (spawnTimer <= 0) {
         const cfg = spawnQueue.shift();
         spawnEnemy(cfg);
@@ -594,7 +601,7 @@
 
     // regenアビリティ: 5秒ごとにライフ回復
     if (placedTowers.some((t) => t.abilities.includes("regen"))) {
-      regenTimer += dt;
+      regenTimer += totalDt;
       if (regenTimer >= 5) {
         regenTimer = 0;
         if (lives < MAX_LIVES) {
@@ -603,14 +610,15 @@
       }
     }
 
-    // 敵の移動・状態異常の処理
+    // 敵の移動・状態異常の処理・タワーの攻撃を、通常速度と同じ精度になるよう細かく分けて処理する
+    for (let step = 0; step < subSteps; step++) {
     for (const enemy of enemies) {
       if (enemy.dead) continue;
 
       // 毒・炎のダメージオーバータイム処理
       for (const dot of [enemy.poison, enemy.fire]) {
         if (dot && dot.ticksLeft > 0) {
-          dot.timer -= dt;
+          dot.timer -= stepDt;
           if (dot.timer <= 0) {
             enemy.hp -= dot.damage;
             dot.ticksLeft -= 1;
@@ -626,7 +634,7 @@
       const isStunned = enemy.stunUntil > now;
       const currentSpeed = isStunned ? 0 : (isSlowed ? enemy.baseSpeed * 0.5 : enemy.baseSpeed);
 
-      enemy.t += currentSpeed * dt;
+      enemy.t += currentSpeed * stepDt;
       if (enemy.t >= PATH.length - 1) {
         enemy.dead = true;
         enemy.leaked = true;
@@ -646,7 +654,7 @@
 
     // タワーの攻撃
     for (const tower of placedTowers) {
-      tower.cooldownLeft = (tower.cooldownLeft || 0) - dt;
+      tower.cooldownLeft = (tower.cooldownLeft || 0) - stepDt;
       if (tower.cooldownLeft > 0) continue;
 
       const tCenter = { row: tower.row + 0.5, col: tower.col + 0.5 };
@@ -738,6 +746,7 @@
         }, 140);
       }
     }
+    } // ← サブステップループの終わり
 
     // 死亡判定・描画更新
     enemies = enemies.filter((enemy) => {
