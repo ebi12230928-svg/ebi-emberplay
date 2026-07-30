@@ -120,9 +120,9 @@ def index():
 
     from config import Config
     max_vip_tier = max(Config.VIP_TIER_NAMES.keys())
-    # VIPは2倍速、最高VIPティア(Diamond)は3倍速まで使える
+    # VIPは2倍速、最高VIPティア(Diamond)は最大50倍速まで使える
     if current_user.is_vip and current_user.vip_tier >= max_vip_tier:
-        max_speed = 3
+        max_speed = 50
     elif current_user.is_vip:
         max_speed = 2
     else:

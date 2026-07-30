@@ -86,6 +86,13 @@ def send(friend_id):
     msg = DirectMessage(from_user_id=current_user.id, to_user_id=friend_id, message=text)
     db.session.add(msg)
     db.session.commit()
+
+    try:
+        from push_notifications import send_push
+        send_push(friend_id, f"{current_user.username}さんからDM", text[:80], url=f"/dm/{current_user.id}")
+    except Exception:
+        pass
+
     return jsonify({"ok": True, "id": msg.id, "created_at": msg.created_at.isoformat()})
 
 
